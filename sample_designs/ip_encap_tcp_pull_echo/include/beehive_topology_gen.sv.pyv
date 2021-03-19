@@ -1,0 +1,32 @@
+package beehive_topology;
+    `include "packet_defs.vh"
+    `include "noc_defs.vh"
+    
+    localparam SERVER_IP = `IP_ADDR_W'hc6_0a_64_01;
+    localparam APP_PORT = `PORT_NUM_W'd60000;
+<%
+from tile_generator import BeehiveConfig
+from tile_generator import TileDirs
+from tile_generator import CombinedTile
+import logging
+logging.basicConfig(level=logging.INFO)
+config = BeehiveConfig("./tile_config.xml")
+
+
+for tile in config.tile_list:
+    param_format_string = ""
+    if isinstance(tile, CombinedTile):
+        param_format_string=f"""
+    localparam [`XY_WIDTH-1:0]  {tile.tile0.instance_name.upper()}_X = {tile.tile0.tile_x};
+    localparam [`XY_WIDTH-1:0]  {tile.tile0.instance_name.upper()}_Y = {tile.tile0.tile_y};
+
+    localparam [`XY_WIDTH-1:0]  {tile.tile1.instance_name.upper()}_X = {tile.tile1.tile_x};
+    localparam [`XY_WIDTH-1:0]  {tile.tile1.instance_name.upper()}_Y = {tile.tile1.tile_y};"""
+    else:
+        param_format_string = f"""
+    localparam [`XY_WIDTH-1:0]  {tile.instance_name.upper()}_X = {tile.tile_x};
+    localparam [`XY_WIDTH-1:0]  {tile.instance_name.upper()}_Y = {tile.tile_y};"""
+
+    print(param_format_string)
+%>
+endpackage

@@ -1,0 +1,159 @@
+`include "soc_defs.vh"
+`include "packet_defs.vh"
+`include "state_defs.vh"
+`include "noc_defs.vh"
+
+import test_topology::*;
+module test_tiles_top #(
+     parameter BUF_PTR_W = -1
+    ,parameter MEM_DATA_W = 512
+    ,parameter MEM_ADDR_W = 14
+    ,parameter MEM_WR_MASK_W = MEM_DATA_W/8
+)(
+     input clk
+    ,input rst
+    
+    ,input                                      src_wr_buf_req_val
+    ,input          [`FLOW_ID_W-1:0]            src_wr_buf_req_flowid
+    ,input          [BUF_PTR_W-1:0]             src_wr_buf_req_wr_ptr
+    ,input          [`MSG_DATA_SIZE_WIDTH-1:0]  src_wr_buf_req_size
+    ,output logic                               wr_buf_src_req_rdy
+
+    ,input                                      src_wr_buf_req_data_val
+    ,input          [`NOC_DATA_WIDTH-1:0]       src_wr_buf_req_data
+    ,output logic                               wr_buf_src_req_data_rdy
+    
+    ,output logic                               wr_buf_src_req_done
+    ,input  logic                               src_wr_buf_done_rdy
+    
+    ,input                                      src_rd_buf_req_val
+    ,input          [`FLOW_ID_W-1:0]            src_rd_buf_req_flowid
+    ,input          [BUF_PTR_W-1:0]             src_rd_buf_req_offset
+    ,input          [`MSG_DATA_SIZE_WIDTH-1:0]  src_rd_buf_req_size
+    ,output logic                               rd_buf_src_req_rdy
+
+    ,output logic                               rd_buf_src_data_val
+    ,output logic   [`MAC_INTERFACE_W-1:0]      rd_buf_src_data
+    ,output logic                               rd_buf_src_data_last
+    ,output logic   [`MAC_PADBYTES_W-1:0]       rd_buf_src_data_padbytes
+    ,input                                      src_rd_buf_data_rdy
+
+    ,output logic                               controller_mem_write_en
+    ,output logic   [MEM_ADDR_W-1:0]            controller_mem_addr
+    ,output logic   [MEM_DATA_W-1:0]            controller_mem_wr_data
+    ,output logic   [MEM_WR_MASK_W-1:0]         controller_mem_byte_en
+    ,output logic   [7-1:0]                     controller_mem_burst_cnt
+    ,input                                      mem_controller_rdy
+
+    ,output logic                               controller_mem_read_en
+    ,input                                      mem_controller_rd_data_val
+    ,input          [MEM_DATA_W-1:0]            mem_controller_rd_data
+);
+
+<%
+# Get the basic configuration object
+import sys
+import os
+sys.path.append(os.environ["BEEHIVE_PROJECT_ROOT"] + "/tile_generator/")
+from tile_generator import BeehiveConfig
+from tile_generator import TileDirs
+import logging
+logging.basicConfig(level=logging.INFO)
+
+design_path = os.environ["BEEHIVE_DESIGN_ROOT"]
+logging.info(f"Using tile config at {design_path}")
+tile_config = BeehiveConfig(design_path + "/tile_config.xml")
+%>
+
+// main tile connection wires
+<%
+# generate wires for hooking the tiles together
+tile_config.printWires()
+%>
+
+// tiles
+    rd_buf_noc_tile #(
+         .SRC_X     (RD_CIRC_BUF_TILE_X )
+        ,.SRC_Y     (RD_CIRC_BUF_TILE_Y )
+        ,.BUF_PTR_W (BUF_PTR_W          )
+        ,.DST_DRAM_X(MASKED_MEM_TILE_X  )
+        ,.DST_DRAM_Y(MASKED_MEM_TILE_Y  )
+        ,.FBITS     (4'b1000)
+    ) rd_buf_noc_tile (
+         .clk   (clk    )
+        ,.rst   (rst    )
+
+        ,.src_rd_buf_req_val        (src_rd_buf_req_val         )
+        ,.src_rd_buf_req_flowid     (src_rd_buf_req_flowid      )
+        ,.src_rd_buf_req_offset     (src_rd_buf_req_offset      )
+        ,.src_rd_buf_req_size       (src_rd_buf_req_size        )
+        ,.rd_buf_src_req_rdy        (rd_buf_src_req_rdy         )
+                                                                
+        ,.rd_buf_src_data_val       (rd_buf_src_data_val        )
+        ,.rd_buf_src_data           (rd_buf_src_data            )
+        ,.rd_buf_src_data_last      (rd_buf_src_data_last       )
+        ,.rd_buf_src_data_padbytes  (rd_buf_src_data_padbytes   )
+        ,.src_rd_buf_data_rdy       (src_rd_buf_data_rdy        )
+<%
+tile_std_ports = tile_config.getEndpointPorts("rd_circ_buf_tile")
+print(tile_std_ports)
+%>
+    );
+
+    masked_mem_tile #(
+         .SRC_X             (MASKED_MEM_TILE_X  )
+        ,.SRC_Y             (MASKED_MEM_TILE_Y  )
+        ,.MEM_ADDR_W        (14     )
+        ,.MEM_DATA_W        (512    )
+    ) masked_mem_tile (
+         .clk(clk   )
+        ,.rst(rst   )
+
+        ,.controller_mem_read_en        (controller_mem_read_en     )
+        ,.controller_mem_write_en       (controller_mem_write_en    )
+        ,.controller_mem_addr           (controller_mem_addr        )
+        ,.controller_mem_wr_data        (controller_mem_wr_data     )
+        ,.controller_mem_byte_en        (controller_mem_byte_en     )
+        ,.controller_mem_burst_cnt      (controller_mem_burst_cnt   )
+        ,.mem_controller_rdy            (mem_controller_rdy         )
+                                                                    
+        ,.mem_controller_rd_data_val    (mem_controller_rd_data_val )
+        ,.mem_controller_rd_data        (mem_controller_rd_data     )
+
+<%
+tile_std_ports = tile_config.getEndpointPorts("masked_mem_tile")
+print(tile_std_ports)
+%>
+    );
+
+    wr_buf_noc_tile #(
+         .SRC_X     (WR_CIRC_BUF_TILE_X )
+        ,.SRC_Y     (WR_CIRC_BUF_TILE_Y )
+        ,.BUF_PTR_W (BUF_PTR_W          )
+        ,.DST_DRAM_X(MASKED_MEM_TILE_X  )
+        ,.DST_DRAM_Y(MASKED_MEM_TILE_Y  )
+        ,.FBITS     (4'b1000            )
+    ) wr_buf_noc_tile (
+         .clk   (clk    )
+        ,.rst   (rst    )
+
+        ,.src_wr_buf_req_val        (src_wr_buf_req_val         )
+        ,.src_wr_buf_req_flowid     (src_wr_buf_req_flowid      )
+        ,.src_wr_buf_req_wr_ptr     (src_wr_buf_req_wr_ptr      )
+        ,.src_wr_buf_req_size       (src_wr_buf_req_size        )
+        ,.wr_buf_src_req_rdy        (wr_buf_src_req_rdy         )
+                                                                
+        ,.src_wr_buf_req_data_val   (src_wr_buf_req_data_val    )
+        ,.src_wr_buf_req_data       (src_wr_buf_req_data        )
+        ,.wr_buf_src_req_data_rdy   (wr_buf_src_req_data_rdy    )
+                                                                
+        ,.wr_buf_src_req_done       (wr_buf_src_req_done        )
+        ,.src_wr_buf_done_rdy       (src_wr_buf_done_rdy        )
+
+<%
+tile_std_ports = tile_config.getEndpointPorts("wr_circ_buf_tile")
+print(tile_std_ports)
+%>
+    );
+    
+endmodule

@@ -1,0 +1,40 @@
+CAPI=2:
+name: uwcse:beehive:tcp_open_loop_app:0.1
+description: App that echos TCP messages using the Beehive NoC format
+
+filesets:
+    rtl:
+        files:
+            - include/open_loop_pkg.sv
+            - include/rx_open_loop_pkg.sv
+            - include/setup_open_loop_pkg.sv
+            - include/tx_open_loop_pkg.sv
+            - new_flow_notif.sv
+            - open_loop_app_wrap.sv
+            - rx_engine.sv
+            - rx_engine_ctrl.sv
+            - rx_engine_datap.sv
+            - setup_handler.sv
+            - setup_handler_ctrl.sv
+            - setup_handler_datap.sv
+            - tx_engine.sv
+            - tx_engine_ctrl.sv
+            - tx_engine_datap.sv
+        depend:
+            - uwcse:buckfast:includes
+            - uwcse:beehive:msgs
+            - uwcse:beehive:pyhp_generator
+            - uwcse:beehive:common_noc_adapters
+            - uwcse:beehive:noc_helpers
+            - uwcse:beehive:tcp_inc
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]
+        generate: [pyhp_generate]
+generate:
+    pyhp_generate:
+        generator: pyhp_gen
+        parameters:
+            process_me : [[open_loop_tile_gen.sv.pyv, open_loop_tile_gen.sv]]

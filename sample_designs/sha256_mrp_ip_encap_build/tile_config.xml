@@ -1,0 +1,64 @@
+<tiles>
+    <num_x_tiles>5</num_x_tiles>
+    <num_y_tiles>2</num_y_tiles>
+    <tile>
+        <module_name>eth_rx_tile</module_name>
+        <port_name>eth_rx</port_name>
+        <tile_x>0</tile_x>
+        <tile_y>0</tile_y>
+        <mac_rx/>
+    </tile>
+    <tile>
+        <module_name>eth_tx_tile</module_name>
+        <port_name>eth_tx</port_name>
+        <tile_x>0</tile_x>
+        <tile_y>1</tile_y>
+        <mac_tx/>
+    </tile>
+    
+    <tile>
+        <module_name>ip_rx_tile</module_name>
+        <port_name>ip_rx</port_name>
+        <tile_x>1</tile_x>
+        <tile_y>0</tile_y>
+    </tile>
+    <tile>
+        <module_name>ip_tx_tile</module_name>
+        <port_name>ip_tx</port_name>
+        <tile_x>1</tile_x>
+        <tile_y>1</tile_y>
+    </tile>
+    
+    <tile>
+        <module_name>ip_rx_tile</module_name>
+        <instance_name>ip_encap_rx</instance_name>
+        <port_name>ip_rx</port_name>
+        <tile_x>2</tile_x>
+        <tile_y>0</tile_y>
+    </tile>
+    <tile>
+        <module_name>ip_encap_tx_tile</module_name>
+        <port_name>ip_encap_tx</port_name>
+        <tile_x>2</tile_x>
+        <tile_y>1</tile_y>
+    </tile>
+    
+    <tile>
+        <module_name>udp_rx_tile</module_name>
+        <port_name>udp_rx</port_name>
+        <tile_x>3</tile_x>
+        <tile_y>0</tile_y>
+    </tile>
+    <tile>
+        <module_name>udp_tx_tile</module_name>
+        <port_name>udp_tx</port_name>
+        <tile_x>3</tile_x>
+        <tile_y>1</tile_y>
+    </tile>
+    <tile>
+        <module_name>sha256_mrp_tile</module_name>
+        <port_name>sha256</port_name>
+        <tile_x>4</tile_x>
+        <tile_y>0</tile_y>
+    </tile>
+</tiles>

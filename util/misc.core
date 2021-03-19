@@ -1,0 +1,21 @@
+CAPI=2:
+name: uwcse:beehive:misc:0.1
+description: Beehive misc files
+
+filesets:
+    rtl:
+        files:
+            - valid_bitvector.sv
+            - packet_queue_reader.sv
+            - demux_one_hot.sv
+            - demux.sv
+            - mem_mux.sv
+            - mem_mux_param.sv
+            - stream_mux.sv
+        depend:
+            - uwcse:buckfast:bsg_misc
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]

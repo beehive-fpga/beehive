@@ -1,0 +1,178 @@
+<%
+# Get the basic configuration object
+import sys
+import os
+sys.path.append(os.environ["BEEHIVE_PROJECT_ROOT"] + "/tile_generator/")
+from tile_generator import BeehiveConfig
+from cam_gen_helpers import get_dst_x_localparam_str, get_dst_y_localparam_str
+from noc_if_gen import NocInterfaceGen
+import logging
+logging.basicConfig(level=logging.INFO)
+design_path = os.environ["BEEHIVE_DESIGN_ROOT"]
+logging.info(f"Using tile config at {design_path}")
+tile_config = BeehiveConfig(design_path + "/tile_config.xml")
+noc_if_generator = NocInterfaceGen()
+%>
+`include "noc_defs.vh"
+
+module beehive_vr_tile
+import beehive_vr_pkg::*;
+import beehive_noc_msg::*;
+import beehive_topology::*;
+#(
+     parameter SRC_X = -1
+    ,parameter SRC_Y = -1
+)(
+     input clk
+    ,input rst
+
+<%
+    noc_if_str = noc_if_generator.genNocInterface(src="src", module="beehive_vr_tile",
+         dst="dst", nocs=tile_config.nocs, noc_widths=tile_config.nocs_data_width)
+    print(noc_if_str)
+%>
+);
+
+<%
+# find all the UDP App endpoint names
+udp_app_endpoints = tile_config.tiles.findall("./endpoint/[port_name='beehive_vr_tile']")
+udp_app_names = []
+for endpoint in udp_app_endpoints:
+    endpoint_name = endpoint.find("endpoint_name").text
+    udp_app_names.append(endpoint_name)
+
+x_localparam_decl = "    localparam UDP_APP_DST_X = "
+x_ternary_lines = ""
+y_localparam_decl = "    localparam UDP_APP_DST_Y = "
+y_ternary_lines = ""
+for name in udp_app_names:
+    endpoint = tile_config.endpoint_dict[name]
+    interface = endpoint.interfaces["beehive_vr_pkt"]
+
+    x_ternary_lines += get_dst_x_localparam_str(tile_config, interface)
+    y_ternary_lines += get_dst_y_localparam_str(tile_config, interface)
+
+print(x_localparam_decl + x_ternary_lines + "0;")
+print(y_localparam_decl + y_ternary_lines + "0;")
+
+%>
+
+<%
+router_wires = noc_if_generator.genNocProcessorWires(inst_name="router", nocs=tile_config.nocs,
+        noc_widths = tile_config.nocs_data_width)
+print(router_wires)
+%>
+    logic                           noc0_ctovr_app_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   noc0_ctovr_app_data;
+    logic                           app_noc0_ctovr_rdy;
+
+    logic                           app_noc0_vrtoc_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   app_noc0_vrtoc_data;
+    logic                           noc0_vrtoc_app_rdy;
+    
+    logic                           noc_vr_app_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   noc_vr_app_data;
+    logic                           vr_app_noc_rdy;
+    
+    noc_router_block #(
+         .SRC_X (SRC_X  )
+        ,.SRC_Y (SRC_Y  )
+    ) vr_app_noc_router_block (
+         .clk   (clk    )
+        ,.rst   (rst    )
+<%
+    noc_ports = noc_if_generator.genNocInstantiation(src="src",
+    port_name="router_block", dst="dst", noc_src="src", noc_dst="dst",
+    module="beehive_vr_tile", nocs=tile_config.nocs)
+    print(noc_ports)
+    
+    processor_ports = noc_if_generator.genNocProcessorInstantiation(module="router_block", 
+        processor="process", inst_name="router", nocs=tile_config.nocs)
+    print(processor_ports)
+%>
+    );
+    
+    beehive_credit_to_valrdy #(
+        .NOC_DATA_W (`NOC_DATA_WIDTH    )
+    ) tile_noc0_beehive_credit_to_valrdy (
+         .clk   (clk)
+        ,.reset (rst)
+        //credit based interface 
+        ,.src_ctovr_data    (router_ctovr_data_noc0_data    )
+        ,.src_ctovr_val     (router_ctovr_data_noc0_val     )
+        ,.ctovr_src_yummy   (ctovr_router_data_noc0_yummy   )
+
+        //val/rdy interface
+        ,.ctovr_dst_data    (noc0_ctovr_app_data            )
+        ,.ctovr_dst_val     (noc0_ctovr_app_val             )
+        ,.dst_ctovr_rdy     (app_noc0_ctovr_rdy             )
+    );
+
+    logic                           req_buf_rd_req;
+    logic   [`NOC_DATA_WIDTH-1:0]   req_buf_rd_data;
+    logic                           req_buf_empty;
+
+    logic                           req_buf_wr_req;
+    logic   [`NOC_DATA_WIDTH-1:0]   req_buf_wr_data;
+    logic                           req_buf_full;
+
+    assign req_buf_wr_data = noc0_ctovr_app_data;
+    assign req_buf_wr_req = ~req_buf_full & noc0_ctovr_app_val;
+    assign app_noc0_ctovr_rdy = ~req_buf_full;
+
+    fifo_1r1w #(
+         .width_p   (`NOC_DATA_WIDTH    )
+        ,.log2_els_p(8                  )
+    ) req_buf (
+         .clk   (clk    )
+        ,.rst   (rst    )
+    
+        ,.rd_req    (req_buf_rd_req     )
+        ,.rd_data   (req_buf_rd_data    )
+        ,.empty     (req_buf_empty      )
+    
+        ,.wr_req    (req_buf_wr_req     )
+        ,.wr_data   (req_buf_wr_data    )
+        ,.full      (req_buf_full       )
+    );
+
+    assign req_buf_rd_req = ~req_buf_empty & vr_app_noc_rdy;
+    assign noc_vr_app_data = req_buf_rd_data;
+    assign noc_vr_app_val = ~req_buf_empty;
+    
+    beehive_valrdy_to_credit #(
+        .NOC_DATA_W (`NOC_DATA_WIDTH    )
+    ) tile_noc0_beehive_valrdy_to_credit (
+         .clk       (clk)
+        ,.reset     (rst)
+
+        //val/rdy interface
+        ,.src_vrtoc_data    (app_noc0_vrtoc_data            )
+        ,.src_vrtoc_val     (app_noc0_vrtoc_val             )
+        ,.vrtoc_src_rdy     (noc0_vrtoc_app_rdy             )
+
+		//credit based interface	
+        ,.vrtoc_dst_data    (vrtoc_router_data_noc0_data    )
+        ,.vrtoc_dst_val     (vrtoc_router_data_noc0_val     )
+		,.dst_vrtoc_yummy   (router_vrtoc_data_noc0_yummy   )
+    );
+
+    vr_app_wrap #(
+         .SRC_X         (SRC_X          )
+        ,.SRC_Y         (SRC_Y          )
+        ,.SRC_FBITS     (PKT_IF_FBITS   )
+        ,.UDP_APP_DST_X (UDP_APP_DST_X  )
+        ,.UDP_APP_DST_Y (UDP_APP_DST_Y  )
+    ) vr_app_wrap (
+         .clk   (clk    )
+        ,.rst   (rst    )
+    
+        ,.noc_ctovr_app_val     (noc_vr_app_val         )
+        ,.noc_ctovr_app_data    (noc_vr_app_data        )
+        ,.app_noc_ctovr_rdy     (vr_app_noc_rdy         )
+    
+        ,.app_noc_vrtoc_val     (app_noc0_vrtoc_val     )
+        ,.app_noc_vrtoc_data    (app_noc0_vrtoc_data    )
+        ,.noc_vrtoc_app_rdy     (noc0_vrtoc_app_rdy     )
+    );
+endmodule

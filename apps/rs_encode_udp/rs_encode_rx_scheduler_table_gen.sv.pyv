@@ -1,0 +1,73 @@
+`include "rr_scheduler_defs.svh"
+<%
+# Get the basic configuration object
+import sys
+import os
+sys.path.append(os.environ["BEEHIVE_PROJECT_ROOT"] + "/tile_generator/")
+from tile_generator import BeehiveConfig
+from tile_generator import TileDirs
+import logging
+logging.basicConfig(level=logging.INFO)
+
+design_path = os.environ["BEEHIVE_DESIGN_ROOT"]
+logging.info(f"Using tile config at {design_path}")
+tile_config = BeehiveConfig(design_path + "/tile_config.xml")
+
+# collect all the RS encoder elements
+rs_endpoints = tile_config.tiles.findall("./endpoint/[rs_endpoint]")
+rs_endpoint_names = []
+for endpoint in rs_endpoints:
+    endpoint_name = endpoint.find("endpoint_name").text
+    rs_endpoint_names.append(endpoint_name)
+
+if len(rs_endpoint_names) > (1 << 4):
+    raise RuntimeError("Too many destinations for the ROM size")
+%>
+module rs_encode_rx_scheduler_table #(
+     parameter NUM_DSTS = -1
+    ,parameter NUM_DSTS_W = (NUM_DSTS == 1) ? 1 : $clog2(NUM_DSTS)
+)(
+     input clk
+    ,input rst
+
+    ,input  logic                           scheduler_table_read_val
+    ,input  logic   [NUM_DSTS_W-1:0]        scheduler_table_read_index
+    ,output logic                           table_scheduler_read_rdy
+
+    ,output logic                           table_scheduler_read_resp_val
+    ,output sched_table_struct              table_scheduler_read_resp_data
+    ,input  logic                           scheduler_table_read_resp_rdy
+);
+
+	logic	[3:0]	address;
+    logic           read_val_reg;
+
+    assign table_scheduler_read_rdy = 1'b1;
+    assign table_scheduler_read_resp_val = read_val_reg;
+
+    always_ff @(posedge clk) begin
+        read_val_reg <= scheduler_table_read_val;
+    end
+
+  	always_ff @(posedge clk) begin
+        if (scheduler_table_read_val) begin
+            case (scheduler_table_read_index)
+<%
+for i in range(0, 1<<4):
+    tile_x = 0
+    tile_y = 0
+    if i < len(rs_endpoint_names):
+        # get the endpoint info maybe
+        (tile_x, tile_y) = tile_config.getEndpointCoords(rs_endpoint_names[i])
+
+# double curly braces produces a single curly brace
+    dest_string = f"{{`NOC_X_WIDTH'd{tile_x}, `NOC_Y_WIDTH'd{tile_y}}}"
+    print(f"""
+                4'b{i:04b}: table_scheduler_read_resp_data <= {dest_string};""")
+%>
+                default: table_scheduler_read_resp_data <= 
+                                                    {`NOC_X_WIDTH'd0, `NOC_Y_WIDTH'd0};
+            endcase
+        end
+	end
+endmodule

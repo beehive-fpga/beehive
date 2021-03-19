@@ -1,0 +1,212 @@
+`include "ip_rewrite_noc_pipe_defs.svh"
+<%
+# Get the basic configuration object
+import sys
+import os
+sys.path.append(os.environ["BEEHIVE_PROJECT_ROOT"] + "/tile_generator/")
+from tile_generator import BeehiveConfig
+from noc_if_gen import NocInterfaceGen
+import logging
+logging.basicConfig(level=logging.INFO)
+design_path = os.environ["BEEHIVE_DESIGN_ROOT"]
+logging.info(f"Using tile config at {design_path}")
+tile_config = BeehiveConfig(design_path + "/tile_config.xml")
+noc_if_generator = NocInterfaceGen()
+%>
+module ip_rewrite_tx_tile #(
+     parameter SRC_X = -1
+    ,parameter SRC_Y = -1
+)(
+     input clk
+    ,input rst
+
+<%
+    noc_if_str = noc_if_generator.genNocInterface(src="src", module="ip_rewrite_tx",
+         dst="dst", nocs=tile_config.nocs, noc_widths=tile_config.nocs_data_width)
+    print(noc_if_str)
+%>
+);
+<%
+router_wires = noc_if_generator.genNocProcessorWires(inst_name="router",
+    nocs=tile_config.nocs, noc_widths = tile_config.nocs_data_width)
+print(router_wires)
+%>
+    
+    logic                           merger_out_noc0_vrtoc_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   merger_out_noc0_vrtoc_data;    
+    logic                           noc0_vrtoc_merger_out_rdy;
+    
+    logic                           ip_rewrite_tx_out_merger_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   ip_rewrite_tx_out_merger_data;    
+    logic                           merger_ip_rewrite_tx_out_rdy;
+    
+    logic                           lookup_ctrl_out_merger_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   lookup_ctrl_out_merger_data;    
+    logic                           merger_lookup_ctrl_out_rdy;
+    
+    logic                           noc0_ctovr_splitter_in_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   noc0_ctovr_splitter_in_data;
+    logic                           splitter_in_noc0_ctovr_rdy;     
+    
+    logic                           splitter_ip_rewrite_tx_in_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   splitter_ip_rewrite_tx_in_data;
+    logic                           ip_rewrite_tx_in_splitter_rdy;     
+    
+    logic                           splitter_lookup_ctrl_in_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   splitter_lookup_ctrl_in_data;
+    logic                           lookup_ctrl_in_splitter_rdy;     
+
+    noc_router_block #(
+         .SRC_X (SRC_X  )
+        ,.SRC_Y (SRC_Y  )
+    ) ip_rewrite_tx_noc_router_block (
+         .clk   (clk    )
+        ,.rst   (rst    )
+<%
+    noc_ports = noc_if_generator.genNocInstantiation(src="src",
+    port_name="router_block", dst="dst", noc_src="src", noc_dst="dst",
+    module="ip_rewrite_tx", nocs=tile_config.nocs)
+    print(noc_ports)
+    
+    processor_ports = noc_if_generator.genNocProcessorInstantiation(module="router_block", 
+        processor="process", inst_name="router", nocs=tile_config.nocs)
+    print(processor_ports)
+%>
+    );
+    
+    beehive_credit_to_valrdy #(
+        .NOC_DATA_W (`NOC_DATA_WIDTH    )
+    ) tile_tx_noc0_beehive_credit_to_valrdy (
+         .clk   (clk)
+        ,.reset (rst)
+        //credit based interface 
+        ,.src_ctovr_data    (router_ctovr_data_noc0_data    )
+        ,.src_ctovr_val     (router_ctovr_data_noc0_val     )
+        ,.ctovr_src_yummy   (ctovr_router_data_noc0_yummy   )
+
+        //val/rdy interface
+        ,.ctovr_dst_data    (noc0_ctovr_splitter_in_data    )
+        ,.ctovr_dst_val     (noc0_ctovr_splitter_in_val     )
+        ,.dst_ctovr_rdy     (splitter_in_noc0_ctovr_rdy     )
+    );
+
+    beehive_valrdy_to_credit #(
+        .NOC_DATA_W (`NOC_DATA_WIDTH    )
+    ) tile_tx_noc0_beehive_valrdy_to_credit (
+         .clk       (clk)
+        ,.reset     (rst)
+
+        //val/rdy interface
+        ,.src_vrtoc_data    (merger_out_noc0_vrtoc_data     )
+        ,.src_vrtoc_val     (merger_out_noc0_vrtoc_val      )
+        ,.vrtoc_src_rdy     (noc0_vrtoc_merger_out_rdy      )
+
+		//credit based interface	
+        ,.vrtoc_dst_data    (vrtoc_router_data_noc0_data    )
+        ,.vrtoc_dst_val     (vrtoc_router_data_noc0_val     )
+		,.dst_vrtoc_yummy   (router_vrtoc_data_noc0_yummy   )
+    );
+    
+    // merge NoC traffic for sending data from the TCP engine to DRAM buffers and
+    // traffic for answering whether or not data is available
+    beehive_noc_prio_merger #(
+         .NOC_DATA_W        (`NOC_DATA_WIDTH    )
+        ,.MSG_PAYLOAD_LEN   (`PAYLOAD_LEN       )
+        ,.MSG_LEN_HI        (`MSG_LENGTH_HI     )
+        ,.MSG_LEN_LO        (`MSG_LENGTH_LO     )
+        ,.num_sources       (2)
+    ) merger (   
+         .clk   (clk)
+        ,.rst_n (~rst)
+    
+        ,.src0_merger_vr_noc_val    (ip_rewrite_tx_out_merger_val   )
+        ,.src0_merger_vr_noc_dat    (ip_rewrite_tx_out_merger_data  )
+        ,.merger_src0_vr_noc_rdy    (merger_ip_rewrite_tx_out_rdy   )
+    
+        ,.src1_merger_vr_noc_val    (lookup_ctrl_out_merger_val     )
+        ,.src1_merger_vr_noc_dat    (lookup_ctrl_out_merger_data    )
+        ,.merger_src1_vr_noc_rdy    (merger_lookup_ctrl_out_rdy     )
+    
+        ,.src2_merger_vr_noc_val    ('0)
+        ,.src2_merger_vr_noc_dat    ('0)
+        ,.merger_src2_vr_noc_rdy    ()
+    
+        ,.src3_merger_vr_noc_val    ('0)
+        ,.src3_merger_vr_noc_dat    ('0)
+        ,.merger_src3_vr_noc_rdy    ()
+    
+        ,.src4_merger_vr_noc_val    ('0)
+        ,.src4_merger_vr_noc_dat    ('0)
+        ,.merger_src4_vr_noc_rdy    ()
+    
+        ,.merger_dst_vr_noc_val     (merger_out_noc0_vrtoc_val      )
+        ,.merger_dst_vr_noc_dat     (merger_out_noc0_vrtoc_data     )
+        ,.dst_merger_vr_noc_rdy     (noc0_vrtoc_merger_out_rdy      )
+    );
+
+    // split between the app interface requests and the buffer copy module response
+    beehive_noc_fbits_splitter #(
+         .NOC_DATA_W        (`NOC_DATA_WIDTH    )
+        ,.MSG_PAYLOAD_LEN   (`PAYLOAD_LEN       )
+        ,.MSG_LEN_HI        (`MSG_LENGTH_HI     )
+        ,.MSG_LEN_LO        (`MSG_LENGTH_LO     )
+        ,.FBITS_HI          (`MSG_DST_FBITS_HI  )
+        ,.FBITS_LO          (`MSG_DST_FBITS_LO  )
+        ,.num_targets       (3'd2)
+        ,.fbits_type0       (PKT_IF_FBITS                   )
+        ,.fbits_type1       (IP_REWRITE_TABLE_CTRL_FBITS    )
+    ) splitter (
+         .clk   (clk    )
+        ,.rst_n (~rst   )
+
+        ,.src_splitter_vr_noc_val   (noc0_ctovr_splitter_in_val     )
+        ,.src_splitter_vr_noc_dat   (noc0_ctovr_splitter_in_data    )
+        ,.splitter_src_vr_noc_rdy   (splitter_in_noc0_ctovr_rdy     )
+
+        ,.splitter_dst0_vr_noc_val  (splitter_ip_rewrite_tx_in_val  )
+        ,.splitter_dst0_vr_noc_dat  (splitter_ip_rewrite_tx_in_data )
+        ,.dst0_splitter_vr_noc_rdy  (ip_rewrite_tx_in_splitter_rdy  )
+
+        ,.splitter_dst1_vr_noc_val  (splitter_lookup_ctrl_in_val    )
+        ,.splitter_dst1_vr_noc_dat  (splitter_lookup_ctrl_in_data   )
+        ,.dst1_splitter_vr_noc_rdy  (lookup_ctrl_in_splitter_rdy    )
+
+        ,.splitter_dst2_vr_noc_val  ()
+        ,.splitter_dst2_vr_noc_dat  ()
+        ,.dst2_splitter_vr_noc_rdy  (1'b0)
+
+        ,.splitter_dst3_vr_noc_val  ()
+        ,.splitter_dst3_vr_noc_dat  ()
+        ,.dst3_splitter_vr_noc_rdy  (1'b0)
+
+        ,.splitter_dst4_vr_noc_val  ()
+        ,.splitter_dst4_vr_noc_dat  ()
+        ,.dst4_splitter_vr_noc_rdy  (1'b0)
+    );
+
+    ip_rewrite_noc_tx #(
+         .SRC_X (SRC_X  )
+        ,.SRC_Y (SRC_Y  )
+        ,.NOC1_DATA_W   (`NOC_DATA_WIDTH    )
+        ,.NOC2_DATA_W   (`NOC_DATA_WIDTH    )
+    ) rewrite_noc_tx (
+         .clk   (clk    )
+        ,.rst   (rst    )
+        
+        ,.noc0_ctovr_ip_rewrite_in_val      (splitter_ip_rewrite_tx_in_val  )
+        ,.noc0_ctovr_ip_rewrite_in_data     (splitter_ip_rewrite_tx_in_data )
+        ,.ip_rewrite_in_noc0_ctovr_rdy      (ip_rewrite_tx_in_splitter_rdy  )
+                                                                                
+        ,.ip_rewrite_out_noc0_vrtoc_val     (ip_rewrite_tx_out_merger_val   )
+        ,.ip_rewrite_out_noc0_vrtoc_data    (ip_rewrite_tx_out_merger_data  )
+        ,.noc0_vrtoc_ip_rewrite_out_rdy     (merger_ip_rewrite_tx_out_rdy   )
+                                                                                
+        ,.noc_lookup_ctrl_in_val            (splitter_lookup_ctrl_in_val    )
+        ,.noc_lookup_ctrl_in_data           (splitter_lookup_ctrl_in_data   )
+        ,.lookup_ctrl_in_noc_rdy            (lookup_ctrl_in_splitter_rdy    )
+
+        ,.lookup_ctrl_out_noc_val           (lookup_ctrl_out_merger_val     )
+        ,.lookup_ctrl_out_noc_data          (lookup_ctrl_out_merger_data    )
+        ,.noc_lookup_ctrl_out_rdy           (merger_lookup_ctrl_out_rdy     )
+    );
+endmodule

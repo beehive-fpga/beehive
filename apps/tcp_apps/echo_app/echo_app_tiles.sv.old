@@ -1,0 +1,536 @@
+`include "echo_app_defs.svh"
+`include "echo_app_stats_defs.svh"
+module echo_app_tiles #(
+     parameter APP_TILE_TX_SRC_X = -1
+    ,parameter APP_TILE_TX_SRC_Y = -1
+    ,parameter APP_TILE_TX_DST_BUF_X = -1
+    ,parameter APP_TILE_TX_DST_BUF_Y = -1
+    ,parameter APP_TILE_RX_SRC_X = -1
+    ,parameter APP_TILE_RX_SRC_Y = -1
+    ,parameter APP_TILE_RX_DST_BUF_X = -1
+    ,parameter APP_TILE_RX_DST_BUF_Y = -1
+)(
+     input clk
+    ,input rst
+   
+    ,input [`NOC_DATA_WIDTH-1:0]                        src_app_tile_rx_noc0_data_N 
+    ,input [`NOC_DATA_WIDTH-1:0]                        src_app_tile_rx_noc0_data_E 
+    ,input [`NOC_DATA_WIDTH-1:0]                        src_app_tile_rx_noc0_data_S 
+    ,input [`NOC_DATA_WIDTH-1:0]                        src_app_tile_rx_noc0_data_W 
+                                                                                 
+    ,input                                              src_app_tile_rx_noc0_val_N  
+    ,input                                              src_app_tile_rx_noc0_val_E  
+    ,input                                              src_app_tile_rx_noc0_val_S  
+    ,input                                              src_app_tile_rx_noc0_val_W  
+                                                                                 
+    ,output                                             app_tile_rx_src_noc0_yummy_N
+    ,output                                             app_tile_rx_src_noc0_yummy_E
+    ,output                                             app_tile_rx_src_noc0_yummy_S
+    ,output                                             app_tile_rx_src_noc0_yummy_W
+                                                                                 
+    ,output [`NOC_DATA_WIDTH-1:0]                       app_tile_rx_dst_noc0_data_N 
+    ,output [`NOC_DATA_WIDTH-1:0]                       app_tile_rx_dst_noc0_data_E 
+    ,output [`NOC_DATA_WIDTH-1:0]                       app_tile_rx_dst_noc0_data_S 
+    ,output [`NOC_DATA_WIDTH-1:0]                       app_tile_rx_dst_noc0_data_W 
+                                                                                 
+    ,output                                             app_tile_rx_dst_noc0_val_N  
+    ,output                                             app_tile_rx_dst_noc0_val_E  
+    ,output                                             app_tile_rx_dst_noc0_val_S  
+    ,output                                             app_tile_rx_dst_noc0_val_W  
+                                                                                 
+    ,input                                              dst_app_tile_rx_noc0_yummy_N
+    ,input                                              dst_app_tile_rx_noc0_yummy_E
+    ,input                                              dst_app_tile_rx_noc0_yummy_S
+    ,input                                              dst_app_tile_rx_noc0_yummy_W
+
+    ,input [`NOC_DATA_WIDTH-1:0]                        src_app_tile_tx_noc0_data_N 
+    ,input [`NOC_DATA_WIDTH-1:0]                        src_app_tile_tx_noc0_data_E 
+    ,input [`NOC_DATA_WIDTH-1:0]                        src_app_tile_tx_noc0_data_S 
+    ,input [`NOC_DATA_WIDTH-1:0]                        src_app_tile_tx_noc0_data_W 
+                                                                                 
+    ,input                                              src_app_tile_tx_noc0_val_N  
+    ,input                                              src_app_tile_tx_noc0_val_E  
+    ,input                                              src_app_tile_tx_noc0_val_S  
+    ,input                                              src_app_tile_tx_noc0_val_W  
+                                                                                 
+    ,output                                             app_tile_tx_src_noc0_yummy_N
+    ,output                                             app_tile_tx_src_noc0_yummy_E
+    ,output                                             app_tile_tx_src_noc0_yummy_S
+    ,output                                             app_tile_tx_src_noc0_yummy_W
+                                                                                 
+    ,output [`NOC_DATA_WIDTH-1:0]                       app_tile_tx_dst_noc0_data_N 
+    ,output [`NOC_DATA_WIDTH-1:0]                       app_tile_tx_dst_noc0_data_E 
+    ,output [`NOC_DATA_WIDTH-1:0]                       app_tile_tx_dst_noc0_data_S 
+    ,output [`NOC_DATA_WIDTH-1:0]                       app_tile_tx_dst_noc0_data_W 
+                                                                                 
+    ,output                                             app_tile_tx_dst_noc0_val_N  
+    ,output                                             app_tile_tx_dst_noc0_val_E  
+    ,output                                             app_tile_tx_dst_noc0_val_S  
+    ,output                                             app_tile_tx_dst_noc0_val_W  
+                                                                                 
+    ,input                                              dst_app_tile_tx_noc0_yummy_N
+    ,input                                              dst_app_tile_tx_noc0_yummy_E
+    ,input                                              dst_app_tile_tx_noc0_yummy_S
+    ,input                                              dst_app_tile_tx_noc0_yummy_W
+);
+    
+    logic                           noc0_vrtoc_tile_rx_router_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   noc0_vrtoc_tile_rx_router_data;
+    logic                           tile_rx_router_noc0_vrtoc_yummy;
+
+    logic                           tile_rx_router_noc0_ctovr_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   tile_rx_router_noc0_ctovr_data;
+    logic                           noc0_ctovr_tile_rx_router_yummy;
+    
+    logic                           noc0_vrtoc_tile_tx_router_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   noc0_vrtoc_tile_tx_router_data;
+    logic                           tile_tx_router_noc0_vrtoc_yummy;
+
+    logic                           tile_tx_router_noc0_ctovr_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   tile_tx_router_noc0_ctovr_data;
+    logic                           noc0_ctovr_tile_tx_router_yummy;
+    
+    logic                           rx_merger_noc0_vrtoc_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   rx_merger_noc0_vrtoc_data;    
+    logic                           noc0_vrtoc_rx_merger_rdy;
+    
+    logic                           noc0_ctovr_rx_splitter_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   noc0_ctovr_rx_splitter_data;
+    logic                           rx_splitter_noc0_ctovr_rdy;     
+    
+    logic                           rx_app_noc0_vrtoc_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   rx_app_noc0_vrtoc_data;
+    logic                           noc0_vrtoc_rx_app_rdy;
+
+    logic                           noc0_ctovr_rx_app_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   noc0_ctovr_rx_app_data;
+    logic                           rx_app_noc0_ctovr_rdy;
+    
+    logic                           rx_buf_noc0_vrtoc_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   rx_buf_noc0_vrtoc_data;
+    logic                           noc0_vrtoc_rx_buf_rdy;
+
+    logic                           noc0_ctovr_rx_buf_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   noc0_ctovr_rx_buf_data;
+    logic                           rx_buf_noc0_ctovr_rdy;
+    
+    logic                           noc0_ctovr_rx_notif_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   noc0_ctovr_rx_notif_data;
+    logic                           rx_notif_noc0_ctovr_rdy;
+    
+    logic                           tx_merger_noc0_vrtoc_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   tx_merger_noc0_vrtoc_data;    
+    logic                           noc0_vrtoc_tx_merger_rdy;
+    
+    logic                           noc0_ctovr_tx_splitter_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   noc0_ctovr_tx_splitter_data;
+    logic                           tx_splitter_noc0_ctovr_rdy;     
+    
+    logic                           tx_app_noc0_vrtoc_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   tx_app_noc0_vrtoc_data;
+    logic                           noc0_vrtoc_tx_app_rdy;
+
+    logic                           noc0_ctovr_tx_app_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   noc0_ctovr_tx_app_data;
+    logic                           tx_app_noc0_ctovr_rdy;
+    
+    logic                           tx_buf_noc0_vrtoc_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   tx_buf_noc0_vrtoc_data;
+    logic                           noc0_vrtoc_tx_buf_rdy;
+
+    logic                           noc0_ctovr_tx_buf_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   noc0_ctovr_tx_buf_data;
+    logic                           tx_buf_noc0_ctovr_rdy;
+    
+    logic                           noc0_ctovr_echo_app_stats_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   noc0_ctovr_echo_app_stats_data;
+    logic                           echo_app_stats_noc0_ctovr_rdy;
+
+    logic                           echo_app_stats_noc0_vrtoc_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   echo_app_stats_noc0_vrtoc_data;
+    logic                           noc0_vrtoc_echo_app_stats_rdy;
+    
+    dynamic_node_top_wrap #(
+         .NOC_DATA_W        (`NOC_DATA_WIDTH    )
+        ,.XY_COORD_W        (`XY_WIDTH          )
+        ,.CHIP_ID_W         (`CHIP_ID_WIDTH     )
+        ,.MSG_PAYLOAD_LEN   (`MSG_LENGTH_WIDTH  )
+    ) tile_rx_noc0_router (
+         .clk                   (clk)
+        ,.reset_in              (rst)
+        
+        ,.src_router_data_N     (src_app_tile_rx_noc0_data_N        )
+        ,.src_router_data_E     (src_app_tile_rx_noc0_data_E        )
+        ,.src_router_data_S     (src_app_tile_rx_noc0_data_S        )
+        ,.src_router_data_W     (src_app_tile_rx_noc0_data_W        )
+        ,.src_router_data_P     (noc0_vrtoc_tile_rx_router_data     )
+                                
+        ,.src_router_val_N      (src_app_tile_rx_noc0_val_N         )
+        ,.src_router_val_E      (src_app_tile_rx_noc0_val_E         )
+        ,.src_router_val_S      (src_app_tile_rx_noc0_val_S         )
+        ,.src_router_val_W      (src_app_tile_rx_noc0_val_W         )
+        ,.src_router_val_P      (noc0_vrtoc_tile_rx_router_val      )
+                                
+        ,.router_src_yummy_N    (app_tile_rx_src_noc0_yummy_N       )
+        ,.router_src_yummy_E    (app_tile_rx_src_noc0_yummy_E       )
+        ,.router_src_yummy_S    (app_tile_rx_src_noc0_yummy_S       )
+        ,.router_src_yummy_W    (app_tile_rx_src_noc0_yummy_W       )
+        ,.router_src_yummy_P    (tile_rx_router_noc0_vrtoc_yummy    )
+        
+        ,.myLocX                (APP_TILE_RX_SRC_X[`XY_WIDTH-1:0]   )
+        ,.myLocY                (APP_TILE_RX_SRC_Y[`XY_WIDTH-1:0]   )
+        ,.myChipID              (`CHIP_ID_WIDTH'd0                  )
+
+        ,.router_dst_data_N     (app_tile_rx_dst_noc0_data_N        )
+        ,.router_dst_data_E     (app_tile_rx_dst_noc0_data_E        )
+        ,.router_dst_data_S     (app_tile_rx_dst_noc0_data_S        )
+        ,.router_dst_data_W     (app_tile_rx_dst_noc0_data_W        )
+        ,.router_dst_data_P     (tile_rx_router_noc0_ctovr_data     )
+                            
+        ,.router_dst_val_N      (app_tile_rx_dst_noc0_val_N         )
+        ,.router_dst_val_E      (app_tile_rx_dst_noc0_val_E         )
+        ,.router_dst_val_S      (app_tile_rx_dst_noc0_val_S         )
+        ,.router_dst_val_W      (app_tile_rx_dst_noc0_val_W         )
+        ,.router_dst_val_P      (tile_rx_router_noc0_ctovr_val      )
+                            
+        ,.dst_router_yummy_N    (dst_app_tile_rx_noc0_yummy_N       )
+        ,.dst_router_yummy_E    (dst_app_tile_rx_noc0_yummy_E       )
+        ,.dst_router_yummy_S    (dst_app_tile_rx_noc0_yummy_S       )
+        ,.dst_router_yummy_W    (dst_app_tile_rx_noc0_yummy_W       )
+        ,.dst_router_yummy_P    (noc0_ctovr_tile_rx_router_yummy    )
+        
+        ,.router_src_thanks_P   ()  // thanksIn to processor's space_avail
+    );
+    
+    beehive_credit_to_valrdy #(
+        .NOC_DATA_W (`NOC_DATA_WIDTH    )
+    ) tile_rx_noc0_beehive_credit_to_valrdy (
+         .clk   (clk)
+        ,.reset (rst)
+        //credit based interface 
+        ,.src_ctovr_data    (tile_rx_router_noc0_ctovr_data )
+        ,.src_ctovr_val     (tile_rx_router_noc0_ctovr_val  )
+        ,.ctovr_src_yummy   (noc0_ctovr_tile_rx_router_yummy)
+
+        //val/rdy interface
+        ,.ctovr_dst_data    (noc0_ctovr_rx_splitter_data    )
+        ,.ctovr_dst_val     (noc0_ctovr_rx_splitter_val     )
+        ,.dst_ctovr_rdy     (rx_splitter_noc0_ctovr_rdy     )
+    );
+
+    beehive_valrdy_to_credit #(
+        .NOC_DATA_W (`NOC_DATA_WIDTH    )
+    ) tile_rx_noc0_beehive_valrdy_to_credit (
+         .clk       (clk)
+        ,.reset     (rst)
+
+        //val/rdy interface
+        ,.src_vrtoc_data    (rx_merger_noc0_vrtoc_data      )
+        ,.src_vrtoc_val     (rx_merger_noc0_vrtoc_val       )
+        ,.vrtoc_src_rdy     (noc0_vrtoc_rx_merger_rdy       )
+
+		//credit based interface	
+        ,.vrtoc_dst_data    (noc0_vrtoc_tile_rx_router_data )
+        ,.vrtoc_dst_val     (noc0_vrtoc_tile_rx_router_val  )
+		,.dst_vrtoc_yummy   (tile_rx_router_noc0_vrtoc_yummy)
+    );
+    
+    // merge NoC traffic for sending message requests to TCP, sending read
+    // requests to memory buffers 
+    noc_prio_merger #(
+         .NOC_DATA_W        (`NOC_DATA_WIDTH    )
+        ,.MSG_PAYLOAD_LEN   (`PAYLOAD_LEN       )
+        ,.MSG_LEN_HI        (`MSG_LENGTH_HI     )
+        ,.MSG_LEN_LO        (`MSG_LENGTH_LO     )
+        ,.num_sources    (2)
+    ) rx_merger (   
+         .clk   (clk)
+        ,.rst_n (~rst)
+    
+        ,.src0_merger_vr_noc_val    (rx_app_noc0_vrtoc_val      )
+        ,.src0_merger_vr_noc_dat    (rx_app_noc0_vrtoc_data     )
+        ,.merger_src0_vr_noc_rdy    (noc0_vrtoc_rx_app_rdy      )
+    
+        ,.src1_merger_vr_noc_val    (rx_buf_noc0_vrtoc_val      )
+        ,.src1_merger_vr_noc_dat    (rx_buf_noc0_vrtoc_data     )
+        ,.merger_src1_vr_noc_rdy    (noc0_vrtoc_rx_buf_rdy      )
+    
+        ,.src2_merger_vr_noc_val    ('0)
+        ,.src2_merger_vr_noc_dat    ('0)
+        ,.merger_src2_vr_noc_rdy    ()
+    
+        ,.src3_merger_vr_noc_val    ('0)
+        ,.src3_merger_vr_noc_dat    ('0)
+        ,.merger_src3_vr_noc_rdy    ()
+    
+        ,.src4_merger_vr_noc_val    ('0)
+        ,.src4_merger_vr_noc_dat    ('0)
+        ,.merger_src4_vr_noc_rdy    ()
+    
+        ,.merger_dst_vr_noc_val     (rx_merger_noc0_vrtoc_val   )
+        ,.merger_dst_vr_noc_dat     (rx_merger_noc0_vrtoc_data  )
+        ,.dst_merger_vr_noc_rdy     (noc0_vrtoc_rx_merger_rdy   )
+    );
+
+    // split between the app interface responses, memory buffer responses, and new 
+    // flow notifs
+    noc_fbits_splitter #(
+         .NOC_DATA_W        (`NOC_DATA_WIDTH    )
+        ,.MSG_PAYLOAD_LEN   (`PAYLOAD_LEN       )
+        ,.MSG_LEN_HI        (`MSG_LENGTH_HI     )
+        ,.MSG_LEN_LO        (`MSG_LENGTH_LO     )
+        ,.FBITS_HI          (`MSG_DST_FBITS_HI  )
+        ,.FBITS_LO          (`MSG_DST_FBITS_LO  )
+        ,.num_targets       (3'd3)
+        ,.fbits_type0       (RX_CTRL_IF_FBITS       )
+        ,.fbits_type1       (RX_BUF_IF_FBITS        )
+        ,.fbits_type2       (RX_APP_NOTIF_IF_FBITS  )
+    ) rx_splitter (
+         .clk   (clk    )
+        ,.rst_n (~rst   )
+
+        ,.src_splitter_vr_noc_val   (noc0_ctovr_rx_splitter_val     )
+        ,.src_splitter_vr_noc_dat   (noc0_ctovr_rx_splitter_data    )
+        ,.splitter_src_vr_noc_rdy   (rx_splitter_noc0_ctovr_rdy     )
+
+        ,.splitter_dst0_vr_noc_val  (noc0_ctovr_rx_app_val          )
+        ,.splitter_dst0_vr_noc_dat  (noc0_ctovr_rx_app_data         )
+        ,.dst0_splitter_vr_noc_rdy  (rx_app_noc0_ctovr_rdy          )
+
+        ,.splitter_dst1_vr_noc_val  (noc0_ctovr_rx_buf_val          )
+        ,.splitter_dst1_vr_noc_dat  (noc0_ctovr_rx_buf_data         )
+        ,.dst1_splitter_vr_noc_rdy  (rx_buf_noc0_ctovr_rdy          )
+
+        ,.splitter_dst2_vr_noc_val  (noc0_ctovr_rx_notif_val        )
+        ,.splitter_dst2_vr_noc_dat  (noc0_ctovr_rx_notif_data       )
+        ,.dst2_splitter_vr_noc_rdy  (rx_notif_noc0_ctovr_rdy        )
+
+        ,.splitter_dst3_vr_noc_val  ()
+        ,.splitter_dst3_vr_noc_dat  ()
+        ,.dst3_splitter_vr_noc_rdy  (1'b0)
+
+        ,.splitter_dst4_vr_noc_val  ()
+        ,.splitter_dst4_vr_noc_dat  ()
+        ,.dst4_splitter_vr_noc_rdy  (1'b0)
+    );
+    
+    dynamic_node_top_wrap #(
+         .NOC_DATA_W        (`NOC_DATA_WIDTH    )
+        ,.XY_COORD_W        (`XY_WIDTH          )
+        ,.CHIP_ID_W         (`CHIP_ID_WIDTH     )
+        ,.MSG_PAYLOAD_LEN   (`MSG_LENGTH_WIDTH  )
+    ) tile_tx_noc0_router (
+         .clk                   (clk)
+        ,.reset_in              (rst)
+        
+        ,.src_router_data_N     (src_app_tile_tx_noc0_data_N        )
+        ,.src_router_data_E     (src_app_tile_tx_noc0_data_E        )
+        ,.src_router_data_S     (src_app_tile_tx_noc0_data_S        )
+        ,.src_router_data_W     (src_app_tile_tx_noc0_data_W        )
+        ,.src_router_data_P     (noc0_vrtoc_tile_tx_router_data     )
+                                
+        ,.src_router_val_N      (src_app_tile_tx_noc0_val_N         )
+        ,.src_router_val_E      (src_app_tile_tx_noc0_val_E         )
+        ,.src_router_val_S      (src_app_tile_tx_noc0_val_S         )
+        ,.src_router_val_W      (src_app_tile_tx_noc0_val_W         )
+        ,.src_router_val_P      (noc0_vrtoc_tile_tx_router_val      )
+                                
+        ,.router_src_yummy_N    (app_tile_tx_src_noc0_yummy_N       )
+        ,.router_src_yummy_E    (app_tile_tx_src_noc0_yummy_E       )
+        ,.router_src_yummy_S    (app_tile_tx_src_noc0_yummy_S       )
+        ,.router_src_yummy_W    (app_tile_tx_src_noc0_yummy_W       )
+        ,.router_src_yummy_P    (tile_tx_router_noc0_vrtoc_yummy    )
+        
+        ,.myLocX                (APP_TILE_TX_SRC_X[`XY_WIDTH-1:0]   )
+        ,.myLocY                (APP_TILE_TX_SRC_Y[`XY_WIDTH-1:0]   )
+        ,.myChipID              (`CHIP_ID_WIDTH'd0                  )
+
+        ,.router_dst_data_N     (app_tile_tx_dst_noc0_data_N        )
+        ,.router_dst_data_E     (app_tile_tx_dst_noc0_data_E        )
+        ,.router_dst_data_S     (app_tile_tx_dst_noc0_data_S        )
+        ,.router_dst_data_W     (app_tile_tx_dst_noc0_data_W        )
+        ,.router_dst_data_P     (tile_tx_router_noc0_ctovr_data     )
+                            
+        ,.router_dst_val_N      (app_tile_tx_dst_noc0_val_N         )
+        ,.router_dst_val_E      (app_tile_tx_dst_noc0_val_E         )
+        ,.router_dst_val_S      (app_tile_tx_dst_noc0_val_S         )
+        ,.router_dst_val_W      (app_tile_tx_dst_noc0_val_W         )
+        ,.router_dst_val_P      (tile_tx_router_noc0_ctovr_val      )
+                            
+        ,.dst_router_yummy_N    (dst_app_tile_tx_noc0_yummy_N       )
+        ,.dst_router_yummy_E    (dst_app_tile_tx_noc0_yummy_E       )
+        ,.dst_router_yummy_S    (dst_app_tile_tx_noc0_yummy_S       )
+        ,.dst_router_yummy_W    (dst_app_tile_tx_noc0_yummy_W       )
+        ,.dst_router_yummy_P    (noc0_ctovr_tile_tx_router_yummy    )
+        
+        ,.router_src_thanks_P   ()  // thanksIn to processor's space_avail
+    );
+    
+    beehive_credit_to_valrdy #(
+        .NOC_DATA_W (`NOC_DATA_WIDTH    )
+    ) tile_tx_noc0_beehive_credit_to_valrdy (
+         .clk   (clk)
+        ,.reset (rst)
+        //credit based interface 
+        ,.src_ctovr_data    (tile_tx_router_noc0_ctovr_data )
+        ,.src_ctovr_val     (tile_tx_router_noc0_ctovr_val  )
+        ,.ctovr_src_yummy   (noc0_ctovr_tile_tx_router_yummy)
+
+        //val/rdy interface
+        ,.ctovr_dst_data    (noc0_ctovr_tx_splitter_data    )
+        ,.ctovr_dst_val     (noc0_ctovr_tx_splitter_val     )
+        ,.dst_ctovr_rdy     (tx_splitter_noc0_ctovr_rdy     )
+    );
+
+    beehive_valrdy_to_credit #(
+        .NOC_DATA_W (`NOC_DATA_WIDTH    )
+    ) tile_tx_noc0_beehive_valrdy_to_credit (
+         .clk       (clk)
+        ,.reset     (rst)
+
+        //val/rdy interface
+        ,.src_vrtoc_data    (tx_merger_noc0_vrtoc_data      )
+        ,.src_vrtoc_val     (tx_merger_noc0_vrtoc_val       )
+        ,.vrtoc_src_rdy     (noc0_vrtoc_tx_merger_rdy       )
+
+		//credit based interface	
+        ,.vrtoc_dst_data    (noc0_vrtoc_tile_tx_router_data )
+        ,.vrtoc_dst_val     (noc0_vrtoc_tile_tx_router_val  )
+		,.dst_vrtoc_yummy   (tile_tx_router_noc0_vrtoc_yummy)
+    );
+    
+    // merge NoC traffic for TCP message requests, memory buffer write requests
+    noc_prio_merger #(
+         .NOC_DATA_W        (`NOC_DATA_WIDTH    )
+        ,.MSG_PAYLOAD_LEN   (`PAYLOAD_LEN       )
+        ,.MSG_LEN_HI        (`MSG_LENGTH_HI     )
+        ,.MSG_LEN_LO        (`MSG_LENGTH_LO     )
+        ,.num_sources       (3)
+    ) tx_merger (   
+         .clk   (clk)
+        ,.rst_n (~rst)
+    
+        ,.src0_merger_vr_noc_val    (tx_app_noc0_vrtoc_val          )
+        ,.src0_merger_vr_noc_dat    (tx_app_noc0_vrtoc_data         )
+        ,.merger_src0_vr_noc_rdy    (noc0_vrtoc_tx_app_rdy          )
+    
+        ,.src1_merger_vr_noc_val    (tx_buf_noc0_vrtoc_val          )
+        ,.src1_merger_vr_noc_dat    (tx_buf_noc0_vrtoc_data         )
+        ,.merger_src1_vr_noc_rdy    (noc0_vrtoc_tx_buf_rdy          )
+    
+        ,.src2_merger_vr_noc_val    (echo_app_stats_noc0_vrtoc_val  )
+        ,.src2_merger_vr_noc_dat    (echo_app_stats_noc0_vrtoc_data )
+        ,.merger_src2_vr_noc_rdy    (noc0_vrtoc_echo_app_stats_rdy  )
+    
+        ,.src3_merger_vr_noc_val    ('0)
+        ,.src3_merger_vr_noc_dat    ('0)
+        ,.merger_src3_vr_noc_rdy    ()
+    
+        ,.src4_merger_vr_noc_val    ('0)
+        ,.src4_merger_vr_noc_dat    ('0)
+        ,.merger_src4_vr_noc_rdy    ()
+    
+        ,.merger_dst_vr_noc_val     (tx_merger_noc0_vrtoc_val       )
+        ,.merger_dst_vr_noc_dat     (tx_merger_noc0_vrtoc_data      )
+        ,.dst_merger_vr_noc_rdy     (noc0_vrtoc_tx_merger_rdy       )
+    );
+
+    // split between the app interface responses, memory buffer responses
+    noc_fbits_splitter #(
+         .NOC_DATA_W        (`NOC_DATA_WIDTH    )
+        ,.MSG_PAYLOAD_LEN   (`PAYLOAD_LEN       )
+        ,.MSG_LEN_HI        (`MSG_LENGTH_HI     )
+        ,.MSG_LEN_LO        (`MSG_LENGTH_LO     )
+        ,.FBITS_HI          (`MSG_DST_FBITS_HI  )
+        ,.FBITS_LO          (`MSG_DST_FBITS_LO  )
+        ,.num_targets       (3'd3)
+        ,.fbits_type0       (TX_CTRL_IF_FBITS       )
+        ,.fbits_type1       (TX_BUF_IF_FBITS        )
+        ,.fbits_type2       (ECHO_APP_READ_IF_FBITS )
+    ) tx_splitter (
+         .clk   (clk    )
+        ,.rst_n (~rst   )
+
+        ,.src_splitter_vr_noc_val   (noc0_ctovr_tx_splitter_val     )
+        ,.src_splitter_vr_noc_dat   (noc0_ctovr_tx_splitter_data    )
+        ,.splitter_src_vr_noc_rdy   (tx_splitter_noc0_ctovr_rdy     )
+
+        ,.splitter_dst0_vr_noc_val  (noc0_ctovr_tx_app_val          )
+        ,.splitter_dst0_vr_noc_dat  (noc0_ctovr_tx_app_data         )
+        ,.dst0_splitter_vr_noc_rdy  (tx_app_noc0_ctovr_rdy          )
+
+        ,.splitter_dst1_vr_noc_val  (noc0_ctovr_tx_buf_val          )
+        ,.splitter_dst1_vr_noc_dat  (noc0_ctovr_tx_buf_data         )
+        ,.dst1_splitter_vr_noc_rdy  (tx_buf_noc0_ctovr_rdy          )
+
+        ,.splitter_dst2_vr_noc_val  (noc0_ctovr_echo_app_stats_val  )
+        ,.splitter_dst2_vr_noc_dat  (noc0_ctovr_echo_app_stats_data )
+        ,.dst2_splitter_vr_noc_rdy  (echo_app_stats_noc0_ctovr_rdy  )
+
+        ,.splitter_dst3_vr_noc_val  ()
+        ,.splitter_dst3_vr_noc_dat  ()
+        ,.dst3_splitter_vr_noc_rdy  (1'b0)
+
+        ,.splitter_dst4_vr_noc_val  ()
+        ,.splitter_dst4_vr_noc_dat  ()
+        ,.dst4_splitter_vr_noc_rdy  (1'b0)
+    );
+
+    echo_app_msg_if #(
+         .TX_SRC_X      (APP_TILE_TX_SRC_X      )
+        ,.TX_SRC_Y      (APP_TILE_TX_SRC_Y      )
+        ,.TX_DST_BUF_X  (APP_TILE_TX_DST_BUF_X  )
+        ,.TX_DST_BUF_Y  (APP_TILE_TX_DST_BUF_Y  )
+        ,.RX_SRC_X      (APP_TILE_RX_SRC_X      )
+        ,.RX_SRC_Y      (APP_TILE_RX_SRC_Y      )
+        ,.RX_DST_BUF_X  (APP_TILE_RX_DST_BUF_X  )
+        ,.RX_DST_BUF_Y  (APP_TILE_RX_DST_BUF_Y  )
+    ) echo_app (
+         .clk   (clk    )
+        ,.rst   (rst    )
+        
+        ,.tx_app_noc0_vrtoc_val             (tx_app_noc0_vrtoc_val          )
+        ,.tx_app_noc0_vrtoc_data            (tx_app_noc0_vrtoc_data         )
+        ,.noc0_vrtoc_tx_app_rdy             (noc0_vrtoc_tx_app_rdy          )
+                                                                    
+        ,.noc0_ctovr_tx_app_val             (noc0_ctovr_tx_app_val          )
+        ,.noc0_ctovr_tx_app_data            (noc0_ctovr_tx_app_data         )
+        ,.tx_app_noc0_ctovr_rdy             (tx_app_noc0_ctovr_rdy          )
+                                                                    
+        ,.tx_buf_noc0_vrtoc_val             (tx_buf_noc0_vrtoc_val          )
+        ,.tx_buf_noc0_vrtoc_data            (tx_buf_noc0_vrtoc_data         )
+        ,.noc0_vrtoc_tx_buf_rdy             (noc0_vrtoc_tx_buf_rdy          )
+                                                                    
+        ,.noc0_ctovr_tx_buf_val             (noc0_ctovr_tx_buf_val          )
+        ,.noc0_ctovr_tx_buf_data            (noc0_ctovr_tx_buf_data         )
+        ,.tx_buf_noc0_ctovr_rdy             (tx_buf_noc0_ctovr_rdy          )
+        
+        ,.noc0_ctovr_echo_app_stats_val     (noc0_ctovr_echo_app_stats_val  )
+        ,.noc0_ctovr_echo_app_stats_data    (noc0_ctovr_echo_app_stats_data )
+        ,.echo_app_stats_noc0_ctovr_rdy     (echo_app_stats_noc0_ctovr_rdy  )
+                                                                                 
+        ,.echo_app_stats_noc0_vrtoc_val     (echo_app_stats_noc0_vrtoc_val  )
+        ,.echo_app_stats_noc0_vrtoc_data    (echo_app_stats_noc0_vrtoc_data )
+        ,.noc0_vrtoc_echo_app_stats_rdy     (noc0_vrtoc_echo_app_stats_rdy  )
+                                                                    
+        ,.rx_app_noc0_vrtoc_val             (rx_app_noc0_vrtoc_val          )
+        ,.rx_app_noc0_vrtoc_data            (rx_app_noc0_vrtoc_data         )
+        ,.noc0_vrtoc_rx_app_rdy             (noc0_vrtoc_rx_app_rdy          )
+                                                                    
+        ,.noc0_ctovr_rx_app_val             (noc0_ctovr_rx_app_val          )
+        ,.noc0_ctovr_rx_app_data            (noc0_ctovr_rx_app_data         )
+        ,.rx_app_noc0_ctovr_rdy             (rx_app_noc0_ctovr_rdy          )
+                                                                    
+        ,.rx_buf_noc0_vrtoc_val             (rx_buf_noc0_vrtoc_val          )
+        ,.rx_buf_noc0_vrtoc_data            (rx_buf_noc0_vrtoc_data         )
+        ,.noc0_vrtoc_rx_buf_rdy             (noc0_vrtoc_rx_buf_rdy          )
+                                                                    
+        ,.noc0_ctovr_rx_buf_val             (noc0_ctovr_rx_buf_val          )
+        ,.noc0_ctovr_rx_buf_data            (noc0_ctovr_rx_buf_data         )
+        ,.rx_buf_noc0_ctovr_rdy             (rx_buf_noc0_ctovr_rdy          )
+                                                                    
+        ,.noc0_ctovr_rx_notif_val           (noc0_ctovr_rx_notif_val        )
+        ,.noc0_ctovr_rx_notif_data          (noc0_ctovr_rx_notif_data       )
+        ,.rx_notif_noc0_ctovr_rdy           (rx_notif_noc0_ctovr_rdy        )
+    );
+endmodule

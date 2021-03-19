@@ -1,0 +1,19 @@
+CAPI=2:
+name: uwcse:beehive:mem_wrap_valrdy_test:0.1
+description: Test the wrapper that gives a val-rdy interface
+filesets:
+    rtl:
+        files: []
+        depend:
+            - uwcse:beehive:mem_controller_components
+        file_type: systemVerilogSource
+    sim:
+        files:
+            - tb_mem_controller.sv
+        file_type: systemVerilogSource
+
+targets:
+    sim:
+        default_tool: modelsim
+        filesets: [rtl, sim]
+        toplevel: [tb_mem_controller]

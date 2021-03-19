@@ -1,0 +1,33 @@
+CAPI=2:
+name: uwcse:beehive:test_circ_buf:0.1
+description: Test the circular buffer operators
+
+filesets:
+    rtl:
+        files:
+            - rd_buf_noc_tile.sv
+            - wr_buf_noc_tile.sv
+        depend:
+            - uwcse:buckfast:includes
+            - uwcse:beehive:openpiton_beehive_noc
+            - uwcse:buckfast:circ_buf_helpers
+            - uwcse:beehive:msgs
+            - uwcse:beehive:mem_controller
+            - uwcse:beehive:pyhp_generator
+            - uwcse:beehive:test_topology
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]
+        generate: [pyhp_generate]
+    fpga:
+        default_tool: vivado
+        filesets: [rtl]
+        generate: [pyhp_generate]
+        toplevel: [test_tiles_top]
+generate:
+    pyhp_generate:
+        generator: pyhp_gen
+        parameters:
+            process_me : [[test_tiles_top_gen.sv.pyv, test_tiles_top.sv]]

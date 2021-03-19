@@ -1,0 +1,100 @@
+`include "udp_echo_app_defs.svh"
+`include "udp_echo_app_stats_defs.svh"
+module udp_echo_app_copy_temp #(
+     parameter SRC_X = -1
+    ,parameter SRC_Y = -1
+)(
+     input clk
+    ,input rst
+    
+    ,input                                  noc0_ctovr_udp_app_in_val
+    ,input          [`NOC_DATA_WIDTH-1:0]   noc0_ctovr_udp_app_in_data
+    ,output logic                           udp_app_in_noc0_ctovr_rdy
+    
+    ,output logic                           udp_app_out_noc0_vrtoc_val
+    ,output logic   [`NOC_DATA_WIDTH-1:0]   udp_app_out_noc0_vrtoc_data
+    ,input                                  noc0_vrtoc_udp_app_out_rdy
+    
+    ,input                                  noc0_ctovr_udp_stats_in_val
+    ,input          [`NOC_DATA_WIDTH-1:0]   noc0_ctovr_udp_stats_in_data
+    ,output logic                           udp_stats_in_noc0_ctovr_rdy
+    
+    ,output logic                           udp_stats_out_noc0_vrtoc_val
+    ,output logic   [`NOC_DATA_WIDTH-1:0]   udp_stats_out_noc0_vrtoc_data
+    ,input                                  noc0_vrtoc_udp_stats_out_rdy
+);
+<%
+# Get the basic configuration object
+import sys
+import os
+sys.path.append(os.environ["BEEHIVE_PROJECT_ROOT"] + "/tile_generator/")
+from tile_generator import BeehiveConfig
+from cam_gen_helpers import get_dst_x_localparam_str, get_dst_y_localparam_str
+import logging
+logging.basicConfig(level=logging.INFO)
+design_path = os.environ["BEEHIVE_DESIGN_ROOT"]
+logging.info(f"Using tile config at {design_path}")
+tile_config = BeehiveConfig(design_path + "/tile_config.xml")
+%>
+
+<%
+# find all the UDP App endpoint names
+udp_app_endpoints = tile_config.tiles.findall("./endpoint/[port_name='udp_app']")
+udp_app_names = []
+for endpoint in udp_app_endpoints:
+    endpoint_name = endpoint.find("endpoint_name").text
+    udp_app_names.append(endpoint_name)
+
+x_localparam_decl = "    localparam UDP_APP_DST_X = "
+x_ternary_lines = ""
+y_localparam_decl = "    localparam UDP_APP_DST_Y = "
+y_ternary_lines = ""
+for name in udp_app_names:
+    endpoint = tile_config.endpoint_dict[name]
+    interface = endpoint.interfaces["udp_app_pkt"]
+
+    x_ternary_lines += get_dst_x_localparam_str(tile_config, interface)
+    y_ternary_lines += get_dst_y_localparam_str(tile_config, interface)
+
+print(x_localparam_decl + x_ternary_lines + "0;")
+print(y_localparam_decl + y_ternary_lines + "0;")
+
+%>
+
+    assign udp_stats_in_noc0_ctovr_rdy = 1'b0;
+    assign udp_stats_out_noc0_vrtoc_val = 1'b0;
+    assign udp_stats_out_noc0_vrtoc_data = '0;
+
+    udp_echo_app_datap_temp #(
+         .SRC_X (SRC_X  )
+        ,.SRC_Y (SRC_Y  )
+    ) datap (
+         .clk   (clk    )
+        ,.rst   (rst    )
+        
+        ,.noc0_ctovr_udp_app_in_data    (noc0_ctovr_udp_app_in_data     )
+                                                                        
+        ,.udp_app_out_noc0_vrtoc_data   (udp_app_out_noc0_vrtoc_data    )
+
+        ,.src_udp_app_out_dst_x         (UDP_APP_DST_X[`XY_WIDTH-1:0]   )
+        ,.src_udp_app_out_dst_y         (UDP_APP_DST_Y[`XY_WIDTH-1:0]   )
+    
+        /* TODO: connect new ports here as necessary */
+    );
+
+    udp_echo_app_ctrl_temp ctrl (
+         .clk   (clk    )
+        ,.rst   (rst    )
+        
+        ,.noc0_ctovr_udp_app_in_val     (noc0_ctovr_udp_app_in_val  )
+        ,.udp_app_in_noc0_ctovr_rdy     (udp_app_in_noc0_ctovr_rdy  )
+                                                                    
+        ,.udp_app_out_noc0_vrtoc_val    (udp_app_out_noc0_vrtoc_val )
+        ,.noc0_vrtoc_udp_app_out_rdy    (noc0_vrtoc_udp_app_out_rdy )
+
+        /* TODO: connect new ports here as necessary */
+                                                                    
+    );
+
+
+endmodule

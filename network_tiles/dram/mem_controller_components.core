@@ -1,0 +1,26 @@
+CAPI=2:
+name: uwcse:beehive:mem_controller_components
+description: Implementation of a memory controller that supports unaligned operations
+filesets:
+    rtl:
+        files:
+            - include/masked_mem_defs.svh: {is_include_file: true}
+            - masked_mem_controller_rd_pipe.sv
+            - masked_mem_rd_pipe_ctrl.sv
+            - masked_mem_rd_pipe_datap.sv
+            - masked_mem_rd_pipe_in_ctrl.sv
+            - masked_mem_rd_pipe_out_ctrl.sv
+            - masked_mem_wr_ctrl.sv
+            - masked_mem_wrap_valrdy.sv
+        depend:
+            - uwcse:buckfast:includes
+            - uwcse:buckfast:fifo
+            - uwcse:buckfast:bsg_dataflow
+            - uwcse:beehive:openpiton_beehive_noc
+            - uwcse:beehive:msgs
+            - uwcse:beehive:data_converters
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]

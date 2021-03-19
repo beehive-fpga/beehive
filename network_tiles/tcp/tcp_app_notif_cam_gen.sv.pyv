@@ -1,0 +1,79 @@
+`include "tcp_rx_tile_defs.svh"
+module tcp_app_notif_cam (
+     input clk
+    ,input rst
+
+    ,input  logic   [`IP_ADDR_W-1:0]            dst_addr
+    ,input  logic   [`PORT_NUM_W-1:0]           dst_port
+    ,input  logic                               rd_cam_val
+
+    ,output logic   [TCP_NOTIF_CAM_ENTRY_W-1:0] rd_cam_data
+    ,output logic                               rd_cam_hit
+);
+
+<%
+# Get the basic configuration object
+import sys
+import os
+sys.path.append(os.environ["BEEHIVE_PROJECT_ROOT"] + "/tile_generator/")
+from tile_generator import BeehiveConfig
+import logging
+logging.basicConfig(level=logging.INFO)
+design_path = os.environ["BEEHIVE_DESIGN_ROOT"]
+logging.info(f"Using tile config at {design_path}")
+tile_config = BeehiveConfig(design_path + "/tile_config.xml")
+%>
+
+<%
+endpoint = tile_config.endpoint_dict["tcp_rx_tile"]
+interface = endpoint.interfaces["tcp_rx_app_resp"]
+cam_dests = 0
+for dst in interface.dsts:
+    if "cam_target" in dst:
+        cam_dests += 1
+print(f"    localparam TCP_RX_NUM_DST = {cam_dests};")
+%>
+
+    localparam TAG_W = `PORT_NUM_W;
+
+    logic   [TCP_RX_NUM_DST-1:0][TAG_W-1:0]                 tcp_cam_tags;
+    logic   [TCP_RX_NUM_DST-1:0][TCP_NOTIF_CAM_ENTRY_W-1:0] tcp_cam_data;
+    logic   [TCP_RX_NUM_DST-1:0]                            one_hot_sel_mux_sel;
+    
+    assign rd_cam_hit = rd_cam_val & (|one_hot_sel_mux_sel);
+
+    always_ff @(posedge clk) begin
+        if (rst) begin
+<%
+cam_index = 0
+for dst_endpoint in interface.dsts:
+    if "cam_target" in dst_endpoint:
+        dst_endpoint_obj = tile_config.endpoint_dict[dst_endpoint["endpoint_name"]]
+        dst_interface_obj = dst_endpoint_obj.interfaces[dst_endpoint["if_name"]]
+        x_coord_name = dst_endpoint_obj.get_x_coord_param()
+        y_coord_name = dst_endpoint_obj.get_y_coord_param()
+        print(
+f"""            tcp_cam_tags[{cam_index}] <= {dst_endpoint["endpoint_tag"]};
+                tcp_cam_data[{cam_index}] <= {{{x_coord_name},
+                                       {y_coord_name},
+                                       {dst_interface_obj.fbits}}};""")
+        cam_index += 1
+%>
+        end
+    end
+    
+    genvar i;
+    for (i = 0; i < TCP_RX_NUM_DST; i++) begin: one_hot_proto_sel
+        assign one_hot_sel_mux_sel[i] = tcp_cam_tags[i] == {dst_port};
+    end
+    
+    bsg_mux_one_hot #(
+         .width_p   (TCP_NOTIF_CAM_ENTRY_W      )
+        ,.els_p     (TCP_RX_NUM_DST             )
+    ) mux_proto_dst (
+         .data_i        (tcp_cam_data       )
+        ,.sel_one_hot_i (one_hot_sel_mux_sel)
+        ,.data_o        (rd_cam_data        )
+    );
+
+endmodule

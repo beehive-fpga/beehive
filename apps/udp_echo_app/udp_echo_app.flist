@@ -1,0 +1,9 @@
+
++incdir+$BEEHIVE_PROJECT_ROOT/udp_echo_app/include
+$BEEHIVE_PROJECT_ROOT/udp_echo_app/include/udp_echo_app_pkg.sv
+$BEEHIVE_PROJECT_ROOT/udp_echo_app/udp_echo_app.sv
+$BEEHIVE_PROJECT_ROOT/udp_echo_app/udp_echo_app_ctrl.sv
+$BEEHIVE_PROJECT_ROOT/udp_echo_app/udp_echo_app_datap.sv
+$BEEHIVE_PROJECT_ROOT/udp_echo_app/udp_echo_app_in_ctrl.sv
+$BEEHIVE_PROJECT_ROOT/udp_echo_app/udp_echo_app_out_ctrl.sv
+$BEEHIVE_PROJECT_ROOT/udp_echo_app/udp_echo_app_tile.sv

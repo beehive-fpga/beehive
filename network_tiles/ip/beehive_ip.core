@@ -1,0 +1,52 @@
+CAPI=2:
+name: uwcse:beehive:ip:0.1
+description: Beehive IP tile
+
+filesets:
+    rtl:
+        files:
+            - include/ip_rx_tile_pkg.sv
+            - include/ip_tx_tile_pkg.sv
+            - include/ip_tx_tile_defs.svh: {is_include_file: true}
+            - include/ip_rx_tile_defs.svh: {is_include_file: true}
+            - ip_rx_noc_in.sv
+            - ip_rx_noc_in_ctrl.sv
+            - ip_rx_noc_in_datap.sv
+            - ip_rx_noc_out.sv
+            - ip_rx_noc_out_copy.sv
+            - ip_rx_noc_out_ctrl.sv
+            - ip_rx_noc_out_datap.sv
+            - ip_tx_noc_in.sv
+            - ip_tx_noc_in_ctrl.sv
+            - ip_tx_noc_in_datap.sv
+            - ip_tx_noc_out.sv
+            - ip_tx_noc_out_ctrl.sv
+            - ip_tx_noc_out_datap.sv
+        depend:
+            - uwcse:buckfast:includes
+            - uwcse:buckfast:frontend
+            - uwcse:beehive:openpiton_beehive_noc
+            - uwcse:beehive:msgs
+            - uwcse:beehive:pyhp_generator
+            - uwcse:beehive:data_converters
+            - uwcse:beehive:router_block
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]
+        generate: [pyhp_generate]
+generate:
+    pyhp_generate:
+        generator: pyhp_gen
+        parameters:
+            process_me : [[ip_rx_out_cam_gen.sv.pyv, ip_rx_out_cam_gen.sv],
+                          [ip_rx_out_cam_multi_gen.sv.pyv, ip_rx_out_cam_multi_gen.sv],
+                          [ip_rx_hash_table_init_rom_gen.sv.pyv, ip_rx_hash_table_init_rom_gen.sv],
+                          [ip_rx_tile_gen.sv.pyv, ip_rx_tile_gen.sv],
+                          [ip_tx_tile_gen.sv.pyv, ip_tx_tile_gen.sv],
+                          [ip_tx_noc_out_copy_gen.sv.pyv, ip_tx_noc_out_copy_gen.sv],
+                          [ip_rx_lb_out_gen.sv.pyv, ip_rx_lb_out_gen.sv],
+                          [ip_tx_lb_out_gen.sv.pyv, ip_tx_lb_out_gen.sv],
+                          [ip_tx_hash_table_init_rom_gen.sv.pyv, ip_tx_hash_table_init_rom_gen.sv]]
+                          

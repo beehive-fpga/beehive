@@ -1,0 +1,21 @@
+CAPI=2:
+name: uwcse:beehive:rs_encode_stats:0.1
+description: Beehive RS encode stats files
+
+filesets:
+    rtl:
+        files:
+            - include/rs_encode_stats_pkg.sv
+            - include/rs_encode_stats_defs.svh: {is_include_file: true}
+            - rs_encode_stats.sv
+            - rs_encode_stats_record.sv
+        depend:
+            - uwcse:buckfast:includes
+            - uwcse:beehive:openpiton_beehive_noc
+            - uwcse:beehive:msgs
+            - uwcse:beehive:logging
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]

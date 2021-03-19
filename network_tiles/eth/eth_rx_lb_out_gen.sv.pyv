@@ -1,0 +1,308 @@
+<%
+# Get the basic configuration object
+import sys
+import os
+sys.path.append(os.environ["BEEHIVE_PROJECT_ROOT"] + "/tile_generator/")
+from tile_generator import BeehiveConfig
+from tile_generator import TileDirs
+import logging
+logging.basicConfig(level=logging.INFO)
+
+design_path = os.environ["BEEHIVE_DESIGN_ROOT"]
+logging.info(f"Using tile config at {design_path}")
+tile_config = BeehiveConfig(design_path + "/tile_config.xml")
+
+# collect all the Ethernet receive endpoints
+ip_rx_endpoints = tile_config.tiles.findall("./endpoint/[port_name='ip_rx']")
+ip_rx_names = []
+for endpoint in ip_rx_endpoints:
+    endpoint_name = endpoint.find("endpoint_name").text
+    ip_rx_names.append(endpoint_name)
+
+if len(ip_rx_names) > (1 << 4):
+    raise RuntimeError("Too many destinations for the ROM size")
+%>
+`include "eth_rx_tile_defs.svh"
+module eth_rx_lb_out 
+import hash_pkg::*;
+(
+     input clk
+    ,input rst
+
+    ,input                                  src_eth_rx_lb_noc_val
+    ,input  logic   [`NOC_DATA_WIDTH-1:0]   src_eth_rx_lb_noc_data
+    ,output logic                           eth_rx_lb_src_noc_rdy
+
+    ,output logic                           eth_rx_lb_dst_noc_val
+    ,output logic   [`NOC_DATA_WIDTH-1:0]   eth_rx_lb_dst_noc_data
+    ,input  logic                           dst_eth_rx_lb_noc_rdy
+);
+
+    typedef struct packed {
+        logic   [`NOC_DATA_WIDTH-1:0]   data;
+        logic                           last;
+    } fifo_struct;
+    localparam FIFO_STRUCT_W = $bits(fifo_struct);
+
+<%
+print(f"""
+    localparam INIT_TABLE_ELS = {len(ip_rx_names)};""")
+%>
+    localparam INIT_TABLE_ADDR_W = $clog2(INIT_TABLE_ELS) == 0 ? 1 : $clog2(INIT_TABLE_ELS);
+    localparam TABLE_ELS_LOG_2 = 6;
+
+    logic                           strip_hdr_fifo_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   strip_hdr_fifo_data;
+    logic                           strip_hdr_fifo_last;
+    fifo_struct                     strip_hdr_fifo_struct;
+    logic                           hdr_fifo_strip_rdy;
+    logic                           strip_hdr_fifo_wr_req;
+    logic                           hdr_fifo_strip_full;
+
+    logic                           hdr_fifo_mod_val;
+    fifo_struct                     hdr_fifo_mod_struct;
+    logic                           mod_hdr_fifo_rdy;
+    logic                           mod_hdr_fifo_rd_req;
+    logic                           hdr_fifo_mod_empty;
+
+    logic                           strip_parser_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   strip_parser_data;
+    logic                           strip_parser_last;
+    logic                           parser_strip_rdy;
+
+    logic                           parser_data_fifo_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   parser_data_fifo_data;
+    logic                           parser_data_fifo_last;
+    fifo_struct                     parser_data_fifo_struct;
+    logic                           data_fifo_parser_rdy;
+    logic                           parser_data_fifo_wr_req;
+    logic                           data_fifo_parser_full;
+
+    logic                           data_fifo_join_val;
+    fifo_struct                     data_fifo_join_struct;
+    logic                           join_data_fifo_rdy;
+    logic                           join_data_fifo_rd_req;
+    logic                           data_fifo_join_empty;
+    
+    logic                           parser_table_val;
+    logic                           parser_table_tuple_val;
+    hash_struct                     parser_table_tuple;
+    logic                           table_parser_rdy;
+    logic                           table_rdy_tmp;
+    
+    logic                           init_wr_req_val;
+    logic   [TABLE_ELS_LOG_2-1:0]   init_wr_req_addr;
+    hash_table_data                 init_wr_req_data;
+    logic                           init_reset_done;
+    
+    logic                           init_table_rd;
+    logic   [INIT_TABLE_ADDR_W-1:0] init_table_addr;
+    hash_table_data                 init_table_rd_data;
+    
+    logic                           table_mod_val;
+    hash_table_data                 table_mod_data;
+    logic                           mod_table_rdy;
+
+    logic                           mod_join_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   mod_join_data;
+    logic                           mod_join_last;
+    logic                           join_mod_rdy;
+    
+
+    flit_hdr_strip hdr_strip (
+         .clk   (clk    )
+        ,.rst   (rst    )
+    
+        ,.src_strip_val         (src_eth_rx_lb_noc_val  )
+        ,.src_strip_data        (src_eth_rx_lb_noc_data )
+        ,.strip_src_rdy         (eth_rx_lb_src_noc_rdy  )
+        
+        ,.strip_dst_hdr_val     (strip_hdr_fifo_val     )
+        ,.strip_dst_hdr_data    (strip_hdr_fifo_data    )
+        ,.strip_dst_hdr_last    (strip_hdr_fifo_last    )
+        ,.dst_strip_hdr_rdy     (hdr_fifo_strip_rdy     )
+    
+        ,.strip_dst_data_val    (strip_parser_val       )
+        ,.strip_dst_data        (strip_parser_data      )
+        ,.strip_dst_last        (strip_parser_last      )
+        ,.dst_strip_data_rdy    (parser_strip_rdy       )
+    );
+
+    assign strip_hdr_fifo_struct.data = strip_hdr_fifo_data;
+    assign strip_hdr_fifo_struct.last = strip_hdr_fifo_last;
+
+    assign hdr_fifo_strip_rdy = ~hdr_fifo_strip_full;
+    assign strip_hdr_fifo_wr_req = strip_hdr_fifo_val & ~hdr_fifo_strip_full;
+
+    fifo_1r1w #(
+         .width_p       (FIFO_STRUCT_W      )
+        ,.log2_els_p    (4                  )
+    ) hdr_flit_fifo (
+         .clk   (clk    )
+        ,.rst   (rst    )
+    
+        ,.wr_req    (strip_hdr_fifo_wr_req  )
+        ,.wr_data   (strip_hdr_fifo_struct  )
+        ,.full      (hdr_fifo_strip_full    )
+        
+        ,.rd_req    (mod_hdr_fifo_rd_req   )
+        ,.rd_data   (hdr_fifo_mod_struct   )
+        ,.empty     (hdr_fifo_mod_empty    )
+    );
+
+    assign mod_hdr_fifo_rd_req = ~hdr_fifo_mod_empty & mod_hdr_fifo_rdy;
+    assign hdr_fifo_mod_val = ~hdr_fifo_mod_empty;
+
+    fixed_parser #(
+         .DATA_W        (`NOC_DATA_WIDTH    )
+        ,.HAS_ETH_HDR   (0)
+    ) parser (
+         .clk   (clk    )
+        ,.rst   (rst    )
+        
+        ,.src_parser_data_val   (strip_parser_val       )
+        ,.src_parser_data       (strip_parser_data      )
+        ,.src_parser_last       (strip_parser_last      )
+        ,.src_parser_padbytes   ('0)
+        ,.src_parser_start      ('0)
+        ,.src_parser_framesize  ('0)
+        ,.parser_src_data_rdy   (parser_strip_rdy       )
+    
+        ,.parser_dst_meta_val   (parser_table_val       )
+        ,.parser_dst_hash_val   (parser_table_tuple_val )
+        ,.parser_dst_hash_data  (parser_table_tuple     )
+        ,.dst_parser_meta_rdy   (table_parser_rdy       )
+    
+        ,.parser_dst_data_val   (parser_data_fifo_val   )
+        ,.parser_dst_data       (parser_data_fifo_data  )
+        ,.parser_dst_padbytes   ()
+        ,.parser_dst_last       (parser_data_fifo_last  )
+        ,.parser_dst_start      ()
+        ,.parser_dst_framesize  ()
+        ,.dst_parser_data_rdy   (data_fifo_parser_rdy   )
+    );
+
+    assign parser_data_fifo_struct.data = parser_data_fifo_data;
+    assign parser_data_fifo_struct.last = parser_data_fifo_last;
+
+    assign data_fifo_parser_rdy = ~data_fifo_parser_full;
+    assign parser_data_fifo_wr_req = parser_data_fifo_val & ~data_fifo_parser_full;
+    
+    fifo_1r1w #(
+         .width_p       (FIFO_STRUCT_W      )
+        ,.log2_els_p    (4                  )
+    ) data_flit_fifo (
+         .clk   (clk    )
+        ,.rst   (rst    )
+    
+        ,.wr_req    (parser_data_fifo_wr_req    )
+        ,.wr_data   (parser_data_fifo_struct    )
+        ,.full      (data_fifo_parser_full      )
+        
+        ,.rd_req    (join_data_fifo_rd_req      )
+        ,.rd_data   (data_fifo_join_struct      )
+        ,.empty     (data_fifo_join_empty       )
+    );
+
+    assign join_data_fifo_rd_req = ~data_fifo_join_empty & join_data_fifo_rdy;
+    assign data_fifo_join_val = ~data_fifo_join_empty;
+
+    assign table_parser_rdy = table_rdy_tmp & init_reset_done;
+    eth_rx_hash_table_init_rom #(
+         .INIT_TABLE_ELS    (INIT_TABLE_ELS )
+    ) init_rom (
+         .clk   (clk    )
+        ,.rst   (rst    )
+    
+        ,.table_rd      (init_table_rd      )
+        ,.table_rd_addr (init_table_addr    )
+    
+        ,.table_rd_data (init_table_rd_data )
+    );
+    
+    hash_table_init #(
+         .TABLE_ELS         (2**TABLE_ELS_LOG_2 )
+        ,.INIT_TABLE_ELS    (INIT_TABLE_ELS     )
+    ) init_hash_mem (
+         .clk   (clk    )
+        ,.rst   (rst    )
+    
+        ,.reset_done            (init_reset_done    )
+
+        ,.wr_req_val            (init_wr_req_val    )
+        ,.wr_req_addr           (init_wr_req_addr   )
+        ,.wr_req_data           (init_wr_req_data   )
+    
+        ,.init_table_rd         (init_table_rd      )
+        ,.init_table_addr       (init_table_addr    )
+        ,.init_table_rd_data    (init_table_rd_data )
+    );
+
+    logic   table_dst_tmp_val;
+    logic   dst_table_tmp_rdy;
+    logic   table_dst_wr_en;
+
+    l4_hash_table #(
+         .TABLE_DATA_W      (HASH_TABLE_DATA_W  )
+        ,.TABLE_ELS_LOG_2   (TABLE_ELS_LOG_2    )
+    ) hash_table (
+         .clk   (clk    )
+        ,.rst   (rst    )
+    
+        ,.rd_tuple_val      (parser_table_val   )
+        ,.rd_tuple_data     (parser_table_tuple )
+        ,.wr_en             (init_wr_req_val    )
+        ,.wr_index          (init_wr_req_addr   )
+        ,.wr_data           (init_wr_req_data   )
+        ,.hash_table_rdy    (table_rdy_tmp      )
+                                                
+        ,.table_data_val    (table_dst_tmp_val  )
+        ,.table_data_wr_en  (table_dst_wr_en    )
+        ,.table_rd_index    ()
+        ,.table_data        (table_mod_data     )
+        ,.table_data_rdy    (dst_table_tmp_rdy  )
+    );
+
+    assign table_mod_val = table_dst_tmp_val & ~table_dst_wr_en;
+    assign dst_table_tmp_rdy = table_dst_tmp_val & table_dst_wr_en
+                            ? 1'b1
+                            : mod_table_rdy;
+
+    hdr_flit_modify hdr_flit_mod (
+         .clk   (clk    )
+        ,.rst   (rst    )
+    
+        ,.src_mod_data_val      (hdr_fifo_mod_val           )
+        ,.src_mod_data_data     (hdr_fifo_mod_struct.data   )
+        ,.src_mod_data_last     (hdr_fifo_mod_struct.last   )
+        ,.mod_src_data_rdy      (mod_hdr_fifo_rdy           )
+    
+        ,.src_mod_new_dst_val   (table_mod_val              )
+        ,.src_mod_new_dst       (table_mod_data             )
+        ,.mod_src_new_dst_rdy   (mod_table_rdy              )
+    
+        ,.mod_dst_val           (mod_join_val               )
+        ,.mod_dst_data          (mod_join_data              )
+        ,.mod_dst_last          (mod_join_last              )
+        ,.dst_mod_rdy           (join_mod_rdy               )
+    );
+
+    flit_hdr_join joiner (
+         .clk   (clk    )
+        ,.rst   (rst    )
+    
+        ,.src_join_hdr_val      (mod_join_val               )
+        ,.src_join_hdr_data     (mod_join_data              )
+        ,.src_join_hdr_last     (mod_join_last              )
+        ,.join_src_hdr_rdy      (join_mod_rdy               )
+    
+        ,.src_join_body_val     (data_fifo_join_val         )
+        ,.src_join_body_last    (data_fifo_join_struct.last )
+        ,.src_join_body_data    (data_fifo_join_struct.data )
+        ,.join_src_body_rdy     (join_data_fifo_rdy         )
+    
+        ,.join_dst_val          (eth_rx_lb_dst_noc_val      )
+        ,.join_dst_data         (eth_rx_lb_dst_noc_data     )
+        ,.dst_join_rdy          (dst_eth_rx_lb_noc_rdy      )
+    );
+endmodule

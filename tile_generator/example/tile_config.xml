@@ -1,0 +1,14 @@
+<tiles>
+    <num_x_tiles>2</num_x_tiles>
+    <num_y_tiles>2</num_y_tiles>
+    <tile>
+        <module_name>eth_rx_tile</module_name>
+        <tile_x>0</tile_x>
+        <tile_y>0</tile_y>
+    </tile>
+    <tile>
+        <module_name>eth_tx_tile</module_name>
+        <tile_x>0</tile_x>
+        <tile_y>1</tile_y>
+    </tile>
+</tiles>

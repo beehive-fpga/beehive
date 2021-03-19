@@ -1,0 +1,30 @@
+CAPI=2:
+name: uwcse:beehive:test_l4_hash_table:0.1
+description: For testing the parser/hash combination
+
+filesets:
+    rtl:
+        files: []
+        depend:
+            - uwcse:buckfast:includes
+            - uwcse:buckfast:fifo
+            - uwcse:beehive:l4_extract
+            - uwcse:beehive:l4_hash
+            - uwcse:beehive:pyhp_generator
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]
+        generate: [pyhp_generate]
+    sim:
+        default_tool: modelsim
+        filesets: [rtl]
+        generate: [pyhp_generate]
+        toplevel: [hash_table_test]
+generate:
+    pyhp_generate:
+        generator: pyhp_gen
+        parameters:
+            process_me : [[hash_table_init_rom_gen.sv.pyv, hash_table_init_rom_gen.sv],
+                        [hash_table_test_gen.sv.pyv, hash_table_test_gen.sv]]

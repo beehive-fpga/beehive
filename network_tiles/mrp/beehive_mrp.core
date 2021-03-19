@@ -1,0 +1,43 @@
+CAPI=2:
+name: uwcse:beehive:mrp:0.1
+description: Beehive MRP files
+
+filesets:
+    rtl:
+        files:
+            - mrp_pkg.sv
+            - mrp_tx_pkg.sv
+            - mrp_defs.svh: {is_include_file: true}
+            - mrp_rx_defs.svh: {is_include_file: true}
+            - mrp_tx_defs.svh: {is_include_file: true}
+            - conn_id_fifo.sv
+            - dealloc_arbiter.sv
+            - mrp_engine.sv
+            - mrp_noc_wrap.sv
+            - mrp_rx.sv
+            - mrp_rx_buffer.sv
+            - mrp_rx_buffer_input_ctrl.sv
+            - mrp_rx_buffer_input_datap.sv
+            - mrp_rx_buffer_output_ctrl.sv
+            - mrp_rx_buffer_output_datap.sv
+            - mrp_rx_ctrl.sv
+            - mrp_rx_datap.sv
+            - mrp_rx_noc_in.sv
+            - mrp_rx_noc_in_ctrl.sv
+            - mrp_rx_noc_in_datap.sv
+            - mrp_tx.sv
+            - mrp_tx_ctrl.sv
+            - mrp_tx_datap.sv
+            - mrp_tx_noc_out.sv
+            - mrp_tx_noc_out_ctrl.sv
+            - mrp_tx_noc_out_datap.sv
+            - timeout_engine.sv
+        depend:
+            - uwcse:buckfast:includes
+            - uwcse:beehive:openpiton_beehive_noc
+            - uwcse:beehive:msgs
+        file_type: systemVerilogSource 
+
+targets:
+    default:
+        filesets: [rtl]

@@ -1,0 +1,111 @@
+`include "ip_tx_tile_defs.svh"
+module ip_tx_noc_out_copy #(
+     parameter SRC_X = -1
+    ,parameter SRC_Y = -1
+)(
+     input clk
+    ,input rst
+    
+    ,output logic                           ip_tx_out_noc0_vrtoc_val
+    ,output logic   [`NOC_DATA_WIDTH-1:0]   ip_tx_out_noc0_vrtoc_data    
+    ,input  logic                           noc0_vrtoc_ip_tx_out_rdy
+    
+    ,input  logic                           ip_to_ethstream_ip_tx_out_hdr_val
+    ,input  eth_hdr                         ip_to_ethstream_ip_tx_out_eth_hdr
+    ,input  logic   [`TOT_LEN_W-1:0]        ip_to_ethstream_ip_tx_out_data_len
+    ,input  logic   [MSG_TIMESTAMP_W-1:0]   ip_to_ethstream_ip_tx_out_timestamp
+    ,output logic                           ip_tx_out_ip_to_ethstream_hdr_rdy
+
+    ,input  logic                           ip_to_ethstream_ip_tx_out_data_val
+    ,input  logic   [`MAC_INTERFACE_W-1:0]  ip_to_ethstream_ip_tx_out_data
+    ,input  logic                           ip_to_ethstream_ip_tx_out_data_last
+    ,input  logic   [`MAC_PADBYTES_W-1:0]   ip_to_ethstream_ip_tx_out_data_padbytes
+    ,output                                 ip_tx_out_ip_to_ethstream_data_rdy
+);
+<%
+# Get the basic configuration object
+import sys
+import os
+sys.path.append(os.environ["BEEHIVE_PROJECT_ROOT"] + "/tile_generator/")
+from tile_generator import BeehiveConfig
+from cam_gen_helpers import get_dst_x_localparam_str, get_dst_y_localparam_str
+import logging
+logging.basicConfig(level=logging.INFO)
+design_path = os.environ["BEEHIVE_DESIGN_ROOT"]
+logging.info(f"Using tile config at {design_path}")
+tile_config = BeehiveConfig(design_path + "/tile_config.xml")
+%>
+
+<%
+# find all the IP endpoint names
+ip_tx_endpoints = tile_config.tiles.findall("./endpoint/[port_name='ip_tx']")
+ip_tx_names = []
+for endpoint in ip_tx_endpoints:
+    endpoint_name = endpoint.find("endpoint_name").text
+    ip_tx_names.append(endpoint_name)
+
+x_localparam_decl = "    localparam IP_TX_DST_X = "
+x_ternary_lines = ""
+y_localparam_decl = "    localparam IP_TX_DST_Y = "
+y_ternary_lines = ""
+for name in ip_tx_names:
+    endpoint = tile_config.endpoint_dict[name]
+    interface = endpoint.interfaces["ip_pkt_tx"]
+
+    x_ternary_lines += get_dst_x_localparam_str(tile_config, interface)
+    y_ternary_lines += get_dst_y_localparam_str(tile_config, interface)
+
+print(x_localparam_decl + x_ternary_lines + "0;")
+print(y_localparam_decl + y_ternary_lines + "0;")
+
+%>
+    ip_tx_tile_pkg::noc_out_flit_mux_sel    ctrl_datap_flit_sel;
+    logic                                   ctrl_datap_store_inputs;
+
+    logic                                   datap_ctrl_last_output;
+
+    ip_tx_noc_out_datap #(
+         .SRC_X (SRC_X)
+        ,.SRC_Y (SRC_Y)
+    ) datap (
+         .clk   (clk)
+        ,.rst   (rst)
+        
+        ,.ip_tx_out_noc0_vrtoc_data                 (ip_tx_out_noc0_vrtoc_data                  )
+                                                                                                
+        ,.ip_to_ethstream_ip_tx_out_eth_hdr         (ip_to_ethstream_ip_tx_out_eth_hdr          )
+        ,.ip_to_ethstream_ip_tx_out_timestamp       (ip_to_ethstream_ip_tx_out_timestamp        )
+        ,.ip_to_ethstream_ip_tx_out_data_len        (ip_to_ethstream_ip_tx_out_data_len         )
+        
+        ,.src_ip_tx_out_dst_x                       (IP_TX_DST_X[`XY_WIDTH-1:0]                 )
+        ,.src_ip_tx_out_dst_y                       (IP_TX_DST_Y[`XY_WIDTH-1:0]                 )
+                                                                                                
+        ,.ip_to_ethstream_ip_tx_out_data            (ip_to_ethstream_ip_tx_out_data             )
+        ,.ip_to_ethstream_ip_tx_out_data_last       (ip_to_ethstream_ip_tx_out_data_last        )
+        ,.ip_to_ethstream_ip_tx_out_data_padbytes   (ip_to_ethstream_ip_tx_out_data_padbytes    )
+                                                                                                
+        ,.ctrl_datap_flit_sel                       (ctrl_datap_flit_sel                        )
+        ,.ctrl_datap_store_inputs                   (ctrl_datap_store_inputs                    )
+                                                                                                
+        ,.datap_ctrl_last_output                    (datap_ctrl_last_output                     )
+    );
+
+    ip_tx_noc_out_ctrl ctrl (
+         .clk   (clk)
+        ,.rst   (rst)
+        
+        ,.ip_tx_out_noc0_vrtoc_val              (ip_tx_out_noc0_vrtoc_val           )
+        ,.noc0_vrtoc_ip_tx_out_rdy              (noc0_vrtoc_ip_tx_out_rdy           )
+                                                                                    
+        ,.ip_to_ethstream_ip_tx_out_hdr_val     (ip_to_ethstream_ip_tx_out_hdr_val  )
+        ,.ip_tx_out_ip_to_ethstream_hdr_rdy     (ip_tx_out_ip_to_ethstream_hdr_rdy  )
+                                                                                    
+        ,.ip_to_ethstream_ip_tx_out_data_val    (ip_to_ethstream_ip_tx_out_data_val )
+        ,.ip_tx_out_ip_to_ethstream_data_rdy    (ip_tx_out_ip_to_ethstream_data_rdy )
+                                                                                    
+        ,.ctrl_datap_flit_sel                   (ctrl_datap_flit_sel                )
+        ,.ctrl_datap_store_inputs               (ctrl_datap_store_inputs            )
+                                                                                    
+        ,.datap_ctrl_last_output                (datap_ctrl_last_output             )
+    );
+endmodule

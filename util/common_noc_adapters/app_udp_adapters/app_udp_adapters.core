@@ -1,0 +1,23 @@
+CAPI=2:
+name: uwcse:beehive:app_udp_adapters:0.1
+description: Adapters for sending messages on the NoC that get reused
+
+filesets:
+    rtl:
+        files:
+            - include/app_udp_adapter_pkg.sv
+            - from_udp.sv
+            - from_udp_ctrl.sv
+            - from_udp_datap.sv
+            - to_udp.sv
+            - to_udp_ctrl.sv
+            - to_udp_datap.sv
+        depend:
+            - uwcse:buckfast:includes
+            - uwcse:beehive:msgs
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]
+

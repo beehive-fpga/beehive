@@ -1,0 +1,32 @@
+CAPI=2:
+name: uwcse:beehive:ip_rewrite_manager_ctrl_noc:0.1
+description: Beehive IP rewrite manager tile with control noc
+
+filesets:
+    rtl:
+        files:
+            - include/ip_rewrite_manager_pkg.sv
+            - include/ip_rewrite_manager_defs.svh: {is_include_file: true}
+            - ip_rewrite_manager.sv
+            - ip_rewrite_manager_noc_if.sv
+            - ip_rewrite_manager_rx_ctrl.sv
+            - ip_rewrite_manager_rx_datap.sv
+            - ip_rewrite_manager_tx_ctrl.sv
+            - ip_rewrite_manager_tx_datap.sv
+        depend:
+            - uwcse:buckfast:includes
+            - uwcse:beehive:openpiton_beehive_noc
+            - uwcse:beehive:msgs
+            - uwcse:beehive:pyhp_generator
+            - uwcse:beehive:common_noc_adapters
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]
+        generate: [pyhp_generate]
+generate:
+    pyhp_generate:
+        generator: pyhp_gen
+        parameters:
+            process_me : [[ip_rewrite_manager_tiles_ctrl_noc_gen.sv.pyv, ip_rewrite_manager_tiles_ctrl_noc_gen.sv]]

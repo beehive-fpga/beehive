@@ -1,0 +1,13 @@
+CAPI=2:
+name: uwcse:beehive:common_inc:0.1
+description: Common includes for beehive
+filesets:
+    rtl:
+        files:
+            - packet_defs.vh: {is_include_file: true}
+            - packet_struct_pkg.sv
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]

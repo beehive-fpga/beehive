@@ -1,0 +1,16 @@
+package test_topology;
+<%
+from tile_generator import BeehiveConfig
+from tile_generator import TileDirs
+import logging
+logging.basicConfig(level=logging.INFO)
+config = BeehiveConfig("./tile_config.xml")
+
+
+for tile in config.tile_list:
+    param_format_string = f"""
+        localparam {tile.instance_name.upper()}_X = {tile.tile_x};
+        localparam {tile.instance_name.upper()}_Y = {tile.tile_y};"""
+    print(param_format_string)
+%>
+endpackage

@@ -1,0 +1,29 @@
+CAPI=2:
+name: uwcse:beehive:mem_controller_ctrl_noc
+description: Implementation of a memory controller that supports unaligned operations
+filesets:
+    rtl:
+        files:
+            - include/masked_mem_defs.svh: {is_include_file: true}
+            - masked_mem_controller.sv
+            - masked_mem_datap.sv
+            - masked_mem_rd_ctrl.sv
+            - masked_mem_wr_ctrl.sv
+        depend:
+            - uwcse:buckfast:includes
+            - uwcse:buckfast:bsg_dataflow
+            - uwcse:beehive:openpiton_beehive_noc
+            - uwcse:beehive:msgs
+            - uwcse:beehive:pyhp_generator
+            - uwcse:beehive:router_block
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]
+        generate: [pyhp_generate]
+generate:
+    pyhp_generate:
+        generator: pyhp_gen
+        parameters:
+            process_me : [[masked_mem_tile_ctrl_noc_gen.sv.pyv, masked_mem_tile_ctrl_noc_gen.sv]]

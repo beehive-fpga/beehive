@@ -1,0 +1,208 @@
+`include "noc_defs.vh"
+<%
+# Get the basic configuration object
+import sys
+import os
+sys.path.append(os.environ["BEEHIVE_PROJECT_ROOT"] + "/tile_generator/")
+from tile_generator import BeehiveConfig
+from tile_generator import TileDirs
+import logging
+logging.basicConfig(level=logging.INFO)
+
+design_path = os.environ["BEEHIVE_DESIGN_ROOT"]
+logging.info(f"Using tile config at {design_path}")
+tile_config = BeehiveConfig(design_path + "/tile_config.xml")
+
+# collect all the Ethernet receive endpoints
+ip_tx_endpoints = tile_config.tiles.findall("./endpoint/[port_name='ip_tx']")
+ip_tx_names = []
+for endpoint in ip_tx_endpoints:
+    endpoint_name = endpoint.find("endpoint_name").text
+    ip_tx_names.append(endpoint_name)
+
+if len(ip_tx_names) > (1 << 4):
+    raise RuntimeError("Too many destinations for the ROM size")
+%>
+module udp_tx_lb_out 
+import hash_pkg::*;
+(
+     input clk
+    ,input rst
+    
+    ,input  logic                           src_udp_tx_lb_val
+    ,input  logic   [`NOC_DATA_WIDTH-1:0]   src_udp_tx_lb_data
+    ,output                                 udp_tx_lb_src_rdy
+
+    ,output logic                           udp_tx_lb_dst_val
+    ,output logic   [`NOC_DATA_WIDTH-1:0]   udp_tx_lb_dst_data
+    ,input                                  dst_udp_tx_lb_rdy
+);
+    typedef struct packed {
+        logic   [`NOC_DATA_WIDTH-1:0]   data;
+        logic                           last;
+    } fifo_struct;
+    localparam FIFO_STRUCT_W = $bits(fifo_struct);
+
+<%
+print(f"""
+    localparam INIT_TABLE_ELS = {len(ip_tx_names)};""")
+%>
+    localparam INIT_TABLE_ADDR_W = $clog2(INIT_TABLE_ELS) == 0 ? 1 : $clog2(INIT_TABLE_ELS);
+    localparam TABLE_ELS_LOG_2 = 6;
+    
+    logic                           parse_fifo_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   parse_fifo_data;
+    logic                           parse_fifo_last;
+    logic                           fifo_parse_rdy;
+    logic                           parse_fifo_wr_req;
+    fifo_struct                     parse_fifo_wr_struct;
+    logic                           fifo_parse_full;
+    
+    logic                           init_wr_req_val;
+    logic   [TABLE_ELS_LOG_2-1:0]   init_wr_req_addr;
+    hash_table_data                 init_wr_req_data;
+    logic                           init_reset_done;
+    
+    logic                           init_table_rd;
+    logic   [INIT_TABLE_ADDR_W-1:0] init_table_addr;
+    hash_table_data                 init_table_rd_data;
+    
+    logic                           parse_table_tuple_val;
+    hash_struct                     parse_table_tuple;
+    logic                           table_parse_tuple_rdy;
+    
+    logic                           table_src_tmp_rdy;
+    logic                           table_dst_tmp_val;
+    logic                           dst_table_tmp_rdy;
+    logic                           table_dst_wr_en;
+    
+    logic                           table_mod_val;
+    hash_table_data                 table_mod_data;
+    logic                           mod_table_rdy;
+
+    logic                           fifo_mod_val;
+    fifo_struct                     fifo_mod_struct;
+    logic                           mod_fifo_rdy;
+    logic                           mod_fifo_rd_req;
+    logic                           fifo_mod_empty;
+
+    ip_lb_parse parser (
+         .clk   (clk    )
+        ,.rst   (rst    )
+    
+        ,.src_ip_lb_parse_val       (src_udp_tx_lb_val      )
+        ,.src_ip_lb_parse_data      (src_udp_tx_lb_data     )
+        ,.ip_lb_parse_src_rdy       (udp_tx_lb_src_rdy      )
+        
+        ,.ip_lb_parse_dst_val       (parse_fifo_val         )
+        ,.ip_lb_parse_dst_data      (parse_fifo_data        )
+        ,.ip_lb_parse_dst_last      (parse_fifo_last        )
+        ,.dst_ip_lb_parse_rdy       (fifo_parse_rdy         )
+    
+        ,.ip_lb_parse_dst_tuple_val (parse_table_tuple_val  )
+        ,.ip_lb_parse_dst_tuple     (parse_table_tuple      )
+        ,.dst_ip_lb_parse_tuple_rdy (table_parse_tuple_rdy  )
+    );
+    
+    assign parse_fifo_wr_req = parse_fifo_val & ~fifo_parse_full;
+    assign fifo_parse_rdy = ~fifo_parse_full;
+    assign parse_fifo_wr_struct.data = parse_fifo_data;
+    assign parse_fifo_wr_struct.last = parse_fifo_last;
+    
+    fifo_1r1w #(
+         .width_p       (FIFO_STRUCT_W      )
+        ,.log2_els_p    (6                  )
+    ) flit_fifo (
+         .clk   (clk    )
+        ,.rst   (rst    )
+    
+        ,.wr_req    (parse_fifo_wr_req      )
+        ,.wr_data   (parse_fifo_wr_struct   )
+        ,.full      (fifo_parse_full        )
+        
+        ,.rd_req    (mod_fifo_rd_req        )
+        ,.rd_data   (fifo_mod_struct        )
+        ,.empty     (fifo_mod_empty         )
+    );
+    
+    udp_tx_hash_table_init_rom #(
+         .INIT_TABLE_ELS    (INIT_TABLE_ELS )
+    ) init_rom (
+         .clk   (clk    )
+        ,.rst   (rst    )
+    
+        ,.table_rd      (init_table_rd      )
+        ,.table_rd_addr (init_table_addr    )
+    
+        ,.table_rd_data (init_table_rd_data )
+    );
+    
+    hash_table_init #(
+         .TABLE_ELS         (2**TABLE_ELS_LOG_2 )
+        ,.INIT_TABLE_ELS    (INIT_TABLE_ELS     )
+    ) init_hash_mem (
+         .clk   (clk    )
+        ,.rst   (rst    )
+    
+        ,.reset_done            (init_reset_done    )
+
+        ,.wr_req_val            (init_wr_req_val    )
+        ,.wr_req_addr           (init_wr_req_addr   )
+        ,.wr_req_data           (init_wr_req_data   )
+    
+        ,.init_table_rd         (init_table_rd      )
+        ,.init_table_addr       (init_table_addr    )
+        ,.init_table_rd_data    (init_table_rd_data )
+    );
+
+    assign table_parse_tuple_rdy = table_src_tmp_rdy & init_reset_done;
+    
+    l4_hash_table #(
+         .TABLE_DATA_W      (HASH_TABLE_DATA_W  )
+        ,.TABLE_ELS_LOG_2   (TABLE_ELS_LOG_2    )
+    ) hash_table (
+         .clk   (clk    )
+        ,.rst   (rst    )
+    
+        ,.rd_tuple_val      (parse_table_tuple_val  )
+        ,.rd_tuple_data     (parse_table_tuple      )
+        ,.wr_en             (init_wr_req_val        )
+        ,.wr_index          (init_wr_req_addr       )
+        ,.wr_data           (init_wr_req_data       )
+        ,.hash_table_rdy    (table_src_tmp_rdy      )
+                                                
+        ,.table_data_val    (table_dst_tmp_val      )
+        ,.table_data_wr_en  (table_dst_wr_en        )
+        ,.table_rd_index    ()
+        ,.table_data        (table_mod_data         )
+        ,.table_data_rdy    (dst_table_tmp_rdy      )
+    );
+
+    assign table_mod_val = table_dst_tmp_val & ~table_dst_wr_en;
+    assign dst_table_tmp_rdy = table_dst_wr_en
+                            ? 1'b1
+                            : mod_table_rdy;
+
+    assign mod_fifo_rd_req = mod_fifo_rdy & ~fifo_mod_empty;
+    assign fifo_mod_val = ~fifo_mod_empty;
+    
+    hdr_flit_modify hdr_mod (
+         .clk   (clk    )
+        ,.rst   (rst    )
+    
+        ,.src_mod_data_val      (fifo_mod_val           )
+        ,.src_mod_data_data     (fifo_mod_struct.data   )
+        ,.src_mod_data_last     (fifo_mod_struct.last   )
+        ,.mod_src_data_rdy      (mod_fifo_rdy           )
+    
+        ,.src_mod_new_dst_val   (table_mod_val  )
+        ,.src_mod_new_dst       (table_mod_data )
+        ,.mod_src_new_dst_rdy   (mod_table_rdy  )
+    
+        ,.mod_dst_val           (udp_tx_lb_dst_val      )
+        ,.mod_dst_data          (udp_tx_lb_dst_data     )
+        ,.mod_dst_last          ()
+        ,.dst_mod_rdy           (dst_udp_tx_lb_rdy      )
+    );
+
+endmodule

@@ -1,0 +1,26 @@
+CAPI=2:
+name: uwcse:beehive:rs_encode_udp_schedule:0.1
+description: Beehive RS encode scheduler
+
+filesets:
+    rtl:
+        files: []
+        depend:
+            - uwcse:buckfast:includes
+            - uwcse:beehive:openpiton_beehive_noc
+            - uwcse:beehive:msgs
+            - uwcse:beehive:schedulers
+            - uwcse:beehive:pyhp_generator
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]
+        generate: [pyhp_generate]
+generate:
+    pyhp_generate:
+        generator: pyhp_gen
+        parameters:
+            process_me : [[rs_encode_rx_scheduler_table_gen.sv.pyv,
+            rs_encode_rx_scheduler_table_gen.sv],
+            [rs_encode_rx_scheduler_tile_gen.sv.pyv, rs_encode_rx_scheduler_tile_gen.sv]]

@@ -1,0 +1,294 @@
+`include "noc_defs.vh"
+`include "bsg_defines.v"
+<%
+# Get the basic configuration object
+import sys
+import os
+sys.path.append(os.environ["BEEHIVE_PROJECT_ROOT"] + "/tile_generator/")
+from tile_generator import BeehiveConfig
+from noc_if_gen import NocInterfaceGen
+import logging
+logging.basicConfig(level=logging.INFO)
+design_path = os.environ["BEEHIVE_DESIGN_ROOT"]
+logging.info(f"Using tile config at {design_path}")
+tile_config = BeehiveConfig(design_path + "/tile_config.xml")
+noc_if_generator = NocInterfaceGen()
+%>
+module masked_mem_tile #(
+     parameter SRC_X = 0
+    ,parameter SRC_Y = 0
+    ,parameter MEM_ADDR_W = 0
+    ,parameter MEM_DATA_W = 0
+    ,parameter MEM_WR_MASK_W = MEM_DATA_W/8
+)(
+     input clk
+    ,input rst
+    
+    ,output logic                           controller_mem_read_en
+    ,output logic                           controller_mem_write_en
+    ,output logic   [MEM_ADDR_W-1:0]        controller_mem_addr
+    ,output logic   [MEM_DATA_W-1:0]        controller_mem_wr_data
+    ,output logic   [MEM_WR_MASK_W-1:0]     controller_mem_byte_en
+    ,output logic   [7-1:0]                 controller_mem_burst_cnt
+    ,input                                  mem_controller_rdy
+
+    ,input                                  mem_controller_rd_data_val
+    ,input          [MEM_DATA_W-1:0]        mem_controller_rd_data
+
+<%
+    noc_if_str = noc_if_generator.genNocInterface(src="src", module="masked_mem",
+         dst="dst", nocs=tile_config.nocs, noc_widths=tile_config.nocs_data_width)
+    print(noc_if_str)
+%>
+);
+
+<%
+router_wires = noc_if_generator.genNocProcessorWires(inst_name="router", nocs=tile_config.nocs,
+        noc_widths = tile_config.nocs_data_width)
+print(router_wires)
+%>
+    
+    logic                           controller_vrtoc_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   controller_vrtoc_data;    
+    logic                           vrtoc_controller_rdy;
+    
+    logic                           ctovr_controller_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   ctovr_controller_data;
+    logic                           controller_ctovr_rdy;
+    
+    logic                           queue_controller_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   queue_controller_data;
+    logic                           controller_queue_rdy;
+    logic                           controller_queue_yummy;
+    
+    logic                           wr_resp_noc_dtc_val;
+    logic   [`CTRL_NOC1_DATA_W-1:0] wr_resp_noc_dtc_data;
+    logic                           noc_wr_resp_dtc_rdy;
+    
+    logic                           wr_resp_noc_vrtoc_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   wr_resp_noc_vrtoc_data;
+    logic                           noc_wr_resp_vrtoc_rdy;
+
+    logic                           noc_ctd_rd_req_val;
+    logic   [`NOC_DATA_WIDTH-1:0] noc_ctd_rd_req_data;
+    logic                           rd_req_noc_ctd_rdy;
+    
+    logic                           noc_ctovr_rd_req_val;
+    logic   [`CTRL_NOC1_DATA_W-1:0]   noc_ctovr_rd_req_data;
+    logic                           rd_req_noc_ctovr_rdy;
+    
+    logic                           wrap_controller_rdy;
+
+    logic                           controller_wrap_write_en;
+    logic   [MEM_ADDR_W-1:0]        controller_wrap_addr;
+    logic   [MEM_DATA_W-1:0]        controller_wrap_wr_data;
+    logic   [MEM_WR_MASK_W-1:0]     controller_wrap_byte_en;
+    logic   [7-1:0]                 controller_wrap_burst_cnt;
+
+    logic                           controller_wrap_read_en;
+
+    logic                           wrap_controller_rd_data_val;
+    logic   [MEM_DATA_W-1:0]        wrap_controller_rd_data;
+    logic                           controller_wrap_rd_data_rdy;
+
+    masked_mem_wrap_valrdy #(
+         .MEM_ADDR_W    (MEM_ADDR_W )
+        ,.MEM_DATA_W    (MEM_DATA_W )
+        ,.SKID_SIZE     (2)
+    ) mem_if_wrap (
+         .clk   (clk    )
+        ,.rst   (rst    )
+        
+        ,.wrap_controller_rdy           (wrap_controller_rdy        )
+                                                                    
+        ,.controller_wrap_write_en      (controller_wrap_write_en   )
+        ,.controller_wrap_addr          (controller_wrap_addr       )
+        ,.controller_wrap_wr_data       (controller_wrap_wr_data    )
+        ,.controller_wrap_byte_en       (controller_wrap_byte_en    )
+        ,.controller_wrap_burst_cnt     (controller_wrap_burst_cnt  )
+                                                                    
+        ,.controller_wrap_read_en       (controller_wrap_read_en    )
+                                                                    
+        ,.wrap_controller_rd_data_val   (wrap_controller_rd_data_val)
+        ,.wrap_controller_rd_data       (wrap_controller_rd_data    )
+        ,.controller_wrap_rd_data_rdy   (controller_wrap_rd_data_rdy)
+    
+        ,.wrap_mem_write_en             (controller_mem_write_en    )
+        ,.wrap_mem_addr                 (controller_mem_addr        )
+        ,.wrap_mem_wr_data              (controller_mem_wr_data     )
+        ,.wrap_mem_byte_en              (controller_mem_byte_en     )
+        ,.wrap_mem_burst_cnt            (controller_mem_burst_cnt   )
+        ,.mem_wrap_rdy                  (mem_controller_rdy         )
+    
+        ,.wrap_mem_read_en              (controller_mem_read_en     )
+        ,.mem_wrap_rd_data_val          (mem_controller_rd_data_val )
+        ,.mem_wrap_rd_data              (mem_controller_rd_data     )
+    );
+
+    noc_router_block #(
+         .SRC_X (SRC_X  )
+        ,.SRC_Y (SRC_Y  )
+    ) masked_mem_router_block (
+         .clk   (clk    )
+        ,.rst   (rst    )
+<%
+    noc_ports = noc_if_generator.genNocInstantiation(src="src",
+    port_name="router_block", dst="dst", noc_src="src", noc_dst="dst",
+    module="masked_mem", nocs=tile_config.nocs)
+    print(noc_ports)
+    
+    processor_ports = noc_if_generator.genNocProcessorInstantiation(module="router_block", 
+        processor="process", inst_name="router", nocs=tile_config.nocs)
+    print(processor_ports)
+%>
+    );
+
+
+    beehive_credit_to_valrdy #(
+        .NOC_DATA_W (`NOC_DATA_WIDTH    )
+    ) data_noc0_beehive_credit_to_valrdy (
+         .clk   (clk)
+        ,.reset (rst)
+        
+        ,.src_ctovr_data    (router_ctovr_data_noc0_data    )
+        ,.src_ctovr_val     (router_ctovr_data_noc0_val     )
+        ,.ctovr_src_yummy   (ctovr_router_data_noc0_yummy   )
+
+        ,.ctovr_dst_data    (ctovr_controller_data          )
+        ,.ctovr_dst_val     (ctovr_controller_val           )
+        ,.dst_ctovr_rdy     (controller_ctovr_rdy           )
+    );
+
+    beehive_valrdy_to_credit #(
+        .NOC_DATA_W (`NOC_DATA_WIDTH    )
+    ) data_noc0_beehive_valrdy_to_credit (
+         .clk       (clk)
+        ,.reset     (rst)
+
+        ,.src_vrtoc_data    (controller_vrtoc_data          )
+        ,.src_vrtoc_val     (controller_vrtoc_val           )
+        ,.vrtoc_src_rdy     (vrtoc_controller_rdy           )
+
+        ,.vrtoc_dst_data    (vrtoc_router_data_noc0_data    )
+        ,.vrtoc_dst_val     (vrtoc_router_data_noc0_val     )
+		,.dst_vrtoc_yummy   (router_vrtoc_data_noc0_yummy   )
+    );
+
+    beehive_credit_to_valrdy #(
+        .NOC_DATA_W (`CTRL_NOC1_DATA_W  )
+    ) ctrl_noc1_beehive_credit_to_valrdy (
+         .clk   (clk)
+        ,.reset (rst)
+        
+        ,.src_ctovr_data    (router_ctovr_ctrl_noc1_data    )
+        ,.src_ctovr_val     (router_ctovr_ctrl_noc1_val     )
+        ,.ctovr_src_yummy   (ctovr_router_ctrl_noc1_yummy   )
+
+        ,.ctovr_dst_data    (noc_ctovr_rd_req_data          )
+        ,.ctovr_dst_val     (noc_ctovr_rd_req_val           )
+        ,.dst_ctovr_rdy     (rd_req_noc_ctovr_rdy           )
+    );
+
+    beehive_valrdy_to_credit #(
+        .NOC_DATA_W (`CTRL_NOC1_DATA_W  )
+    ) ctrl_noc1_beehive_valrdy_to_credit (
+         .clk       (clk)
+        ,.reset     (rst)
+
+        ,.src_vrtoc_data    (wr_resp_noc_dtc_data           )
+        ,.src_vrtoc_val     (wr_resp_noc_dtc_val            )
+        ,.vrtoc_src_rdy     (noc_wr_resp_dtc_rdy            )
+
+        ,.vrtoc_dst_data    (vrtoc_router_ctrl_noc1_data    )
+        ,.vrtoc_dst_val     (vrtoc_router_ctrl_noc1_val     )
+		,.dst_vrtoc_yummy   (router_vrtoc_ctrl_noc1_yummy   )
+    );
+
+    extra_hdr_noc_ctrl_to_data #(
+        .EXTRA_W    (DRAM_REQ_W )
+    ) req_ctd (
+         .clk   (clk    )
+        ,.rst   (rst    )
+        
+        ,.src_noc_ctd_val   (noc_ctovr_rd_req_val   )
+        ,.src_noc_ctd_data  (noc_ctovr_rd_req_data  )
+        ,.noc_ctd_src_rdy   (rd_req_noc_ctovr_rdy   )
+    
+        ,.noc_ctd_dst_val   (noc_ctd_rd_req_val     )
+        ,.noc_ctd_dst_data  (noc_ctd_rd_req_data    )
+        ,.dst_noc_ctd_rdy   (rd_req_noc_ctd_rdy     )
+    );
+
+    extra_hdr_noc_data_to_ctrl #(
+        .EXTRA_W    (DRAM_REQ_W )
+    ) resp_dtc (
+         .clk   (clk    )
+        ,.rst   (rst    )
+    
+        ,.src_noc_dtc_val   (wr_resp_noc_vrtoc_val  )
+        ,.src_noc_dtc_data  (wr_resp_noc_vrtoc_data )
+        ,.noc_dtc_src_rdy   (noc_wr_resp_vrtoc_rdy  )
+    
+        ,.noc_dtc_dst_val   (wr_resp_noc_dtc_val    )
+        ,.noc_dtc_dst_data  (wr_resp_noc_dtc_data   )
+        ,.dst_noc_dtc_rdy   (noc_wr_resp_dtc_rdy    )
+    );
+   
+    // pipeline for timing
+    bsg_fifo_1r1w_small #( 
+         .width_p   (`NOC_DATA_WIDTH    )
+        ,.els_p     (2                  )
+    ) buf_fifo ( 
+         .clk_i     (clk    )
+        ,.reset_i   (rst    )
+    
+        ,.v_i       (ctovr_controller_val       )
+        ,.ready_o   (controller_ctovr_rdy       )
+        ,.data_i    (ctovr_controller_data      )
+    
+        ,.v_o       (queue_controller_val       )
+        ,.data_o    (queue_controller_data      )
+        ,.yumi_i    (controller_queue_yummy     )
+    );
+
+    assign controller_queue_yummy = controller_queue_rdy & queue_controller_val;
+    
+    masked_mem_controller_rd_pipe #(
+         .MEM_DATA_W    (MEM_DATA_W     )
+        ,.MEM_ADDR_W    (MEM_ADDR_W     )
+        ,.MEM_WR_MASK_W (MEM_WR_MASK_W  )
+        ,.SRC_X         (SRC_X          )
+        ,.SRC_Y         (SRC_Y          )
+    ) mem_controller (
+         .clk   (clk    )
+        ,.rst   (rst    )
+        
+        ,.noc0_ctovr_controller_val     (queue_controller_val       )
+        ,.noc0_ctovr_controller_data    (queue_controller_data      )
+        ,.controller_noc0_ctovr_rdy     (controller_queue_rdy       )
+                                                                    
+        ,.controller_noc0_vrtoc_val     (controller_vrtoc_val       )
+        ,.controller_noc0_vrtoc_data    (controller_vrtoc_data      )
+        ,.noc0_vrtoc_controller_rdy     (vrtoc_controller_rdy       )
+    
+        ,.wr_resp_noc_vrtoc_val         (wr_resp_noc_vrtoc_val      )
+        ,.wr_resp_noc_vrtoc_data        (wr_resp_noc_vrtoc_data     )
+        ,.noc_wr_resp_vrtoc_rdy         (noc_wr_resp_vrtoc_rdy      )
+
+        ,.noc_ctovr_rd_req_val          (noc_ctd_rd_req_val         )
+        ,.noc_ctovr_rd_req_data         (noc_ctd_rd_req_data        )
+        ,.rd_req_noc_ctovr_rdy          (rd_req_noc_ctd_rdy         )
+                                                                    
+        ,.controller_mem_write_en       (controller_wrap_write_en   )
+        ,.controller_mem_addr           (controller_wrap_addr       )
+        ,.controller_mem_wr_data        (controller_wrap_wr_data    )
+        ,.controller_mem_byte_en        (controller_wrap_byte_en    )
+        ,.controller_mem_burst_cnt      (controller_wrap_burst_cnt  )
+        ,.mem_controller_rdy            (wrap_controller_rdy        )
+                                         
+        ,.controller_mem_read_en        (controller_wrap_read_en    )
+        ,.mem_controller_rd_data_val    (wrap_controller_rd_data_val)
+        ,.mem_controller_rd_data        (wrap_controller_rd_data    )
+        ,.controller_mem_rd_data_rdy    (controller_wrap_rd_data_rdy)
+    );
+endmodule

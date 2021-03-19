@@ -1,0 +1,21 @@
+CAPI=2:
+name: uwcse:beehive:update_chksum_nat:0.1
+description: Beehive update checksum after NAT
+
+filesets:
+    rtl:
+        files:
+            - ../update_chksum_nat.sv
+        depend:
+            - uwcse:buckfast:includes
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]
+        default_tool: modelsim
+        toplevel: [update_chksum_nat]
+    sim:
+        filesets: [rtl]
+        default_tool: modelsim
+        toplevel: [update_chksum_nat]

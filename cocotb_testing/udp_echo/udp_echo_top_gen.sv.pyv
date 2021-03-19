@@ -1,0 +1,165 @@
+`include "soc_defs.vh"
+`include "packet_defs.vh"
+`include "noc_defs.vh"
+
+import beehive_topology::*;
+module udp_echo_top (
+     input clk
+    ,input rst
+    
+    ,input                                      mac_engine_rx_val
+    ,input          [`MAC_INTERFACE_W-1:0]      mac_engine_rx_data
+    ,input                                      mac_engine_rx_startframe
+    ,input          [`MTU_SIZE_W-1:0]           mac_engine_rx_frame_size
+    ,input                                      mac_engine_rx_endframe
+    ,input          [`MAC_PADBYTES_W-1:0]       mac_engine_rx_padbytes
+    ,output logic                               engine_mac_rx_rdy
+    
+    ,output logic                               engine_mac_tx_val
+    ,input                                      mac_engine_tx_rdy
+    ,output logic                               engine_mac_tx_startframe
+    ,output logic   [`MTU_SIZE_W-1:0]           engine_mac_tx_frame_size 
+    ,output logic                               engine_mac_tx_endframe
+    ,output logic   [`MAC_INTERFACE_W-1:0]      engine_mac_tx_data
+    ,output logic   [`MAC_PADBYTES_W-1:0]       engine_mac_tx_padbytes
+);
+
+<%
+# Get the basic configuration object
+import sys
+import os
+sys.path.append(os.environ["BEEHIVE_PROJECT_ROOT"] + "/tile_generator/")
+from tile_generator import BeehiveConfig
+from tile_generator import TileDirs
+import logging
+logging.basicConfig(level=logging.INFO)
+
+design_path = os.environ["BEEHIVE_DESIGN_ROOT"]
+logging.info(f"Using tile config at {design_path}")
+tile_config = BeehiveConfig(design_path + "/tile_config.xml")
+%>
+
+// main tile connection wires
+<%
+# generate wires for hooking the tiles together
+tile_config.printWires()
+%>
+
+// tiles
+
+    eth_rx_tile #(
+         .SRC_X (ETH_RX_TILE_X  )
+        ,.SRC_Y (ETH_RX_TILE_Y  )
+    ) eth_rx_0_0 (
+         .clk   (clk)
+        ,.rst   (rst)
+<%
+tile_std_ports = tile_config.getEndpointPorts("eth_rx_tile")
+print(tile_std_ports)
+%>
+		,.mac_engine_rx_val         (mac_engine_rx_val          )
+		,.mac_engine_rx_data        (mac_engine_rx_data         )
+		,.mac_engine_rx_startframe  (mac_engine_rx_startframe   )
+		,.mac_engine_rx_frame_size  (mac_engine_rx_frame_size   )
+		,.mac_engine_rx_endframe    (mac_engine_rx_endframe     )
+		,.mac_engine_rx_padbytes    (mac_engine_rx_padbytes     )
+		,.engine_mac_rx_rdy         (engine_mac_rx_rdy          )
+    );
+
+    logic   [`MAC_INTERFACE_W-1:0]  engine_mac_tx_data_unmasked;
+
+	eth_tx_tile #(
+	     .SRC_X (ETH_TX_TILE_X  )
+	    ,.SRC_Y (ETH_TX_TILE_Y  )
+	) eth_tx_0_1 (
+		 .clk   (clk)
+		,.rst   (rst)
+<%
+tile_std_ports = tile_config.getEndpointPorts("eth_tx_tile")
+print(tile_std_ports)
+%>
+		,.engine_mac_tx_val         (engine_mac_tx_val          )
+		,.mac_engine_tx_rdy         (mac_engine_tx_rdy          )
+		,.engine_mac_tx_startframe  (engine_mac_tx_startframe   )
+		,.engine_mac_tx_frame_size  (engine_mac_tx_frame_size   )
+		,.engine_mac_tx_endframe    (engine_mac_tx_endframe     )
+		,.engine_mac_tx_data        (engine_mac_tx_data_unmasked)
+		,.engine_mac_tx_padbytes    (engine_mac_tx_padbytes     )
+	);
+
+    data_masker #(
+         .width_p   (`MAC_INTERFACE_W   )
+    ) output_masker (  
+         .unmasked_data (engine_mac_tx_data_unmasked    )
+        ,.padbytes      (engine_mac_tx_padbytes         )
+        ,.last          (engine_mac_tx_endframe         )
+    
+        ,.masked_data   (engine_mac_tx_data             )
+    );
+
+    ip_rx_tile #(
+	     .SRC_X (IP_RX_TILE_X  )
+	    ,.SRC_Y (IP_RX_TILE_Y  )
+	) IP_RX_1_0 (
+		 .clk   (clk)
+		,.rst   (rst)
+<%
+tile_std_ports = tile_config.getEndpointPorts("ip_rx_tile")
+print(tile_std_ports)
+%>
+	);
+
+    ip_tx_tile #(
+	     .SRC_X (IP_TX_TILE_X  )
+	    ,.SRC_Y (IP_TX_TILE_Y  )
+	) IP_TX_1_1 (
+		 .clk   (clk)
+		,.rst   (rst)
+<%
+tile_std_ports = tile_config.getEndpointPorts("ip_tx_tile")
+print(tile_std_ports)
+%>
+	);
+
+    udp_rx_tile #(
+	     .SRC_X (UDP_RX_TILE_X  )
+	    ,.SRC_Y (UDP_RX_TILE_Y  )
+	) UDP_RX_2_0 (
+		 .clk   (clk)
+		,.rst   (rst)
+<%
+tile_std_ports = tile_config.getEndpointPorts("udp_rx_tile")
+print(tile_std_ports)
+%>
+	);
+
+    udp_tx_tile #(
+	     .SRC_X (UDP_TX_TILE_X  )
+	    ,.SRC_Y (UDP_TX_TILE_Y  )
+	) UDP_TX_2_1 (
+		 .clk   (clk)
+		,.rst   (rst)
+<%
+tile_std_ports = tile_config.getEndpointPorts("udp_tx_tile")
+print(tile_std_ports)
+%>
+	);
+
+    udp_echo_app_tile #(
+	     .SRC_X (UDP_ECHO_APP_TILE_X  )
+	    ,.SRC_Y (UDP_ECHO_APP_TILE_Y  )
+	) UDP_APP_3_0 (
+		 .clk   (clk)
+		,.rst   (rst)
+<%
+tile_std_ports = tile_config.getEndpointPorts("udp_echo_app_tile")
+print(tile_std_ports)
+%>
+	);
+
+<%
+empty_tiles = tile_config.getEmptyTiles()
+print(empty_tiles)
+%>
+
+endmodule

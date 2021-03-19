@@ -1,0 +1,24 @@
+CAPI=2:
+name: uwcse:beehive:vr_app
+description: VR app 
+filesets:
+    rtl:
+        files:
+            - vr_app_wrap.sv
+        depend:
+            - uwcse:beehive:beehive_vr
+            - uwcse:buckfast:includes
+            - uwcse:beehive:msgs
+            - uwcse:beehive:topology
+            - uwcse:beehive:pyhp_generator
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]
+        generate: [pyhp_generate]
+generate:
+    pyhp_generate:
+        generator: pyhp_gen
+        parameters:
+            process_me : [[beehive_vr_tile_gen.sv.pyv, beehive_vr_tile_gen.sv]]

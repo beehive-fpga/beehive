@@ -1,0 +1,35 @@
+CAPI=2:
+name: uwcse:beehive:msgs:0.1
+description: Beehive NoC message packages
+
+filesets:
+    rtl:
+        files:
+            - beehive_noc_msg.sv
+            - beehive_eth_msg.sv
+            - beehive_ip_msg.sv
+            - beehive_ip_rewrite_msg.sv
+            - beehive_tcp_msg.sv
+            - beehive_udp_msg.sv
+            - beehive_rs_app_stats_msg.sv
+            - beehive_tcp_logger_msg.sv
+            - beehive_udp_app_logger_msg.sv
+            - beehive_eth_latency_logger_msg.sv
+            - beehive_echo_app_logger_msg.sv
+            - beehive_ctrl_noc_msg.sv
+        depend:
+            - uwcse:buckfast:includes
+        file_type: systemVerilogSource
+    sim:
+        files:
+            - parameter_checker.sv
+        depend:
+            - uwcse:buckfast:includes
+            - uwcse:beehive:openpiton_beehive_noc
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl, sim]
+
+

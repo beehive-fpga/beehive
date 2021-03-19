@@ -1,0 +1,38 @@
+CAPI=2:
+name: uwcse:beehive:beehive_vr_sharded:0.1
+description: Beehive VR test
+
+filesets:
+    rtl:
+        depend:
+            - uwcse:buckfast:includes
+            - uwcse:buckfast:bsg_mem
+            - uwcse:buckfast:bsg_misc
+            - uwcse:beehive:data_converters
+            - uwcse:beehive:misc
+            - uwcse:beehive:empty_tile
+            - uwcse:beehive:msgs
+            - uwcse:beehive:eth
+            - uwcse:beehive:ip
+            - uwcse:beehive:udp
+            - uwcse:beehive:vr_app
+            - uwcse:beehive:topology
+            - uwcse:beehive:pyhp_generator
+            - uwcse:beehive:ingress_load_balance
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]
+        generate: [pyhp_generate]
+    sim:
+        default_tool: modelsim
+        filesets: [rtl]
+        generate: [pyhp_generate]
+        toplevel: [beehive_vr_sharded_top]
+generate:
+    pyhp_generate:
+        generator: pyhp_gen
+        parameters:
+            process_me : [[beehive_vr_sharded_top_gen.sv.pyv,
+            beehive_vr_sharded_top_gen.sv]]

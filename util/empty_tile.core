@@ -1,0 +1,23 @@
+CAPI=2:
+name: uwcse:beehive:empty_tile:0.1
+description: Beehive empty tile
+
+filesets:
+    rtl:
+        files: []
+        depend:
+            - uwcse:buckfast:includes
+            - uwcse:beehive:openpiton_beehive_noc
+            - uwcse:beehive:pyhp_generator
+            - uwcse:beehive:router_block
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]
+        generate: [pyhp_generate]
+generate:
+    pyhp_generate:
+        generator: pyhp_gen
+        parameters:
+            process_me : [[empty_tile_gen.sv.pyv, empty_tile_gen.sv]]

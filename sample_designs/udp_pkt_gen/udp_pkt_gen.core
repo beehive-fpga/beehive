@@ -1,0 +1,37 @@
+CAPI=2:
+name: uwcse:beehive:udp_pkt_gen:0.1
+description: Beehive UDP echo design
+
+filesets:
+    rtl:
+        depend:
+            - uwcse:buckfast:includes
+            - uwcse:buckfast:bsg_mem
+            - uwcse:buckfast:bsg_misc
+            - uwcse:beehive:data_converters
+            - uwcse:beehive:misc
+            - uwcse:beehive:empty_tile
+            - uwcse:beehive:msgs
+            - uwcse:beehive:eth
+            - uwcse:beehive:ip
+            - uwcse:beehive:udp
+            - uwcse:beehive:packet_gen
+            - uwcse:beehive:udp_echo_app
+            - uwcse:beehive:topology
+            - uwcse:beehive:pyhp_generator
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]
+        generate: [pyhp_generate]
+    fpga:
+        default_tool: vivado
+        filesets: [rtl]
+        generate: [pyhp_generate]
+        toplevel: [udp_echo_top]
+generate:
+    pyhp_generate:
+        generator: pyhp_gen
+        parameters:
+            process_me : [[tb_udp_pkt_gen_top_gen.sv.pyv, tb_udp_pkt_gen_top_gen.sv]]

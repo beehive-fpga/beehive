@@ -1,0 +1,36 @@
+CAPI=2:
+name: uwcse:beehive:openpiton_beehive_noc:0.1
+description: NoC components for Beehive
+
+filesets:
+    rtl:
+        files:
+            - beehive_dynamic_input_control.v
+            - beehive_dynamic_input_route_request_calc.v
+            - beehive_dynamic_input_top_16.v
+            - beehive_dynamic_input_top_4.v
+            - beehive_dynamic_node_top.v
+            - beehive_dynamic_node_top_wrap.v
+            - beehive_dynamic_output_control.v
+            - beehive_dynamic_output_datapath.v
+            - beehive_dynamic_output_top.v
+            - beehive_noc_splitter.sv
+            - beehive_noc_fbits_splitter.v
+            - beehive_noc_msg_type_splitter.v
+            - beehive_noc_prio_merger.v
+            - common/beehive_bus_compare_equal.v
+            - common/beehive_credit_to_valrdy.v
+            - common/beehive_flip_bus.v
+            - common/beehive_net_dff.v
+            - common/beehive_network_input_blk_multi_out.v
+            - common/beehive_one_of_eight.v
+            - common/beehive_one_of_five.v
+            - common/beehive_space_avail_top.v
+            - common/beehive_valrdy_to_credit.v
+        depend:
+            - uwcse:buckfast:includes
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]

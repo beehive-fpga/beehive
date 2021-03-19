@@ -1,0 +1,68 @@
+`include "packet_defs.vh"
+`include "state_defs.vh"
+`include "noc_defs.vh"
+`include "soc_defs.vh"
+import beehive_topology::*;
+module beehive_top #(
+     parameter MEM_ADDR_W = 0
+    ,parameter MEM_DATA_W = 0
+    ,parameter MEM_WR_MASK_W = MEM_DATA_W/8
+    ,parameter MEM_BURST_CNT_W = 0
+
+)(
+     input clk
+    ,input rst
+    
+    ,input                                      mac_engine_rx_val
+    ,input          [`MAC_INTERFACE_W-1:0]      mac_engine_rx_data
+    ,input                                      mac_engine_rx_startframe
+    ,input          [`MTU_SIZE_W-1:0]           mac_engine_rx_frame_size
+    ,input                                      mac_engine_rx_endframe
+    ,input          [`MAC_PADBYTES_W-1:0]       mac_engine_rx_padbytes
+    ,output logic                               engine_mac_rx_rdy
+    
+    ,output logic                               engine_mac_tx_val
+    ,input                                      mac_engine_tx_rdy
+    ,output logic   [`MAC_INTERFACE_W-1:0]      engine_mac_tx_data
+    ,output logic                               engine_mac_tx_last
+    ,output logic   [`MAC_PADBYTES_W-1:0]       engine_mac_tx_padbytes
+    
+    ,input  logic                               memA_ready_in
+    ,output logic                               memA_read_out
+    ,output logic                               memA_write_out
+    ,output logic   [MEM_ADDR_W-1:0]            memA_address_out
+    ,input  logic   [MEM_DATA_W-1:0]            memA_readdata_in
+    ,output logic   [MEM_DATA_W-1:0]            memA_writedata_out
+    ,output logic   [MEM_BURST_CNT_W-1:0]       memA_burstcount_out
+    ,output logic   [MEM_WR_MASK_W-1:0]         memA_byteenable_out
+    ,input  logic                               memA_readdatavalid_in
+    
+    ,input  logic                               memB_ready_in
+    ,output logic                               memB_read_out
+    ,output logic                               memB_write_out
+    ,output logic   [MEM_ADDR_W-1:0]            memB_address_out
+    ,input  logic   [MEM_DATA_W-1:0]            memB_readdata_in
+    ,output logic   [MEM_DATA_W-1:0]            memB_writedata_out
+    ,output logic   [MEM_BURST_CNT_W-1:0]       memB_burstcount_out
+    ,output logic   [MEM_WR_MASK_W-1:0]         memB_byteenable_out
+    ,input  logic                               memB_readdatavalid_in
+);
+<%
+# Get the basic configuration object
+from tile_generator import BeehiveConfig
+from tile_generator import TileDirs
+import logging
+logging.basicConfig(level=logging.INFO)
+config = BeehiveConfig("./tile_config.xml")
+%>
+
+// main tile connection wires
+<%
+# generate wires for hooking the tiles together
+config.printWires()
+%>
+
+<%
+config.printTiles()
+%>
+endmodule

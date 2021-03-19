@@ -1,0 +1,42 @@
+CAPI=2:
+name: uwcse:beehive:tcp_logger:0.1
+description: Beehive TCP logger files
+
+filesets:
+    rtl:
+        files:
+            - include/tcp_logger_pkg.sv
+            - include/tcp_logger_read_defs.svh: {is_include_file: true}
+            - include/tcp_logger_record_defs.svh: {is_include_file: true}
+            - include/tcp_logger_tile_defs.svh: {is_include_file: true}
+            - tcp_logger_read_ctrl.sv
+            - tcp_logger_read_datap.sv
+            - tcp_logger_read_top.sv
+            - tcp_logger_record_ctrl.sv
+            - tcp_logger_record_datap.sv
+            - tcp_logger_record_top.sv
+            - tcp_logger_wrap.sv
+            - tcp_log_replay.sv
+        depend:
+            - uwcse:buckfast:includes
+            - uwcse:buckfast:ram
+            - uwcse:beehive:openpiton_beehive_noc
+            - uwcse:beehive:msgs
+            - uwcse:beehive:pyhp_generator
+            - uwcse:beehive:router_block
+        file_type: systemVerilogSource
+    sim:
+        files:
+            - tcp_logger_param_checker.sv
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl, sim]
+        generate: [pyhp_generate]
+generate:
+    pyhp_generate:
+        generator: pyhp_gen
+        parameters:
+            process_me : [[tcp_logger_tile_gen.sv.pyv, tcp_logger_tile_gen.sv],
+                          [tcp_log_replay_tile_gen.sv.pyv, tcp_log_replay_tile_gen.sv]]

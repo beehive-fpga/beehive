@@ -1,0 +1,18 @@
+CAPI=2:
+name: uwcse:beehive:noc_helpers:0.1
+description: Helper files for sending memory requests over the NoC
+
+filesets:
+    rtl:
+        files:
+            - include/mem_noc_helper_pkg.sv
+            - rd_mem_noc_module.sv
+            - wr_mem_noc_module.sv
+        depend:
+            - uwcse:buckfast:includes
+            - uwcse:beehive:tcp_inc
+            - uwcse:beehive:openpiton_beehive_noc
+        file_type: systemVerilogSource
+targets:
+    default:
+        filesets: [rtl]

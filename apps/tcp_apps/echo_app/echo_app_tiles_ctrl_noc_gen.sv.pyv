@@ -1,0 +1,469 @@
+`include "echo_app_defs.svh"
+`include "echo_app_stats_defs.svh"
+<%
+# Get the basic configuration object
+import sys
+import os
+sys.path.append(os.environ["BEEHIVE_PROJECT_ROOT"] + "/tile_generator/")
+from tile_generator import BeehiveConfig
+from noc_if_gen import NocInterfaceGen
+import logging
+logging.basicConfig(level=logging.INFO)
+design_path = os.environ["BEEHIVE_DESIGN_ROOT"]
+logging.info(f"Using tile config at {design_path}")
+tile_config = BeehiveConfig(design_path + "/tile_config.xml")
+noc_if_generator = NocInterfaceGen()
+%>
+module echo_app_tiles #(
+     parameter APP_TILE_TX_SRC_X = -1
+    ,parameter APP_TILE_TX_SRC_Y = -1
+    ,parameter APP_TILE_TX_DST_BUF_X = -1
+    ,parameter APP_TILE_TX_DST_BUF_Y = -1
+    ,parameter APP_TILE_RX_SRC_X = -1
+    ,parameter APP_TILE_RX_SRC_Y = -1
+    ,parameter APP_TILE_RX_DST_BUF_X = -1
+    ,parameter APP_TILE_RX_DST_BUF_Y = -1
+)(
+     input clk
+    ,input rst
+
+<%
+    noc_if_str = noc_if_generator.genNocInterface(src="src", module="app_tile_rx",
+         dst="dst", nocs=tile_config.nocs, noc_widths=tile_config.nocs_data_width)
+    print(noc_if_str)
+%>
+
+<%
+    noc_if_str = noc_if_generator.genNocInterface(src="src", module="app_tile_tx",
+         dst="dst", nocs=tile_config.nocs, noc_widths=tile_config.nocs_data_width)
+    print(noc_if_str)
+%>
+);
+<%
+router_wires = noc_if_generator.genNocProcessorWires(inst_name="rx_router", nocs=tile_config.nocs,
+        noc_widths = tile_config.nocs_data_width)
+print(router_wires)
+%>
+<%
+router_wires = noc_if_generator.genNocProcessorWires(inst_name="tx_router", nocs=tile_config.nocs,
+        noc_widths = tile_config.nocs_data_width)
+print(router_wires)
+%>
+    
+    logic                           rx_merger_vrtoc_data_noc0_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   rx_merger_vrtoc_data_noc0_data;    
+    logic                           vrtoc_rx_merger_data_noc0_rdy;
+    
+    logic                           ctovr_rx_splitter_data_noc0_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   ctovr_rx_splitter_data_noc0_data;
+    logic                           rx_splitter_ctovr_data_noc0_rdy;     
+    
+    logic                           rx_app_merger_data_noc0_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   rx_app_merger_data_noc0_data;
+    logic                           merger_rx_app_data_noc0_rdy;
+
+    logic                           splitter_rx_app_data_noc0_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   splitter_rx_app_data_noc0_data;
+    logic                           rx_app_splitter_data_noc0_rdy;
+    
+    logic                           rx_buf_merger_data_noc0_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   rx_buf_merger_data_noc0_data;
+    logic                           merger_rx_buf_data_noc0_rdy;
+
+    logic                           splitter_rx_buf_data_noc0_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   splitter_rx_buf_data_noc0_data;
+    logic                           rx_buf_splitter_data_noc0_rdy;
+    
+    logic                           splitter_rx_notif_data_noc0_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   splitter_rx_notif_data_noc0_data;
+    logic                           rx_notif_splitter_data_noc0_rdy;
+    
+    logic                           tx_merger_vrtoc_data_noc0_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   tx_merger_vrtoc_data_noc0_data;    
+    logic                           vrtoc_tx_merger_data_noc0_rdy;
+    
+    logic                           ctovr_tx_splitter_data_noc0_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   ctovr_tx_splitter_data_noc0_data;
+    logic                           tx_splitter_ctovr_data_noc0_rdy;     
+    
+    logic                           tx_app_merger_data_noc0_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   tx_app_merger_data_noc0_data;
+    logic                           merger_tx_app_data_noc0_rdy;
+
+    logic                           splitter_tx_app_data_noc0_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   splitter_tx_app_data_noc0_data;
+    logic                           tx_app_splitter_data_noc0_rdy;
+    
+    logic                           tx_buf_merger_data_noc0_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   tx_buf_merger_data_noc0_data;
+    logic                           merger_tx_buf_data_noc0_rdy;
+
+    logic                           splitter_tx_buf_data_noc0_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   splitter_tx_buf_data_noc0_data;
+    logic                           tx_buf_splitter_data_noc0_rdy;
+    
+    logic                           ctovr_echo_app_stats_ctrl_noc1_val;
+    logic   [`CTRL_NOC1_DATA_W-1:0] ctovr_echo_app_stats_ctrl_noc1_data;
+    logic                           echo_app_stats_ctovr_ctrl_noc1_rdy;
+
+    logic                           echo_app_stats_vrtoc_ctrl_noc2_val;
+    logic   [`CTRL_NOC2_DATA_W-1:0] echo_app_stats_vrtoc_ctrl_noc2_data;
+    logic                           vrtoc_echo_app_stats_ctrl_noc2_rdy;
+    
+    noc_router_block #(
+         .SRC_X (APP_TILE_RX_SRC_X  )
+        ,.SRC_Y (APP_TILE_RX_SRC_Y  )
+    ) echo_app_rx_noc_router_block (
+         .clk   (clk    )
+        ,.rst   (rst    )
+<%
+    noc_ports = noc_if_generator.genNocInstantiation(src="src",
+    port_name="router_block", dst="dst", noc_src="src", noc_dst="dst",
+    module="app_tile_rx", nocs=tile_config.nocs)
+    print(noc_ports)
+    
+    processor_ports = noc_if_generator.genNocProcessorInstantiation(module="router_block", 
+        processor="process", inst_name="rx_router", nocs=tile_config.nocs)
+    print(processor_ports)
+%>
+    );
+
+    assign ctovr_rx_router_ctrl_noc1_yummy = 1'b0;
+    assign vrtoc_rx_router_ctrl_noc1_val = 1'b0;
+    assign vrtoc_rx_router_ctrl_noc1_data = '0;
+
+    assign ctovr_rx_router_ctrl_noc2_yummy = 1'b0;
+    assign vrtoc_rx_router_ctrl_noc2_val = 1'b0;
+    assign vrtoc_rx_router_ctrl_noc2_data = '0;
+
+    
+    beehive_credit_to_valrdy #(
+        .NOC_DATA_W (`NOC_DATA_WIDTH    )
+    ) rx_data_noc0_beehive_credit_to_valrdy (
+         .clk   (clk)
+        ,.reset (rst)
+        
+        ,.src_ctovr_data    (rx_router_ctovr_data_noc0_data     )
+        ,.src_ctovr_val     (rx_router_ctovr_data_noc0_val      )
+        ,.ctovr_src_yummy   (ctovr_rx_router_data_noc0_yummy    )
+
+        ,.ctovr_dst_data    (ctovr_rx_splitter_data_noc0_data   )
+        ,.ctovr_dst_val     (ctovr_rx_splitter_data_noc0_val    )
+        ,.dst_ctovr_rdy     (rx_splitter_ctovr_data_noc0_rdy    )
+    );
+
+    beehive_valrdy_to_credit #(
+        .NOC_DATA_W (`NOC_DATA_WIDTH    )
+    ) rx_data_noc0_beehive_valrdy_to_credit (
+         .clk       (clk)
+        ,.reset     (rst)
+
+        ,.src_vrtoc_data    (rx_merger_vrtoc_data_noc0_data     )
+        ,.src_vrtoc_val     (rx_merger_vrtoc_data_noc0_val      )
+        ,.vrtoc_src_rdy     (vrtoc_rx_merger_data_noc0_rdy      )
+
+        ,.vrtoc_dst_data    (vrtoc_rx_router_data_noc0_data     )
+        ,.vrtoc_dst_val     (vrtoc_rx_router_data_noc0_val      )
+		,.dst_vrtoc_yummy   (rx_router_vrtoc_data_noc0_yummy    )
+    );
+    
+    // merge NoC traffic for sending message requests to TCP, sending read
+    // requests to memory buffers 
+    beehive_noc_prio_merger #(
+         .NOC_DATA_W        (`NOC_DATA_WIDTH    )
+        ,.MSG_PAYLOAD_LEN   (`PAYLOAD_LEN       )
+        ,.MSG_LEN_HI        (`MSG_LENGTH_HI     )
+        ,.MSG_LEN_LO        (`MSG_LENGTH_LO     )
+        ,.num_sources    (2)
+    ) rx_merger (   
+         .clk   (clk)
+        ,.rst_n (~rst)
+    
+        ,.src0_merger_vr_noc_val    (rx_app_merger_data_noc0_val    )
+        ,.src0_merger_vr_noc_dat    (rx_app_merger_data_noc0_data   )
+        ,.merger_src0_vr_noc_rdy    (merger_rx_app_data_noc0_rdy    )
+    
+        ,.src1_merger_vr_noc_val    (rx_buf_merger_data_noc0_val    )
+        ,.src1_merger_vr_noc_dat    (rx_buf_merger_data_noc0_data   )
+        ,.merger_src1_vr_noc_rdy    (merger_rx_buf_data_noc0_rdy    )
+    
+        ,.src2_merger_vr_noc_val    ('0)
+        ,.src2_merger_vr_noc_dat    ('0)
+        ,.merger_src2_vr_noc_rdy    ()
+    
+        ,.src3_merger_vr_noc_val    ('0)
+        ,.src3_merger_vr_noc_dat    ('0)
+        ,.merger_src3_vr_noc_rdy    ()
+    
+        ,.src4_merger_vr_noc_val    ('0)
+        ,.src4_merger_vr_noc_dat    ('0)
+        ,.merger_src4_vr_noc_rdy    ()
+    
+        ,.merger_dst_vr_noc_val     (rx_merger_vrtoc_data_noc0_val  )
+        ,.merger_dst_vr_noc_dat     (rx_merger_vrtoc_data_noc0_data )
+        ,.dst_merger_vr_noc_rdy     (vrtoc_rx_merger_data_noc0_rdy  )
+    );
+
+    // split between the app interface responses, memory buffer responses, and new 
+    // flow notifs
+    beehive_noc_fbits_splitter #(
+         .NOC_DATA_W        (`NOC_DATA_WIDTH    )
+        ,.MSG_PAYLOAD_LEN   (`PAYLOAD_LEN       )
+        ,.MSG_LEN_HI        (`MSG_LENGTH_HI     )
+        ,.MSG_LEN_LO        (`MSG_LENGTH_LO     )
+        ,.FBITS_HI          (`MSG_DST_FBITS_HI  )
+        ,.FBITS_LO          (`MSG_DST_FBITS_LO  )
+        ,.num_targets       (3'd3)
+        ,.fbits_type0       (RX_CTRL_IF_FBITS       )
+        ,.fbits_type1       (RX_BUF_IF_FBITS        )
+        ,.fbits_type2       (RX_APP_NOTIF_IF_FBITS  )
+    ) rx_splitter (
+         .clk   (clk    )
+        ,.rst_n (~rst   )
+
+        ,.src_splitter_vr_noc_val   (ctovr_rx_splitter_data_noc0_val    )
+        ,.src_splitter_vr_noc_dat   (ctovr_rx_splitter_data_noc0_data   )
+        ,.splitter_src_vr_noc_rdy   (rx_splitter_ctovr_data_noc0_rdy    )
+
+        ,.splitter_dst0_vr_noc_val  (splitter_rx_app_data_noc0_val      )
+        ,.splitter_dst0_vr_noc_dat  (splitter_rx_app_data_noc0_data     )
+        ,.dst0_splitter_vr_noc_rdy  (rx_app_splitter_data_noc0_rdy      )
+
+        ,.splitter_dst1_vr_noc_val  (splitter_rx_buf_data_noc0_val      )
+        ,.splitter_dst1_vr_noc_dat  (splitter_rx_buf_data_noc0_data     )
+        ,.dst1_splitter_vr_noc_rdy  (rx_buf_splitter_data_noc0_rdy      )
+
+        ,.splitter_dst2_vr_noc_val  (splitter_rx_notif_data_noc0_val    )
+        ,.splitter_dst2_vr_noc_dat  (splitter_rx_notif_data_noc0_data   )
+        ,.dst2_splitter_vr_noc_rdy  (rx_notif_splitter_data_noc0_rdy    )
+
+        ,.splitter_dst3_vr_noc_val  ()
+        ,.splitter_dst3_vr_noc_dat  ()
+        ,.dst3_splitter_vr_noc_rdy  (1'b0)
+
+        ,.splitter_dst4_vr_noc_val  ()
+        ,.splitter_dst4_vr_noc_dat  ()
+        ,.dst4_splitter_vr_noc_rdy  (1'b0)
+    );
+    
+    noc_router_block #(
+         .SRC_X (APP_TILE_TX_SRC_X  )
+        ,.SRC_Y (APP_TILE_TX_SRC_Y  )
+    ) echo_app_tx_noc_router_block (
+         .clk   (clk    )
+        ,.rst   (rst    )
+<%
+    noc_ports = noc_if_generator.genNocInstantiation(src="src",
+    port_name="router_block", dst="dst", noc_src="src", noc_dst="dst",
+    module="app_tile_tx", nocs=tile_config.nocs)
+    print(noc_ports)
+    
+    processor_ports = noc_if_generator.genNocProcessorInstantiation(module="router_block", 
+        processor="process", inst_name="tx_router", nocs=tile_config.nocs)
+    print(processor_ports)
+%>
+    );
+
+    assign vrtoc_tx_router_ctrl_noc1_val = 1'b0;
+    assign vrtoc_tx_router_ctrl_noc1_data = '0;
+    assign ctovr_tx_router_ctrl_noc2_yummy = 1'b0;
+    
+    beehive_credit_to_valrdy #(
+        .NOC_DATA_W (`NOC_DATA_WIDTH    )
+    ) tx_data_noc0_beehive_credit_to_valrdy (
+         .clk   (clk)
+        ,.reset (rst)
+        
+        ,.src_ctovr_data    (tx_router_ctovr_data_noc0_data     )
+        ,.src_ctovr_val     (tx_router_ctovr_data_noc0_val      )
+        ,.ctovr_src_yummy   (ctovr_tx_router_data_noc0_yummy    )
+
+        ,.ctovr_dst_data    (ctovr_tx_splitter_data_noc0_data   )
+        ,.ctovr_dst_val     (ctovr_tx_splitter_data_noc0_val    )
+        ,.dst_ctovr_rdy     (tx_splitter_ctovr_data_noc0_rdy    )
+    );
+
+    beehive_valrdy_to_credit #(
+        .NOC_DATA_W (`NOC_DATA_WIDTH    )
+    ) tx_data_noc0_beehive_valrdy_to_credit (
+         .clk       (clk)
+        ,.reset     (rst)
+
+        ,.src_vrtoc_data    (tx_merger_vrtoc_data_noc0_data     )
+        ,.src_vrtoc_val     (tx_merger_vrtoc_data_noc0_val      )
+        ,.vrtoc_src_rdy     (vrtoc_tx_merger_data_noc0_rdy      )
+
+        ,.vrtoc_dst_data    (vrtoc_tx_router_data_noc0_data     )
+        ,.vrtoc_dst_val     (vrtoc_tx_router_data_noc0_val      )
+		,.dst_vrtoc_yummy   (tx_router_vrtoc_data_noc0_yummy    )
+    );
+
+    beehive_credit_to_valrdy #(
+        .NOC_DATA_W (`CTRL_NOC1_DATA_W  )
+    ) tx_ctrl_noc1_beehive_credit_to_valrdy (
+         .clk   (clk)
+        ,.reset (rst)
+        //credit based interface 
+        ,.src_ctovr_data    (tx_router_ctovr_ctrl_noc1_data         )
+        ,.src_ctovr_val     (tx_router_ctovr_ctrl_noc1_val          )
+        ,.ctovr_src_yummy   (ctovr_tx_router_ctrl_noc1_yumm         )
+
+        //val/rdy interface
+        ,.ctovr_dst_data    (ctovr_echo_app_stats_ctrl_noc1_data    )
+        ,.ctovr_dst_val     (ctovr_echo_app_stats_ctrl_noc1_val     )
+        ,.dst_ctovr_rdy     (echo_app_stats_ctovr_ctrl_noc1_rdy     )
+    );
+    
+    beehive_valrdy_to_credit #(
+        .NOC_DATA_W (`CTRL_NOC2_DATA_W  )
+    ) tx_ctrl_noc2_beehive_valrdy_to_credit (
+         .clk       (clk)
+        ,.reset     (rst)
+
+        //val/rdy interface
+        ,.src_vrtoc_data    (echo_app_stats_vrtoc_ctrl_noc2_data    )
+        ,.src_vrtoc_val     (echo_app_stats_vrtoc_ctrl_noc2_val     )
+        ,.vrtoc_src_rdy     (vrtoc_echo_app_stats_ctrl_noc2_rdy     )
+
+		//credit based interface	
+        ,.vrtoc_dst_data    (vrtoc_tx_router_ctrl_noc2_data         )
+        ,.vrtoc_dst_val     (vrtoc_tx_router_ctrl_noc2_val          )
+		,.dst_vrtoc_yummy   (tx_router_vrtoc_ctrl_noc2_yummy        )
+    );
+    
+    // merge NoC traffic for TCP message requests, memory buffer write requests
+    beehive_noc_prio_merger #(
+         .NOC_DATA_W        (`NOC_DATA_WIDTH    )
+        ,.MSG_PAYLOAD_LEN   (`PAYLOAD_LEN       )
+        ,.MSG_LEN_HI        (`MSG_LENGTH_HI     )
+        ,.MSG_LEN_LO        (`MSG_LENGTH_LO     )
+        ,.num_sources       (2)
+    ) tx_merger (   
+         .clk   (clk)
+        ,.rst_n (~rst)
+    
+        ,.src0_merger_vr_noc_val    (tx_app_merger_data_noc0_val    )
+        ,.src0_merger_vr_noc_dat    (tx_app_merger_data_noc0_data   )
+        ,.merger_src0_vr_noc_rdy    (merger_tx_app_data_noc0_rdy    )
+    
+        ,.src1_merger_vr_noc_val    (tx_buf_merger_data_noc0_val    )
+        ,.src1_merger_vr_noc_dat    (tx_buf_merger_data_noc0_data   )
+        ,.merger_src1_vr_noc_rdy    (merger_tx_buf_data_noc0_rdy    )
+    
+        ,.src2_merger_vr_noc_val    ('0)
+        ,.src2_merger_vr_noc_dat    ('0)
+        ,.merger_src2_vr_noc_rdy    ()
+    
+        ,.src3_merger_vr_noc_val    ('0)
+        ,.src3_merger_vr_noc_dat    ('0)
+        ,.merger_src3_vr_noc_rdy    ()
+    
+        ,.src4_merger_vr_noc_val    ('0)
+        ,.src4_merger_vr_noc_dat    ('0)
+        ,.merger_src4_vr_noc_rdy    ()
+    
+        ,.merger_dst_vr_noc_val     (tx_merger_vrtoc_data_noc0_val  )
+        ,.merger_dst_vr_noc_dat     (tx_merger_vrtoc_data_noc0_data )
+        ,.dst_merger_vr_noc_rdy     (vrtoc_tx_merger_data_noc0_rdy  )
+    );
+
+    // split between the app interface responses, memory buffer responses
+    beehive_noc_fbits_splitter #(
+         .NOC_DATA_W        (`NOC_DATA_WIDTH    )
+        ,.MSG_PAYLOAD_LEN   (`PAYLOAD_LEN       )
+        ,.MSG_LEN_HI        (`MSG_LENGTH_HI     )
+        ,.MSG_LEN_LO        (`MSG_LENGTH_LO     )
+        ,.FBITS_HI          (`MSG_DST_FBITS_HI  )
+        ,.FBITS_LO          (`MSG_DST_FBITS_LO  )
+        ,.num_targets       (3'd2)
+        ,.fbits_type0       (TX_CTRL_IF_FBITS       )
+        ,.fbits_type1       (TX_BUF_IF_FBITS        )
+    ) tx_splitter (
+         .clk   (clk    )
+        ,.rst_n (~rst   )
+
+        ,.src_splitter_vr_noc_val   (ctovr_tx_splitter_data_noc0_val    )
+        ,.src_splitter_vr_noc_dat   (ctovr_tx_splitter_data_noc0_data   )
+        ,.splitter_src_vr_noc_rdy   (tx_splitter_ctovr_data_noc0_rdy    )
+
+        ,.splitter_dst0_vr_noc_val  (splitter_tx_app_data_noc0_val      )
+        ,.splitter_dst0_vr_noc_dat  (splitter_tx_app_data_noc0_data     )
+        ,.dst0_splitter_vr_noc_rdy  (tx_app_splitter_data_noc0_rdy      )
+
+        ,.splitter_dst1_vr_noc_val  (splitter_tx_buf_data_noc0_val      )
+        ,.splitter_dst1_vr_noc_dat  (splitter_tx_buf_data_noc0_data     )
+        ,.dst1_splitter_vr_noc_rdy  (tx_buf_splitter_data_noc0_rdy      )
+
+        ,.splitter_dst2_vr_noc_val  ()
+        ,.splitter_dst2_vr_noc_dat  ()
+        ,.dst2_splitter_vr_noc_rdy  (1'b0)
+
+        ,.splitter_dst3_vr_noc_val  ()
+        ,.splitter_dst3_vr_noc_dat  ()
+        ,.dst3_splitter_vr_noc_rdy  (1'b0)
+
+        ,.splitter_dst4_vr_noc_val  ()
+        ,.splitter_dst4_vr_noc_dat  ()
+        ,.dst4_splitter_vr_noc_rdy  (1'b0)
+    );
+    
+    echo_app_msg_if #(
+         .TX_SRC_X      (APP_TILE_TX_SRC_X      )
+        ,.TX_SRC_Y      (APP_TILE_TX_SRC_Y      )
+        ,.TX_DST_BUF_X  (APP_TILE_TX_DST_BUF_X  )
+        ,.TX_DST_BUF_Y  (APP_TILE_TX_DST_BUF_Y  )
+        ,.RX_SRC_X      (APP_TILE_RX_SRC_X      )
+        ,.RX_SRC_Y      (APP_TILE_RX_SRC_Y      )
+        ,.RX_DST_BUF_X  (APP_TILE_RX_DST_BUF_X  )
+        ,.RX_DST_BUF_Y  (APP_TILE_RX_DST_BUF_Y  )
+        ,.NOC1_DATA_W   (`CTRL_NOC1_DATA_W      )
+        ,.NOC2_DATA_W   (`CTRL_NOC2_DATA_W      )
+    ) echo_app (
+         .clk   (clk    )
+        ,.rst   (rst    )
+        
+        ,.tx_app_noc0_vrtoc_val     (tx_app_merger_data_noc0_val            )
+        ,.tx_app_noc0_vrtoc_data    (tx_app_merger_data_noc0_data           )
+        ,.noc0_vrtoc_tx_app_rdy     (merger_tx_app_data_noc0_rdy            )
+                                                            
+        ,.noc0_ctovr_tx_app_val     (splitter_tx_app_data_noc0_val          )
+        ,.noc0_ctovr_tx_app_data    (splitter_tx_app_data_noc0_data         )
+        ,.tx_app_noc0_ctovr_rdy     (tx_app_splitter_data_noc0_rdy          )
+                                                            
+        ,.tx_buf_noc0_vrtoc_val     (tx_buf_merger_data_noc0_val            )
+        ,.tx_buf_noc0_vrtoc_data    (tx_buf_merger_data_noc0_data           )
+        ,.noc0_vrtoc_tx_buf_rdy     (merger_tx_buf_data_noc0_rdy            )
+                                                            
+        ,.noc0_ctovr_tx_buf_val     (splitter_tx_buf_data_noc0_val          )
+        ,.noc0_ctovr_tx_buf_data    (splitter_tx_buf_data_noc0_data         )
+        ,.tx_buf_noc0_ctovr_rdy     (tx_buf_splitter_data_noc0_rdy          )
+        
+        ,.ctovr_echo_app_stats_val  (ctovr_echo_app_stats_ctrl_noc1_val     )
+        ,.ctovr_echo_app_stats_data (ctovr_echo_app_stats_ctrl_noc1_data    )
+        ,.echo_app_stats_ctovr_rdy  (echo_app_stats_ctovr_ctrl_noc1_rdy     )
+                                                                             
+        ,.echo_app_stats_vrtoc_val  (echo_app_stats_vrtoc_ctrl_noc2_val     )
+        ,.echo_app_stats_vrtoc_data (echo_app_stats_vrtoc_ctrl_noc2_data    )
+        ,.vrtoc_echo_app_stats_rdy  (vrtoc_echo_app_stats_ctrl_noc2_rdy     )
+                                                            
+        ,.rx_app_noc0_vrtoc_val     (rx_app_merger_data_noc0_val            )
+        ,.rx_app_noc0_vrtoc_data    (rx_app_merger_data_noc0_data           )
+        ,.noc0_vrtoc_rx_app_rdy     (merger_rx_app_data_noc0_rdy            )
+                                                            
+        ,.noc0_ctovr_rx_app_val     (splitter_rx_app_data_noc0_val          )
+        ,.noc0_ctovr_rx_app_data    (splitter_rx_app_data_noc0_data         )
+        ,.rx_app_noc0_ctovr_rdy     (rx_app_splitter_data_noc0_rdy          )
+                                                            
+        ,.rx_buf_noc0_vrtoc_val     (rx_buf_merger_data_noc0_val            )
+        ,.rx_buf_noc0_vrtoc_data    (rx_buf_merger_data_noc0_data           )
+        ,.noc0_vrtoc_rx_buf_rdy     (merger_rx_buf_data_noc0_rdy            )
+                                                            
+        ,.noc0_ctovr_rx_buf_val     (splitter_rx_buf_data_noc0_val          )
+        ,.noc0_ctovr_rx_buf_data    (splitter_rx_buf_data_noc0_data         )
+        ,.rx_buf_noc0_ctovr_rdy     (rx_buf_splitter_data_noc0_rdy          )
+                                                            
+        ,.noc0_ctovr_rx_notif_val   (splitter_rx_notif_data_noc0_val        )
+        ,.noc0_ctovr_rx_notif_data  (splitter_rx_notif_data_noc0_data       )
+        ,.rx_notif_noc0_ctovr_rdy   (rx_notif_splitter_data_noc0_rdy        )
+    );
+endmodule

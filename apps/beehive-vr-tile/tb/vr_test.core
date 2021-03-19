@@ -1,0 +1,15 @@
+CAPI=2:
+name: uwcse:beehive:vr_app_test:0.1
+description: VR app only testing
+filesets:
+    rtl:
+        depend:
+            - uwcse:beehive:beehive_vr
+        file_type: systemVerilogSource
+targets:
+    default:
+        filesets: [rtl]
+    sim:
+        filesets: [rtl]
+        default_tool: modelsim
+        toplevel: [vr_app_wrap]

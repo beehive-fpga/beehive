@@ -1,0 +1,21 @@
+CAPI=2:
+name: uwcse:beehive:parser_hash:0.1
+description: For testing the parser/hash combination
+
+filesets:
+    rtl:
+        files:
+            - parser_hash_wrap.sv
+        depend:
+            - uwcse:buckfast:includes
+            - uwcse:beehive:l4_extract
+            - uwcse:beehive:l4_hash
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]
+    sim:
+        default_tool: modelsim
+        filesets: [rtl]
+        toplevel: [fixed_parser]

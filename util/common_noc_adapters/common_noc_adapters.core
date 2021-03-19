@@ -1,0 +1,33 @@
+CAPI=2:
+name: uwcse:beehive:common_noc_adapters:0.1
+description: Adapters for sending messages on the NoC that get reused
+
+filesets:
+    rtl:
+        files:
+            - include/to_ip_tx_pkg.sv
+            - include/to_ip_tx_defs.svh: {is_include_file: true}
+            - include/noc_datactrl_convert.svh: {is_include_file: true}
+            - extra_hdr_noc_ctrl_to_data.sv
+            - extra_hdr_noc_data_to_ctrl.sv
+            - to_ip_tx_noc_out.sv
+            - to_ip_tx_noc_out_ctrl.sv
+            - to_ip_tx_noc_out_datap.sv
+            - flit_hdr_join.sv
+            - flit_hdr_strip.sv
+            - hdr_flit_modify.sv
+            - ip_lb_parse.sv
+            - noc_data_to_ctrl.sv
+            - noc_ctrl_to_data.sv
+        depend:
+            - uwcse:buckfast:includes
+            - uwcse:beehive:topology
+            - uwcse:beehive:msgs
+            - uwcse:beehive:openpiton_beehive_noc
+            - uwcse:beehive:l4_hash
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]
+

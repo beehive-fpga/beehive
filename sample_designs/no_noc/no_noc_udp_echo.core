@@ -1,0 +1,37 @@
+CAPI=2:
+name: uwcse:beehive:no_noc_udp_echo:0.1
+description: Beehive UDP echo design without a NoC
+
+filesets:
+    rtl:
+        files:
+            - no_noc_top.sv
+            - eth_filter.sv
+            - eth_filter_cam.sv
+            - eth_no_noc_log.sv
+            - filter_ctrl.sv
+            - ip_filter.sv
+            - ip_filter_cam.sv
+            - merger_ctrl.sv
+            - simple_log_no_noc_reader.sv
+            - simple_log_no_noc_reader_ctrl.sv
+            - simple_log_no_noc_reader_datap.sv
+            - udp_app_no_noc_log.sv
+            - udp_merger.sv
+            - udp_splitter.sv
+            - udp_splitter_cam.sv
+        depend:
+            - uwcse:buckfast:includes
+            - uwcse:buckfast:bsg_misc
+            - uwcse:beehive:data_converters
+            - uwcse:beehive:misc
+            - uwcse:buckfast:frontend
+            - uwcse:beehive:eth_stats
+            - uwcse:beehive:udp_echo_app_stats
+            - uwcse:buckfast:udp_echo_app
+        file_type: systemVerilogSource
+targets:
+    default:
+        filesets: [rtl]
+        default_tool: modelsim
+        toplevel: [no_noc_top]

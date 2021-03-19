@@ -1,0 +1,29 @@
+package beehive_topology;
+    `include "packet_defs.vh"
+    `include "noc_defs.vh"
+   
+    localparam APP_PORT = `PORT_NUM_W'd65432;
+    localparam RS_ENCODE0_STATS = `PORT_NUM_W'd60000;
+    localparam RS_ENCODE1_STATS = `PORT_NUM_W'd60001;
+    localparam RS_ENCODE2_STATS = `PORT_NUM_W'd60002;
+    localparam RS_ENCODE3_STATS = `PORT_NUM_W'd60003;
+<%
+# Get the basic configuration object
+import sys
+import os
+sys.path.append(os.environ["BEEHIVE_PROJECT_ROOT"] + "/tile_generator/")
+from tile_generator import BeehiveConfig
+from tile_generator import TileDirs
+import logging
+logging.basicConfig(level=logging.INFO)
+design_path = os.environ["BEEHIVE_DESIGN_ROOT"]
+logging.info(f"Using tile config at {design_path}")
+config = BeehiveConfig(design_path + "/tile_config.xml")
+
+for endpoint in config.endpoint_dict.values():
+    param_format_string = f"""
+    localparam [`XY_WIDTH-1:0]  {endpoint.get_x_coord_param()} = {endpoint.endpoint_x};
+    localparam [`XY_WIDTH-1:0]  {endpoint.get_y_coord_param()} = {endpoint.endpoint_y};"""
+    print(param_format_string)
+%>
+endpackage

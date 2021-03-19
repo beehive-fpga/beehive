@@ -1,0 +1,60 @@
+<%
+# Get the basic configuration object
+import sys
+import os
+sys.path.append(os.environ["BEEHIVE_PROJECT_ROOT"] + "/tile_generator/")
+from tile_generator import BeehiveConfig
+from tile_generator import TileDirs
+import logging
+logging.basicConfig(level=logging.INFO)
+
+design_path = os.environ["BEEHIVE_DESIGN_ROOT"]
+logging.info(f"Using tile config at {design_path}")
+tile_config = BeehiveConfig(design_path + "/tile_config.xml")
+
+# collect all the Ethernet receive endpoints
+eth_rx_endpoints = tile_config.tiles.findall("./endpoint/[port_name='eth_rx']")
+eth_rx_names = []
+for endpoint in eth_rx_endpoints:
+    endpoint_name = endpoint.find("endpoint_name").text
+    eth_rx_names.append(endpoint_name)
+
+if len(eth_rx_names) > (1 << 4):
+    raise RuntimeError("Too many destinations for the ROM size")
+%>
+
+module ingress_hash_table_init_rom 
+import hash_pkg::*;
+#(
+     parameter INIT_TABLE_ELS = -1
+    ,parameter INIT_TABLE_ADDR_W = $clog2(INIT_TABLE_ELS) == 0 ? 1 : $clog2(INIT_TABLE_ELS)
+)(
+     input clk
+    ,input rst
+
+    ,input                          table_rd
+    ,input  [INIT_TABLE_ADDR_W-1:0] table_rd_addr
+
+    ,output         hash_table_data table_rd_data
+);
+
+    always_ff @(posedge clk) begin
+         if (table_rd) begin
+             case (table_rd_addr)
+ <%
+ for i in range(0, 1<<4):
+    tile_x = 0
+    tile_y = 0
+    (tile_x, tile_y) = tile_config.getEndpointCoords(eth_rx_names[i % len(eth_rx_names)])
+
+ # double curly braces produces a single curly brace
+    dest_string = f"{{`NOC_X_WIDTH'd{tile_x}, `NOC_Y_WIDTH'd{tile_y}}}"
+    print(f"""
+                4'b{i:04b}: table_rd_data <= {dest_string};""")
+ %>
+                 default: table_rd_data <= {`NOC_X_WIDTH'd0, `NOC_Y_WIDTH'd0};
+             endcase
+         end
+     end
+endmodule     
+

@@ -1,0 +1,144 @@
+<%
+# Get the basic configuration object
+import sys
+import os
+sys.path.append(os.environ["BEEHIVE_PROJECT_ROOT"] + "/tile_generator/")
+from tile_generator import BeehiveConfig
+from noc_if_gen import NocInterfaceGen
+import logging
+logging.basicConfig(level=logging.INFO)
+design_path = os.environ["BEEHIVE_DESIGN_ROOT"]
+logging.info(f"Using tile config at {design_path}")
+tile_config = BeehiveConfig(design_path + "/tile_config.xml")
+noc_if_generator = NocInterfaceGen()
+%>
+module rs_encode_rx_scheduler_tile #(
+     parameter SRC_X = -1
+    ,parameter SRC_Y = -1
+    ,parameter NUM_DSTS = -1
+    ,parameter NUM_DSTS_W = (NUM_DSTS == 1) ? 1 : $clog2(NUM_DSTS)
+)(
+     input clk
+    ,input rst
+
+<%
+    noc_if_str = noc_if_generator.genNocInterface(src="src", module="rs_rx_scheduler",
+         dst="dst", nocs=tile_config.nocs, noc_widths=tile_config.nocs_data_width)
+    print(noc_if_str)
+%>
+);
+
+<%
+router_wires = noc_if_generator.genNocProcessorWires(inst_name="router", nocs=tile_config.nocs,
+        noc_widths = tile_config.nocs_data_width)
+print(router_wires)
+%>
+    
+    logic                           rs_rx_scheduler_noc0_vrtoc_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   rs_rx_scheduler_noc0_vrtoc_data;    
+    logic                           noc0_vrtoc_rs_rx_scheduler_rdy;
+    
+    logic                           noc0_ctovr_rs_rx_scheduler_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   noc0_ctovr_rs_rx_scheduler_data;
+    logic                           rs_rx_scheduler_noc0_ctovr_rdy;
+    
+    logic                           scheduler_table_read_val;
+    logic   [NUM_DSTS_W-1:0]        scheduler_table_read_index;
+    logic                           table_scheduler_read_rdy;
+
+    logic                           table_scheduler_read_resp_val;
+    sched_table_struct              table_scheduler_read_resp_data;
+    logic                           scheduler_table_read_resp_rdy;
+    
+    noc_router_block #(
+         .SRC_X (SRC_X  )
+        ,.SRC_Y (SRC_Y  )
+    ) rs_rx_scheduler_router_block (
+         .clk   (clk    )
+        ,.rst   (rst    )
+<%
+    noc_ports = noc_if_generator.genNocInstantiation(src="src",
+    port_name="router_block", dst="dst", noc_src="src", noc_dst="dst",
+    module="rs_rx_scheduler", nocs=tile_config.nocs)
+    print(noc_ports)
+    
+    processor_ports = noc_if_generator.genNocProcessorInstantiation(module="router_block", 
+        processor="process", inst_name="router", nocs=tile_config.nocs)
+    print(processor_ports)
+%>
+    );
+
+    assign ctovr_router_ctrl_noc1_yummy = 1'b0;
+    assign vrtoc_router_ctrl_noc1_data = '0;
+    assign vrtoc_router_ctrl_noc1_val = 1'b0;
+    
+    beehive_credit_to_valrdy tile_rx_noc0_beehive_credit_to_valrdy (
+         .clk   (clk)
+        ,.reset (rst)
+        //credit based interface 
+        ,.src_ctovr_data    (router_ctovr_data_noc0_data        )
+        ,.src_ctovr_val     (router_ctovr_data_noc0_val         )
+        ,.ctovr_src_yummy   (ctovr_router_data_noc0_yummy       )
+
+        //val/rdy interface
+        ,.ctovr_dst_data    (noc0_ctovr_rs_rx_scheduler_data    )
+        ,.ctovr_dst_val     (noc0_ctovr_rs_rx_scheduler_val     )
+        ,.dst_ctovr_rdy     (rs_rx_scheduler_noc0_ctovr_rdy     )
+    );
+
+    beehive_valrdy_to_credit tile_rx_noc0_beehive_valrdy_to_credit (
+         .clk       (clk)
+        ,.reset     (rst)
+
+        //val/rdy interface
+        ,.src_vrtoc_data    (rs_rx_scheduler_noc0_vrtoc_data    )
+        ,.src_vrtoc_val     (rs_rx_scheduler_noc0_vrtoc_val     )
+        ,.vrtoc_src_rdy     (noc0_vrtoc_rs_rx_scheduler_rdy     )
+
+		//credit based interface	
+        ,.vrtoc_dst_data    (vrtoc_router_data_noc0_data        )
+        ,.vrtoc_dst_val     (vrtoc_router_data_noc0_val         )
+		,.dst_vrtoc_yummy   (router_vrtoc_data_noc0_yummy       )
+    );
+    
+    rr_scheduler #(
+         .SRC_X     (SRC_X      )
+        ,.SRC_Y     (SRC_Y      )
+        ,.NUM_DSTS  (NUM_DSTS   )
+    ) scheduler (
+         .clk   (clk    )
+        ,.rst   (rst    )
+        
+        ,.src_rr_scheduler_val              (noc0_ctovr_rs_rx_scheduler_val )
+        ,.src_rr_scheduler_data             (noc0_ctovr_rs_rx_scheduler_data)
+        ,.rr_scheduler_src_rdy              (rs_rx_scheduler_noc0_ctovr_rdy )
+        
+        ,.rr_scheduler_dst_val              (rs_rx_scheduler_noc0_vrtoc_val )
+        ,.rr_scheduler_dst_data             (rs_rx_scheduler_noc0_vrtoc_data)
+        ,.dst_rr_scheduler_rdy              (noc0_vrtoc_rs_rx_scheduler_rdy )
+    
+        ,.scheduler_table_read_val          (scheduler_table_read_val       )
+        ,.scheduler_table_read_index        (scheduler_table_read_index     )
+        ,.table_scheduler_read_rdy          (table_scheduler_read_rdy       )
+                                                                            
+        ,.table_scheduler_read_resp_val     (table_scheduler_read_resp_val  )
+        ,.table_scheduler_read_resp_data    (table_scheduler_read_resp_data )
+        ,.scheduler_table_read_resp_rdy     (scheduler_table_read_resp_rdy  )
+    );
+
+    rs_encode_rx_scheduler_table #(
+         .NUM_DSTS  (NUM_DSTS)
+    ) scheduler_table (
+         .clk   (clk    )
+        ,.rst   (rst    )
+    
+        ,.scheduler_table_read_val          (scheduler_table_read_val       )
+        ,.scheduler_table_read_index        (scheduler_table_read_index     )
+        ,.table_scheduler_read_rdy          (table_scheduler_read_rdy       )
+                                                                            
+        ,.table_scheduler_read_resp_val     (table_scheduler_read_resp_val  )
+        ,.table_scheduler_read_resp_data    (table_scheduler_read_resp_data )
+        ,.scheduler_table_read_resp_rdy     (scheduler_table_read_resp_rdy  )
+    );
+
+endmodule

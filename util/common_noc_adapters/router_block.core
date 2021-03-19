@@ -1,0 +1,25 @@
+CAPI=2:
+name: uwcse:beehive:router_block:0.1
+description: 3 NoC router block that gets used by most tiles
+
+filesets:
+    rtl:
+        files:
+            - include/noc_router_block_defs.svh: {is_include_file: true}
+        depend:
+            - uwcse:buckfast:includes
+            - uwcse:beehive:openpiton_beehive_noc
+            - uwcse:beehive:pyhp_generator
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]
+        generate: [pyhp_generate]
+generate:
+    pyhp_generate:
+        generator: pyhp_gen
+        parameters:
+            process_me : [[noc_router_block_gen.sv.pyv, noc_router_block_gen.sv]]
+                          
+                          

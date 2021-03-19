@@ -1,0 +1,22 @@
+CAPI=2:
+name: uwcse:beehive:eth_stats:0.1
+description: Beehive ETH latency stats
+
+filesets:
+    rtl:
+        files:
+            - include/eth_latency_stats_pkg.sv
+            - include/eth_latency_stats_defs.svh: {is_include_file: true}
+            - eth_latency_stats.sv
+            - eth_latency_stats_record.sv
+        depend:
+            - uwcse:buckfast:includes
+            - uwcse:beehive:msgs
+            - uwcse:beehive:topology
+            - uwcse:beehive:logging
+            - uwcse:beehive:common_noc_adapters
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]

@@ -1,0 +1,26 @@
+CAPI=2:
+name: uwcse:beehive:mem_controller
+description: Implementation of a memory controller that supports unaligned operations
+filesets:
+    rtl:
+        files: []
+        depend:
+            - uwcse:buckfast:includes
+            - uwcse:buckfast:bsg_dataflow
+            - uwcse:beehive:openpiton_beehive_noc
+            - uwcse:beehive:mem_controller_components
+            - uwcse:beehive:msgs
+            - uwcse:beehive:pyhp_generator
+            - uwcse:beehive:router_block
+            - uwcse:beehive:data_converters
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]
+        generate: [pyhp_generate]
+generate:
+    pyhp_generate:
+        generator: pyhp_gen
+        parameters:
+            process_me : [[masked_mem_tile_gen.sv.pyv, masked_mem_tile_gen.sv]]

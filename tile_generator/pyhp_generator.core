@@ -1,0 +1,7 @@
+CAPI=2:
+name: uwcse:beehive:pyhp_generator:0.1
+
+generators:
+    pyhp_gen:
+        command: pyhp_generator.py
+        interpreter: python3

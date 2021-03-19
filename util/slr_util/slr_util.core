@@ -1,0 +1,15 @@
+CAPI=2:
+name: uwcse:beehive:slr_util:0.1
+description: SLR crossing utils
+
+filesets:
+    rtl:
+        files:
+            - HullFIFO.sv
+            - SoftFIFO.sv
+        depend: []
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]

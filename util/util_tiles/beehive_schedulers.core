@@ -1,0 +1,19 @@
+CAPI=2:
+name: uwcse:beehive:schedulers:0.1
+description: Little modules for scheduling passing messages to other endpoints
+
+filesets:
+    rtl:
+        files:
+            - include/scheduler_pkg.sv
+            - include/rr_scheduler_defs.svh: {is_include_file: true}
+            - rr_scheduler.sv
+        depend:
+            - uwcse:buckfast:includes
+            - uwcse:beehive:msgs
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]
+

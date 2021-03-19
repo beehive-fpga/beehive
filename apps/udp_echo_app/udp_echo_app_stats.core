@@ -1,0 +1,22 @@
+CAPI=2:
+name: uwcse:beehive:udp_echo_app_stats:0.1
+description: Beehive UDP design stats
+
+filesets:
+    rtl:
+        files:
+            - include/udp_echo_app_stats_pkg.sv
+            - include/udp_echo_app_stats_defs.svh: {is_include_file: true}
+            - udp_echo_app_stats.sv
+            - udp_echo_app_stats_record.sv
+        depend: 
+            - uwcse:buckfast:includes
+            - uwcse:beehive:msgs
+            - uwcse:beehive:topology
+            - uwcse:beehive:logging
+            - uwcse:beehive:common_noc_adapters
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]

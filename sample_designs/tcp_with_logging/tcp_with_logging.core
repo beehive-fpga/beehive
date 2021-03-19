@@ -1,0 +1,41 @@
+CAPI=2:
+name: uwcse:beehive:tcp_with_logging:0.1
+description: Implementation of TCP design but with logging included
+filesets:
+    rtl:
+        depend:
+            - uwcse:buckfast:includes
+            - uwcse:buckfast:ram
+            - uwcse:beehive:tcp_pull_echo_app
+            - uwcse:beehive:eth
+            - uwcse:beehive:ip
+            - uwcse:beehive:tcp_slow
+            - uwcse:beehive:udp
+            - uwcse:beehive:empty_tile
+            - uwcse:beehive:mem_controller
+            - uwcse:beehive:tcp_logger
+            - uwcse:beehive:data_converters
+            - uwcse:buckfast:packet_queue
+            - uwcse:beehive:common_noc_adapters
+            - uwcse:beehive:topology
+            - uwcse:beehive:pyhp_generator
+        file_type: systemVerilogSource
+    sim:
+        files:
+            - tb_tcp_with_logging_top.sv
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]
+        generate: [pyhp_generate]
+    sim:
+        default_tool: modelsim
+        filesets: [rtl, sim]
+        generate: [pyhp_generate]
+        toplevel: [tcp_with_logging_top]
+generate:
+    pyhp_generate:
+        generator: pyhp_gen
+        parameters:
+            process_me : [[tcp_with_logging_top_gen.sv.pyv, tcp_with_logging_top_gen.sv]]

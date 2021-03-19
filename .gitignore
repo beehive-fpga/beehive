@@ -1,0 +1,34 @@
+*.vpd.tcl
+*.vpd
+DVEfiles
+.nfs*
+csrc
+simv.daidir
+ucli.key
+*.wlf
+*.vstf
+modelsim.ini
+sim_build*/
+transcript
+work/
+wave.do
+build/
+
+# Python ignores
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Beehive specific ignores
+results.xml
+*_gen.sv
+*.old
+generated/
+fusesoc.conf
+
+# Vim swap
+*.swp

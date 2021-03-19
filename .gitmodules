@@ -1,0 +1,34 @@
+[submodule "tcp_hw"]
+	path = protocols/tcp_hw
+	url = git@github.com:beehive-fpga/tcp_hw.git
+[submodule "sha256_mrp_tile/sha256_avocados"]
+	path = apps/sha256_mrp_tile/sha256_avocados
+	url = git@github.com:beehive-fpga/sha256_avocados.git
+[submodule "rs_encode_mrp_tile/rs_encode_mrp"]
+	path = apps/rs_encode_mrp_tile/rs_encode_mrp
+	url = git@github.com:beehive-fpga/rs_encode_mrp.git
+[submodule "h264_encode_mrp_tile/h264_encode_mrp"]
+	path = apps/h264_encode_mrp_tile/h264_encode_mrp
+	url = git@github.com:beehive-fpga/h264_encode_mrp.git
+[submodule "network_tiles/tcp/tcp_slow"]
+	path = protocols/tcp_slow
+	url = git@github.com:beehive-fpga/tcp_slow.git
+[submodule "corundum_fpga"]
+	path = corundum_fpga
+	url = git@github.com:beehive-fpga/corundum_copy.git
+[submodule "apps/beehive-vr-tile/beehive-vr"]
+	path = apps/beehive-vr-tile/beehive-vr
+	url = git@github.com:beehive-fpga/beehive-vr.git
+[submodule "protocols/tcp_hw"]
+	url = git@github.com:beehive-fpga/tcp_hw.git
+[submodule "apps/rs_encode_mrp_tile/rs_encode_mrp"]
+	url = git@github.com:beehive-fpga/rs_encode_mrp.git
+[submodule "apps/h264_encode_mrp_tile/h264_encode_mrp"]
+	url = git@github.com:beehive-fpga/h264_encode_mrp.git
+[submodule "apps/sha256_mrp_tile/sha256_avocados"]
+	url = git@github.com:beehive-fpga/sha256_avocados.git
+[submodule "protocols/tcp_slow"]
+	url = git@github.com:beehive-fpga/tcp_slow.git
+[submodule "apps/rs_encode_udp/reed_solomon_encoder"]
+	path = apps/rs_encode_udp/reed_solomon_encoder
+	url = git@github.com:beehive-fpga/reed_solomon_encoder.git

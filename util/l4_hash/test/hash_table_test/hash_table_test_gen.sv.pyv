@@ -1,0 +1,225 @@
+<%
+# Get the basic configuration object
+import sys
+import os
+sys.path.append(os.environ["BEEHIVE_PROJECT_ROOT"] + "/tile_generator/")
+from tile_generator import BeehiveConfig
+from tile_generator import TileDirs
+import logging
+logging.basicConfig(level=logging.INFO)
+
+design_path = os.environ["BEEHIVE_DESIGN_ROOT"]
+logging.info(f"Using tile config at {design_path}")
+tile_config = BeehiveConfig(design_path + "/tile_config.xml")
+
+# collect all the Ethernet receive endpoints
+eth_rx_endpoints = tile_config.tree.findall("./endpoint/[port_name='eth_rx']")
+eth_rx_names = []
+for endpoint in eth_rx_endpoints:
+    endpoint_name = endpoint.find("endpoint_name").text
+    eth_rx_names.append(endpoint_name)
+
+if len(eth_rx_names) > (1 << 4):
+    raise RuntimeError("Too many destinations for the ROM size")
+%>
+module hash_table_test 
+    import hash_pkg::*;
+    import parser_pkg::*;
+#(
+     parameter TABLE_DATA_W = HASH_TABLE_DATA_W
+    ,parameter TABLE_ELS_LOG_2 = 4
+    ,parameter DATA_W=512
+    ,parameter DATA_BYTES=DATA_W/8
+    ,parameter PADBYTES_W=$clog2(DATA_BYTES)
+    ,parameter HAS_ETH_HDR=1
+    ,parameter HAS_IP_HDR=1
+)(
+     input clk
+    ,input rst
+
+    ,input                                  src_parser_data_val
+    ,input  logic   [DATA_W-1:0]            src_parser_data
+    ,input  logic   [PADBYTES_W-1:0]        src_parser_padbytes
+    ,input  logic                           src_parser_last
+    ,output logic                           parser_src_data_rdy
+    
+    ,input                                  src_hash_table_wr_en
+    ,input          [TABLE_ELS_LOG_2-1:0]   src_hash_table_wr_index
+    ,input          [HASH_TABLE_DATA_W-1:0] src_hash_table_wr_data
+    ,output logic                           hash_table_src_rdy
+
+    ,output logic                           table_data_val
+    ,output logic                           table_data_wr_en
+    ,output logic   [TABLE_ELS_LOG_2-1:0]   table_rd_index
+    ,output logic   [HASH_TABLE_DATA_W-1:0] table_data 
+    ,input  logic                           table_data_rdy
+    
+    ,output logic                           parser_dst_data_val
+    ,output logic   [DATA_W-1:0]            parser_dst_data
+    ,output logic   [PADBYTES_W-1:0]        parser_dst_padbytes
+    ,output logic                           parser_dst_last
+    ,input  logic                           dst_parser_data_rdy
+);
+
+    typedef struct packed {
+        logic   [DATA_W-1:0]        data;
+        logic   [PADBYTES_W-1:0]    padbytes;
+        logic                       last;
+    } fifo_struct;
+    localparam FIFO_STRUCT_W = $bits(fifo_struct);
+
+<%
+print(f"""
+    localparam INIT_TABLE_ELS = {len(eth_rx_names)};""")
+%>
+    localparam INIT_TABLE_ADDR_W = $clog2(INIT_TABLE_ELS) == 0 ? 1 : $clog2(INIT_TABLE_ELS);
+
+    logic       out_fifo_wr_req;
+    fifo_struct out_fifo_wr_data;
+    logic       out_fifo_full;
+    
+    logic                       parser_fifo_data_val;
+    logic   [DATA_W-1:0]        parser_fifo_data;
+    logic   [PADBYTES_W-1:0]    parser_fifo_padbytes;
+    logic                       parser_fifo_last;
+    logic                       fifo_parser_data_rdy;
+
+    logic       out_fifo_rd_req;
+    fifo_struct out_fifo_rd_data;
+    logic       out_fifo_empty;
+
+    logic       rd_tuple_val;
+    hash_struct rd_tuple_data;
+   
+    logic                           init_wr_req_val;
+    logic   [TABLE_ELS_LOG_2-1:0]   init_wr_req_addr;
+    hash_table_data                 init_wr_req_data;
+    logic                           init_reset_done;
+
+    logic                           hash_table_rdy_tmp;
+    logic                           hash_table_wr_en;
+    logic   [TABLE_ELS_LOG_2-1:0]   hash_table_wr_index;
+    logic   [HASH_TABLE_DATA_W-1:0] hash_table_wr_data;
+    
+    logic                           init_table_rd;
+    logic   [INIT_TABLE_ADDR_W-1:0] init_table_addr;
+    hash_table_data                 init_table_rd_data;
+
+
+    fixed_parser #(
+         .DATA_W        (DATA_W )
+        ,.HAS_ETH_HDR   (1)
+        ,.HAS_IP_HDR    (1)
+    ) parser (
+         .clk   (clk    )
+        ,.rst   (rst    )
+        
+        ,.src_parser_data_val   (src_parser_data_val    )
+        ,.src_parser_data       (src_parser_data        )
+        ,.src_parser_padbytes   (src_parser_padbytes    )
+        ,.src_parser_last       (src_parser_last        )
+        ,.parser_src_data_rdy   (parser_src_data_rdy    )
+    
+        ,.parser_dst_meta_val   (rd_tuple_val           )
+        ,.parser_dst_hash_val   ()
+        ,.parser_dst_hash_data  (rd_tuple_data          )
+        ,.dst_parser_meta_rdy   (hash_table_src_rdy     )
+    
+        ,.parser_dst_data_val   (parser_fifo_data_val   )
+        ,.parser_dst_data       (parser_fifo_data       )
+        ,.parser_dst_padbytes   (parser_fifo_padbytes   )
+        ,.parser_dst_last       (parser_fifo_last       )
+        ,.dst_parser_data_rdy   (fifo_parser_data_rdy   )
+    );
+
+    hash_table_init_rom #(
+        .INIT_TABLE_ELS (INIT_TABLE_ELS )
+    ) init_rom (
+         .clk   (clk    )
+        ,.rst   (rst    )
+    
+        ,.table_rd      (init_table_rd      )
+        ,.table_rd_addr (init_table_addr    )
+    
+        ,.table_rd_data (init_table_rd_data )
+    );
+    
+    hash_table_init #(
+         .TABLE_ELS         (2**TABLE_ELS_LOG_2 )
+        ,.INIT_TABLE_ELS    (INIT_TABLE_ELS     )
+    ) init_hash_mem (
+         .clk   (clk    )
+        ,.rst   (rst    )
+    
+        ,.reset_done            (init_reset_done    )
+
+        ,.wr_req_val            (init_wr_req_val    )
+        ,.wr_req_addr           (init_wr_req_addr   )
+        ,.wr_req_data           (init_wr_req_data   )
+    
+        ,.init_table_rd         (init_table_rd      )
+        ,.init_table_addr       (init_table_addr    )
+        ,.init_table_rd_data    (init_table_rd_data )
+    );
+
+    assign hash_table_src_rdy = hash_table_rdy_tmp & init_reset_done;
+
+    assign hash_table_wr_en = init_wr_req_val | src_hash_table_wr_en;
+    assign hash_table_wr_index = init_wr_req_val
+                                ? init_wr_req_addr
+                                : src_hash_table_wr_index;
+    assign hash_table_wr_data = init_wr_req_val
+                                ? init_wr_req_data
+                                : src_hash_table_wr_data;
+
+    l4_hash_table #(
+         .TABLE_DATA_W      (TABLE_DATA_W       )
+        ,.TABLE_ELS_LOG_2   (TABLE_ELS_LOG_2    )
+    ) DUT (
+         .clk   (clk    )
+        ,.rst   (rst    )
+    
+        ,.rd_tuple_val      (rd_tuple_val       )
+        ,.rd_tuple_data     (rd_tuple_data      )
+        ,.wr_en             (hash_table_wr_en   )
+        ,.wr_index          (hash_table_wr_index)
+        ,.wr_data           (hash_table_wr_data )
+        ,.hash_table_rdy    (hash_table_rdy_tmp )
+                                                
+        ,.table_data_val    (table_data_val     )
+        ,.table_data_wr_en  (table_data_wr_en   )
+        ,.table_rd_index    (table_rd_index     )
+        ,.table_data        (table_data         )
+        ,.table_data_rdy    (table_data_rdy     )
+    );
+
+    assign out_fifo_wr_req = ~out_fifo_full & parser_fifo_data_val;
+    assign fifo_parser_data_rdy = ~out_fifo_full;
+
+    assign out_fifo_wr_data.data = parser_fifo_data;
+    assign out_fifo_wr_data.padbytes = parser_fifo_padbytes;
+    assign out_fifo_wr_data.last = parser_fifo_last;
+
+    fifo_1r1w #(
+         .width_p       (FIFO_STRUCT_W  )
+        ,.log2_els_p    (6              )
+    ) out_fifo (
+         .clk   (clk    )
+        ,.rst   (rst    )
+    
+        ,.wr_req    (out_fifo_wr_req    )
+        ,.wr_data   (out_fifo_wr_data   )
+        ,.full      (out_fifo_full      )
+    
+        ,.rd_req    (out_fifo_rd_req    )
+        ,.rd_data   (out_fifo_rd_data   )
+        ,.empty     (out_fifo_empty     )
+    );
+
+    assign parser_dst_data = out_fifo_rd_data.data;
+    assign parser_dst_padbytes = out_fifo_rd_data.padbytes;
+    assign parser_dst_last = out_fifo_rd_data.last;
+
+    assign out_fifo_rd_req = ~out_fifo_empty & dst_parser_data_rdy;
+    assign parser_dst_data_val = ~out_fifo_empty;
+endmodule

@@ -1,0 +1,70 @@
+CAPI=2:
+name: uwcse:beehive:tcp:0.1
+description: Beehive TCP files
+
+filesets:
+    rtl:
+        files:
+            - include/tcp_rx_tile_pkg.sv
+            - include/tcp_tx_tile_pkg.sv
+            - include/tcp_msg_poller_pkg.sv
+            - include/tcp_rx_tile_defs.svh: {is_include_file: true}
+            - include/tcp_tx_tile_defs.svh: {is_include_file: true}
+            - include/beehive_tcp_engine_defs.svh: {is_include_file: true}
+            - include/tcp_msg_poller_defs.svh: {is_include_file: true}
+            - beehive_rx_pipe_wrap.sv
+            - beehive_tcp_engine_wrap.sv
+            - tcp_app_notif.sv
+            - tcp_app_notif_ctrl.sv
+            - tcp_app_notif_datap.sv
+            - tcp_msg_poller.sv
+            - tcp_msg_poller_meta.sv
+            - tcp_msg_poller_meta_ctrl.sv
+            - tcp_msg_poller_meta_datap.sv
+            - tcp_msg_ptr_poller.sv
+            - tcp_msg_ptr_poller_ctrl.sv
+            - tcp_msg_ptr_poller_datap.sv
+            - tcp_rx_app_if_wrap.sv
+            - tcp_rx_msg_noc_if.sv
+            - tcp_rx_msg_noc_if_in.sv
+            - tcp_rx_msg_noc_if_in_ctrl.sv
+            - tcp_rx_msg_noc_if_in_datap.sv
+            - tcp_rx_msg_noc_if_out.sv
+            - tcp_rx_msg_noc_if_out_ctrl.sv
+            - tcp_rx_msg_noc_if_out_datap.sv
+            - tcp_rx_noc_in.sv
+            - tcp_rx_noc_in_ctrl.sv
+            - tcp_rx_noc_in_datap.sv
+            - tcp_tx_app_if_wrap.sv
+            - tcp_tx_msg_noc_if.sv
+            - tcp_tx_msg_noc_if_in.sv
+            - tcp_tx_msg_noc_if_in_ctrl.sv
+            - tcp_tx_msg_noc_if_in_datap.sv
+            - tcp_tx_msg_noc_if_out.sv
+            - tcp_tx_msg_noc_if_out_ctrl.sv
+            - tcp_tx_msg_noc_if_out_datap.sv
+        depend:
+            - uwcse:buckfast:includes
+            - uwcse:buckfast:frontend
+            - uwcse:buckfast:tcp_engine
+            - uwcse:buckfast:bsg_dataflow
+            - uwcse:beehive:openpiton_beehive_noc
+            - uwcse:beehive:msgs
+            - uwcse:beehive:misc
+            - uwcse:beehive:pyhp_generator
+            - uwcse:beehive:router_block
+            - uwcse:beehive:circ_buf_helpers
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]
+        generate: [pyhp_generate]
+generate:
+    pyhp_generate:
+        generator: pyhp_gen
+        parameters:
+            process_me : [[tcp_app_notif_cam_gen.sv.pyv, tcp_app_notif_cam_gen.sv],
+                          [tcp_rx_tile_gen.sv.pyv, tcp_rx_tile_gen.sv],
+                          [tcp_tx_tile_gen.sv.pyv, tcp_tx_tile_gen.sv],
+                          [tcp_tile_wrap_gen.sv.pyv, tcp_tile_wrap_gen.sv]]

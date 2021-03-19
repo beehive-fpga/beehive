@@ -1,0 +1,402 @@
+`include "tcp_rx_tile_defs.svh"
+`include "tcp_tx_tile_defs.svh"
+<%
+# Get the basic configuration object
+import sys
+import os
+sys.path.append(os.environ["BEEHIVE_PROJECT_ROOT"] + "/tile_generator/")
+from tile_generator import BeehiveConfig
+from noc_if_gen import NocInterfaceGen
+import logging
+logging.basicConfig(level=logging.INFO)
+design_path = os.environ["BEEHIVE_DESIGN_ROOT"]
+logging.info(f"Using tile config at {design_path}")
+tile_config = BeehiveConfig(design_path + "/tile_config.xml")
+noc_if_generator = NocInterfaceGen()
+%>
+module tcp_tiles_wrap 
+import tcp_pkg::*;
+import tcp_misc_pkg::*;
+#(
+     parameter TCP_RX_SRC_X = -1
+    ,parameter TCP_RX_SRC_Y = -1
+    ,parameter TCP_RX_DRAM_X = -1
+    ,parameter TCP_RX_DRAM_Y = -1
+    ,parameter TCP_TX_SRC_X = -1
+    ,parameter TCP_TX_SRC_Y = -1
+    ,parameter TCP_TX_DRAM_X = -1
+    ,parameter TCP_TX_DRAM_Y = -1
+)(
+     input clk
+    ,input rst
+
+<%
+    noc_if_str = noc_if_generator.genNocInterface(src="src", module="tcp_rx",
+         dst="dst", nocs=tile_config.nocs, noc_widths=tile_config.nocs_data_width)
+    print(noc_if_str)
+%>
+
+<%
+    noc_if_str = noc_if_generator.genNocInterface(src="src", module="tcp_tx",
+         dst="dst", nocs=tile_config.nocs, noc_widths=tile_config.nocs_data_width)
+    print(noc_if_str)
+%>
+
+);
+    
+    logic                           tcp_format_tmp_buf_rx_hdr_val;
+    logic   [`IP_ADDR_W-1:0]        tcp_format_tmp_buf_rx_src_ip;
+    logic   [`IP_ADDR_W-1:0]        tcp_format_tmp_buf_rx_dst_ip;
+    logic   [`TOT_LEN_W-1:0]        tcp_format_tmp_buf_rx_tcp_tot_len;
+    logic   [`TOT_LEN_W-1:0]        tcp_format_tmp_buf_rx_tcp_payload_len;
+    tcp_pkt_hdr                     tcp_format_tmp_buf_rx_tcp_hdr;
+    logic                           tmp_buf_tcp_format_rx_hdr_rdy;
+
+    logic                           tcp_format_tmp_buf_rx_data_val;
+    logic   [`MAC_INTERFACE_W-1:0]  tcp_format_tmp_buf_rx_data;
+    logic                           tcp_format_tmp_buf_rx_last;
+    logic   [`MAC_PADBYTES_W-1:0]   tcp_format_tmp_buf_rx_padbytes;
+    logic                           tmp_buf_tcp_format_rx_data_rdy;
+
+    logic                           send_dst_tx_val;
+    logic   [FLOWID_W-1:0]        send_dst_tx_flowid;
+    logic   [`IP_ADDR_W-1:0]        send_dst_tx_src_ip;
+    logic   [`IP_ADDR_W-1:0]        send_dst_tx_dst_ip;
+    tcp_pkt_hdr                     send_dst_tx_tcp_hdr;
+    payload_buf_struct              send_dst_tx_payload;
+    logic                           dst_send_tx_rdy;
+
+
+    
+    logic                                   read_store_buf_q_req_val;
+    rx_store_buf_q_struct                   read_store_buf_q_req_data;
+    logic                                   read_store_buf_q_empty;
+  
+    logic                                   store_buf_tmp_buf_store_rx_rd_req_val;
+    logic   [PAYLOAD_ENTRY_ADDR_W-1:0]      store_buf_tmp_buf_store_rx_rd_req_addr;
+    logic                                   tmp_buf_store_store_buf_rx_rd_req_rdy;
+
+    logic                                   tmp_buf_store_store_buf_rx_rd_resp_val;
+    logic   [`MAC_INTERFACE_W-1:0]          tmp_buf_store_store_buf_rx_rd_resp_data;
+    logic                                   store_buf_tmp_buf_store_rx_rd_resp_rdy;
+
+    logic                                   store_buf_tmp_buf_free_slab_rx_req_val;
+    logic   [RX_TMP_BUF_ADDR_W-1:0]         store_buf_tmp_buf_free_slab_rx_req_addr;
+    logic                                   tmp_buf_free_slab_store_buf_rx_req_rdy;
+
+    logic                                   store_buf_commit_ptr_wr_req_val;
+    logic   [FLOWID_W-1:0]                  store_buf_commit_ptr_wr_req_flowid;
+    logic   [RX_PAYLOAD_PTR_W:0]            store_buf_commit_ptr_wr_req_data;
+    logic                                   commit_ptr_store_buf_wr_req_rdy;
+    
+    logic                                   store_buf_commit_ptr_rd_req_val;
+    logic   [FLOWID_W-1:0]                  store_buf_commit_ptr_rd_req_addr;
+    logic                                   commit_ptr_store_buf_rd_req_rdy;
+
+    logic                                   commit_ptr_store_buf_rd_resp_val;
+    logic   [RX_PAYLOAD_PTR_W:0]            commit_ptr_store_buf_rd_resp_data;
+    logic                                   store_buf_commit_ptr_rd_resp_rdy;
+    
+    logic                               app_new_flow_notif_val;
+    logic   [FLOWID_W-1:0]              app_new_flow_flowid;
+    four_tuple_struct                   app_new_flow_lookup;
+    logic                               app_new_flow_notif_rdy;
+    
+    logic                               app_tail_ptr_tx_wr_req_val;
+    logic   [FLOWID_W-1:0]              app_tail_ptr_tx_wr_req_flowid;
+    logic   [TX_PAYLOAD_PTR_W:0]        app_tail_ptr_tx_wr_req_data;
+    logic                               tail_ptr_app_tx_wr_req_rdy;
+  
+    logic                               app_tail_ptr_tx_rd_req_val;
+    logic   [FLOWID_W-1:0]              app_tail_ptr_tx_rd_req_flowid;
+    logic                               tail_ptr_app_tx_rd_req_rdy;
+
+    logic                               tail_ptr_app_tx_rd_resp_val;
+    logic   [FLOWID_W-1:0]              tail_ptr_app_tx_rd_resp_flowid;
+    logic   [TX_PAYLOAD_PTR_W:0]        tail_ptr_app_tx_rd_resp_data;
+    logic                               app_tail_ptr_tx_rd_resp_rdy;
+
+    logic                               app_head_ptr_tx_rd_req_val;
+    logic   [FLOWID_W-1:0]              app_head_ptr_tx_rd_req_flowid;
+    logic                               head_ptr_app_tx_rd_req_rdy;
+
+    logic                               head_ptr_app_tx_rd_resp_val;
+    logic   [FLOWID_W-1:0]              head_ptr_app_tx_rd_resp_flowid;
+    logic   [TX_PAYLOAD_PTR_W:0]        head_ptr_app_tx_rd_resp_data;
+    logic                               app_head_ptr_tx_rd_resp_rdy;
+   
+    logic                               app_rx_head_ptr_wr_req_val;
+    logic   [FLOWID_W-1:0]              app_rx_head_ptr_wr_req_addr;
+    logic   [RX_PAYLOAD_PTR_W:0]        app_rx_head_ptr_wr_req_data;
+    logic                               rx_head_ptr_app_wr_req_rdy;
+
+    logic                               app_rx_head_ptr_rd_req_val;
+    logic   [FLOWID_W-1:0]              app_rx_head_ptr_rd_req_addr;
+    logic                               rx_head_ptr_app_rd_req_rdy;
+    
+    logic                               rx_head_ptr_app_rd_resp_val;
+    logic   [RX_PAYLOAD_PTR_W:0]        rx_head_ptr_app_rd_resp_data;
+    logic                               app_rx_head_ptr_rd_resp_rdy;
+
+    logic                               app_rx_commit_ptr_rd_req_val;
+    logic   [FLOWID_W-1:0]              app_rx_commit_ptr_rd_req_addr;
+    logic                               rx_commit_ptr_app_rd_req_rdy;
+
+    logic                               rx_commit_ptr_app_rd_resp_val;
+    logic   [RX_PAYLOAD_PTR_W:0]        rx_commit_ptr_app_rd_resp_data;
+    logic                               app_rx_commit_ptr_rd_resp_rdy;
+    
+    logic                               app_sched_update_val;
+    sched_cmd_struct                    app_sched_update_cmd;
+    logic                               sched_app_update_rdy;
+    
+    tcp_rx_tile #(
+         .SRC_X     (TCP_RX_SRC_X   )
+        ,.SRC_Y     (TCP_RX_SRC_Y   )
+        ,.RX_DRAM_X (TCP_RX_DRAM_X  )
+        ,.RX_DRAM_Y (TCP_RX_DRAM_Y  )
+    ) tcp_rx_tile (
+         .clk   (clk)
+        ,.rst   (rst)
+
+<%
+    noc_ports = noc_if_generator.genNocInstantiation(src="src",
+    port_name="tcp_rx", dst="dst", noc_src="src", noc_dst="dst",
+    module="tcp_rx", nocs=tile_config.nocs)
+    print(noc_ports)
+%>
+                                                                                    
+        ,.tcp_format_dst_rx_hdr_val                 (tcp_format_tmp_buf_rx_hdr_val              )
+        ,.tcp_format_dst_rx_src_ip                  (tcp_format_tmp_buf_rx_src_ip               )
+        ,.tcp_format_dst_rx_dst_ip                  (tcp_format_tmp_buf_rx_dst_ip               )
+        ,.tcp_format_dst_rx_tcp_tot_len             (tcp_format_tmp_buf_rx_tcp_tot_len          )
+        ,.tcp_format_dst_rx_tcp_hdr                 (tcp_format_tmp_buf_rx_tcp_hdr              )
+        ,.dst_tcp_format_rx_hdr_rdy                 (tmp_buf_tcp_format_rx_hdr_rdy              )
+
+        ,.tcp_format_dst_rx_data_val                (tcp_format_tmp_buf_rx_data_val             )
+        ,.tcp_format_dst_rx_data                    (tcp_format_tmp_buf_rx_data                 )
+        ,.tcp_format_dst_rx_last                    (tcp_format_tmp_buf_rx_last                 )
+        ,.tcp_format_dst_rx_padbytes                (tcp_format_tmp_buf_rx_padbytes             )
+        ,.dst_tcp_format_rx_data_rdy                (tmp_buf_tcp_format_rx_data_rdy             )
+    
+        ,.read_store_buf_q_req_val                  (read_store_buf_q_req_val                   )
+        ,.read_store_buf_q_req_data                 (read_store_buf_q_req_data                  )
+        ,.read_store_buf_q_empty                    (read_store_buf_q_empty                     )
+                                                                                                
+        ,.store_buf_tmp_buf_store_rx_rd_req_val     (store_buf_tmp_buf_store_rx_rd_req_val      )
+        ,.store_buf_tmp_buf_store_rx_rd_req_addr    (store_buf_tmp_buf_store_rx_rd_req_addr     )
+        ,.tmp_buf_store_store_buf_rx_rd_req_rdy     (tmp_buf_store_store_buf_rx_rd_req_rdy      )
+                                                                                                
+        ,.tmp_buf_store_store_buf_rx_rd_resp_val    (tmp_buf_store_store_buf_rx_rd_resp_val     )
+        ,.tmp_buf_store_store_buf_rx_rd_resp_data   (tmp_buf_store_store_buf_rx_rd_resp_data    )
+        ,.store_buf_tmp_buf_store_rx_rd_resp_rdy    (store_buf_tmp_buf_store_rx_rd_resp_rdy     )
+                                                                                                
+        ,.store_buf_tmp_buf_free_slab_rx_req_val    (store_buf_tmp_buf_free_slab_rx_req_val     )
+        ,.store_buf_tmp_buf_free_slab_rx_req_addr   (store_buf_tmp_buf_free_slab_rx_req_addr    )
+        ,.tmp_buf_free_slab_store_buf_rx_req_rdy    (tmp_buf_free_slab_store_buf_rx_req_rdy     )
+                                                                                                
+        ,.store_buf_commit_ptr_rd_req_val           (store_buf_commit_ptr_rd_req_val            )
+        ,.store_buf_commit_ptr_rd_req_flowid        (store_buf_commit_ptr_rd_req_addr           )
+        ,.commit_ptr_store_buf_rd_req_rdy           (commit_ptr_store_buf_rd_req_rdy            )
+                                                                                                
+        ,.commit_ptr_store_buf_rd_resp_val          (commit_ptr_store_buf_rd_resp_val           )
+        ,.commit_ptr_store_buf_rd_resp_data         (commit_ptr_store_buf_rd_resp_data          )
+        ,.store_buf_commit_ptr_rd_resp_rdy          (store_buf_commit_ptr_rd_resp_rdy           )
+                                                                                                
+        ,.store_buf_commit_ptr_wr_req_val           (store_buf_commit_ptr_wr_req_val            )
+        ,.store_buf_commit_ptr_wr_req_flowid        (store_buf_commit_ptr_wr_req_flowid         )
+        ,.store_buf_commit_ptr_wr_req_data          (store_buf_commit_ptr_wr_req_data           )
+        ,.commit_ptr_store_buf_wr_req_rdy           (commit_ptr_store_buf_wr_req_rdy            )
+
+        ,.app_new_flow_notif_val                    (app_new_flow_notif_val                     )
+        ,.app_new_flow_lookup                       (app_new_flow_lookup                        )
+        ,.app_new_flow_flowid                       (app_new_flow_flowid                        )
+        ,.app_new_flow_notif_rdy                    (app_new_flow_notif_rdy                     )
+    
+        ,.app_rx_head_ptr_wr_req_val                (app_rx_head_ptr_wr_req_val                 )
+        ,.app_rx_head_ptr_wr_req_addr               (app_rx_head_ptr_wr_req_addr                )
+        ,.app_rx_head_ptr_wr_req_data               (app_rx_head_ptr_wr_req_data                )
+        ,.rx_head_ptr_app_wr_req_rdy                (rx_head_ptr_app_wr_req_rdy                 )
+                                                                                                
+        ,.app_rx_head_ptr_rd_req_val                (app_rx_head_ptr_rd_req_val                 )
+        ,.app_rx_head_ptr_rd_req_addr               (app_rx_head_ptr_rd_req_addr                )
+        ,.rx_head_ptr_app_rd_req_rdy                (rx_head_ptr_app_rd_req_rdy                 )
+                                                                                                
+        ,.rx_head_ptr_app_rd_resp_val               (rx_head_ptr_app_rd_resp_val                )
+        ,.rx_head_ptr_app_rd_resp_data              (rx_head_ptr_app_rd_resp_data               )
+        ,.app_rx_head_ptr_rd_resp_rdy               (app_rx_head_ptr_rd_resp_rdy                )
+                                                                                                
+        ,.app_rx_commit_ptr_rd_req_val              (app_rx_commit_ptr_rd_req_val               )
+        ,.app_rx_commit_ptr_rd_req_addr             (app_rx_commit_ptr_rd_req_addr              )
+        ,.rx_commit_ptr_app_rd_req_rdy              (rx_commit_ptr_app_rd_req_rdy               )
+                                                                                                
+        ,.rx_commit_ptr_app_rd_resp_val             (rx_commit_ptr_app_rd_resp_val              )
+        ,.rx_commit_ptr_app_rd_resp_data            (rx_commit_ptr_app_rd_resp_data             )
+        ,.app_rx_commit_ptr_rd_resp_rdy             (app_rx_commit_ptr_rd_resp_rdy              )
+    );
+
+    assign tcp_format_tmp_buf_rx_tcp_payload_len = tcp_format_tmp_buf_rx_tcp_tot_len - 
+                                    (tcp_format_tmp_buf_rx_tcp_hdr.raw_data_offset << 2);
+    
+    beehive_tcp_slow_engine_wrap tcp_engine (
+         .clk   (clk)
+        ,.rst   (rst)
+        
+        // Write req inputs
+        ,.src_tmp_buf_rx_hdr_val                (tcp_format_tmp_buf_rx_hdr_val              )
+        ,.src_tmp_buf_rx_src_ip                 (tcp_format_tmp_buf_rx_src_ip               )
+        ,.src_tmp_buf_rx_dst_ip                 (tcp_format_tmp_buf_rx_dst_ip               )
+        ,.src_tmp_buf_rx_tcp_payload_len        (tcp_format_tmp_buf_rx_tcp_payload_len      )
+        ,.src_tmp_buf_rx_tcp_hdr                (tcp_format_tmp_buf_rx_tcp_hdr              )
+        ,.tmp_buf_src_rx_hdr_rdy                (tmp_buf_tcp_format_rx_hdr_rdy              )
+        
+        ,.src_tmp_buf_rx_data_val               (tcp_format_tmp_buf_rx_data_val             )
+        ,.src_tmp_buf_rx_data                   (tcp_format_tmp_buf_rx_data                 )
+        ,.src_tmp_buf_rx_data_last              (tcp_format_tmp_buf_rx_last                 )
+        ,.src_tmp_buf_rx_data_padbytes          (tcp_format_tmp_buf_rx_padbytes             )
+        ,.tmp_buf_src_rx_data_rdy               (tmp_buf_tcp_format_rx_data_rdy             )
+        
+        ,.send_dst_tx_val                       (send_dst_tx_val                            )
+        ,.send_dst_tx_flowid                    (send_dst_tx_flowid                         )
+        ,.send_dst_tx_src_ip                    (send_dst_tx_src_ip                         )
+        ,.send_dst_tx_dst_ip                    (send_dst_tx_dst_ip                         )
+        ,.send_dst_tx_tcp_hdr                   (send_dst_tx_tcp_hdr                        )
+        ,.send_dst_tx_payload                   (send_dst_tx_payload                        )
+        ,.dst_send_tx_rdy                       (dst_send_tx_rdy                            )
+
+        ,.app_new_flow_notif_val                (app_new_flow_notif_val                     )
+        ,.app_new_flow_flowid                   (app_new_flow_flowid                        )
+        ,.app_new_flow_lookup                   (app_new_flow_lookup                        )
+        ,.app_new_flow_notif_rdy                (app_new_flow_notif_rdy                     )
+        
+        ,.rx_store_buf_q_rd_req_val             (read_store_buf_q_req_val                   )
+        ,.rx_store_buf_q_rd_req_data            (read_store_buf_q_req_data                  )
+        ,.rx_store_buf_q_empty                  (read_store_buf_q_empty                     )
+        
+        ,.src_tmp_buf_store_rd_req_val          (store_buf_tmp_buf_store_rx_rd_req_val      )
+        ,.src_tmp_buf_store_rd_req_addr         (store_buf_tmp_buf_store_rx_rd_req_addr     )
+        ,.tmp_buf_store_src_rd_req_rdy          (tmp_buf_store_store_buf_rx_rd_req_rdy      )
+
+        ,.tmp_buf_store_src_rd_resp_val         (tmp_buf_store_store_buf_rx_rd_resp_val     )
+        ,.tmp_buf_store_src_rd_resp_data        (tmp_buf_store_store_buf_rx_rd_resp_data    )
+        ,.src_tmp_buf_store_rd_resp_rdy         (store_buf_tmp_buf_store_rx_rd_resp_rdy     )
+
+        ,.src_tmp_buf_free_slab_req_val         (store_buf_tmp_buf_free_slab_rx_req_val     )
+        ,.src_tmp_buf_free_slab_req_addr        (store_buf_tmp_buf_free_slab_rx_req_addr    )
+        ,.tmp_buf_free_slab_src_req_rdy         (tmp_buf_free_slab_store_buf_rx_req_rdy     )
+        
+        ,.app_tail_ptr_tx_wr_req_val            (app_tail_ptr_tx_wr_req_val                 )
+        ,.app_tail_ptr_tx_wr_req_flowid         (app_tail_ptr_tx_wr_req_flowid              )
+        ,.app_tail_ptr_tx_wr_req_data           (app_tail_ptr_tx_wr_req_data                )
+        ,.tail_ptr_app_tx_wr_req_rdy            (tail_ptr_app_tx_wr_req_rdy                 )
+                                                                                             
+        ,.app_tail_ptr_tx_rd_req_val            (app_tail_ptr_tx_rd_req_val                 )
+        ,.app_tail_ptr_tx_rd_req_flowid         (app_tail_ptr_tx_rd_req_flowid              )
+        ,.tail_ptr_app_tx_rd_req_rdy            (tail_ptr_app_tx_rd_req_rdy                 )
+                                                                                              
+        ,.tail_ptr_app_tx_rd_resp_val           (tail_ptr_app_tx_rd_resp_val                )
+        ,.tail_ptr_app_tx_rd_resp_flowid        (tail_ptr_app_tx_rd_resp_flowid             )
+        ,.tail_ptr_app_tx_rd_resp_data          (tail_ptr_app_tx_rd_resp_data               )
+        ,.app_tail_ptr_tx_rd_resp_rdy           (app_tail_ptr_tx_rd_resp_rdy                )
+                                                                                              
+        ,.app_head_ptr_tx_rd_req_val            (app_head_ptr_tx_rd_req_val                 )
+        ,.app_head_ptr_tx_rd_req_flowid         (app_head_ptr_tx_rd_req_flowid              )
+        ,.head_ptr_app_tx_rd_req_rdy            (head_ptr_app_tx_rd_req_rdy                 )
+                                                                                              
+        ,.head_ptr_app_tx_rd_resp_val           (head_ptr_app_tx_rd_resp_val                )
+        ,.head_ptr_app_tx_rd_resp_flowid        (head_ptr_app_tx_rd_resp_flowid             )
+        ,.head_ptr_app_tx_rd_resp_data          (head_ptr_app_tx_rd_resp_data               )
+        ,.app_head_ptr_tx_rd_resp_rdy           (app_head_ptr_tx_rd_resp_rdy                )
+        
+        ,.app_rx_head_ptr_wr_req_val            (app_rx_head_ptr_wr_req_val                 )
+        ,.app_rx_head_ptr_wr_req_addr           (app_rx_head_ptr_wr_req_addr                )
+        ,.app_rx_head_ptr_wr_req_data           (app_rx_head_ptr_wr_req_data                )
+        ,.rx_head_ptr_app_wr_req_rdy            (rx_head_ptr_app_wr_req_rdy                 )
+                                                                                            
+        ,.app_rx_head_ptr_rd_req_val            (app_rx_head_ptr_rd_req_val                 )
+        ,.app_rx_head_ptr_rd_req_addr           (app_rx_head_ptr_rd_req_addr                )
+        ,.rx_head_ptr_app_rd_req_rdy            (rx_head_ptr_app_rd_req_rdy                 )
+                                                                                            
+        ,.rx_head_ptr_app_rd_resp_val           (rx_head_ptr_app_rd_resp_val                )
+        ,.rx_head_ptr_app_rd_resp_data          (rx_head_ptr_app_rd_resp_data               )
+        ,.app_rx_head_ptr_rd_resp_rdy           (app_rx_head_ptr_rd_resp_rdy                )
+                                                                                            
+        ,.app_rx_commit_ptr_rd_req_val          (app_rx_commit_ptr_rd_req_val               )
+        ,.app_rx_commit_ptr_rd_req_addr         (app_rx_commit_ptr_rd_req_addr              )
+        ,.rx_commit_ptr_app_rd_req_rdy          (rx_commit_ptr_app_rd_req_rdy               )
+                                                                                            
+        ,.rx_commit_ptr_app_rd_resp_val         (rx_commit_ptr_app_rd_resp_val              )
+        ,.rx_commit_ptr_app_rd_resp_data        (rx_commit_ptr_app_rd_resp_data             )
+        ,.app_rx_commit_ptr_rd_resp_rdy         (app_rx_commit_ptr_rd_resp_rdy              )
+    
+        ,.store_buf_commit_ptr_wr_req_val       (store_buf_commit_ptr_wr_req_val            )
+        ,.store_buf_commit_ptr_wr_req_addr      (store_buf_commit_ptr_wr_req_flowid         )
+        ,.store_buf_commit_ptr_wr_req_data      (store_buf_commit_ptr_wr_req_data           )
+        ,.commit_ptr_store_buf_wr_req_rdy       (commit_ptr_store_buf_wr_req_rdy            )
+                                                                                            
+        ,.store_buf_commit_ptr_rd_req_val       (store_buf_commit_ptr_rd_req_val            )
+        ,.store_buf_commit_ptr_rd_req_addr      (store_buf_commit_ptr_rd_req_addr           )
+        ,.commit_ptr_store_buf_rd_req_rdy       (commit_ptr_store_buf_rd_req_rdy            )
+                                                                                            
+        ,.commit_ptr_store_buf_rd_resp_val      (commit_ptr_store_buf_rd_resp_val           )
+        ,.commit_ptr_store_buf_rd_resp_data     (commit_ptr_store_buf_rd_resp_data          )
+        ,.store_buf_commit_ptr_rd_resp_rdy      (store_buf_commit_ptr_rd_resp_rdy           )
+
+        ,.app_sched_update_val                  (app_sched_update_val                       )
+        ,.app_sched_update_cmd                  (app_sched_update_cmd                       )
+        ,.sched_app_update_rdy                  (sched_app_update_rdy                       )
+    );
+    
+    tcp_tx_tile #(
+         .SRC_X     (TCP_TX_SRC_X   )
+        ,.SRC_Y     (TCP_TX_SRC_Y   )
+        ,.TX_DRAM_X (TCP_TX_DRAM_X  )
+        ,.TX_DRAM_Y (TCP_TX_DRAM_Y  )
+    ) tx_tile (
+         .clk   (clk    )
+        ,.rst   (rst    )
+
+<%
+    noc_ports = noc_if_generator.genNocInstantiation(src="src",
+    port_name="tcp_tx", dst="dst", noc_src="src", noc_dst="dst",
+    module="tcp_tx", nocs=tile_config.nocs)
+    print(noc_ports)
+%>
+                                                                            
+        ,.send_dst_tx_val                   (send_dst_tx_val                )
+        ,.send_dst_tx_flowid                (send_dst_tx_flowid             )
+        ,.send_dst_tx_src_ip                (send_dst_tx_src_ip             )
+        ,.send_dst_tx_dst_ip                (send_dst_tx_dst_ip             )
+        ,.send_dst_tx_tcp_hdr               (send_dst_tx_tcp_hdr            )
+        ,.send_dst_tx_payload               (send_dst_tx_payload            )
+        ,.dst_send_tx_rdy                   (dst_send_tx_rdy                )
+        
+        ,.app_tail_ptr_tx_wr_req_val        (app_tail_ptr_tx_wr_req_val     )
+        ,.app_tail_ptr_tx_wr_req_flowid     (app_tail_ptr_tx_wr_req_flowid  )
+        ,.app_tail_ptr_tx_wr_req_data       (app_tail_ptr_tx_wr_req_data    )
+        ,.tail_ptr_app_tx_wr_req_rdy        (tail_ptr_app_tx_wr_req_rdy     )
+                                                                            
+        ,.app_tail_ptr_tx_rd_req_val        (app_tail_ptr_tx_rd_req_val     )
+        ,.app_tail_ptr_tx_rd_req_flowid     (app_tail_ptr_tx_rd_req_flowid  )
+        ,.tail_ptr_app_tx_rd_req_rdy        (tail_ptr_app_tx_rd_req_rdy     )
+                                                                            
+        ,.tail_ptr_app_tx_rd_resp_val       (tail_ptr_app_tx_rd_resp_val    )
+        ,.tail_ptr_app_tx_rd_resp_flowid    (tail_ptr_app_tx_rd_resp_flowid )
+        ,.tail_ptr_app_tx_rd_resp_data      (tail_ptr_app_tx_rd_resp_data   )
+        ,.app_tail_ptr_tx_rd_resp_rdy       (app_tail_ptr_tx_rd_resp_rdy    )
+                                                                            
+        ,.app_head_ptr_tx_rd_req_val        (app_head_ptr_tx_rd_req_val     )
+        ,.app_head_ptr_tx_rd_req_flowid     (app_head_ptr_tx_rd_req_flowid  )
+        ,.head_ptr_app_tx_rd_req_rdy        (head_ptr_app_tx_rd_req_rdy     )
+                                                                            
+        ,.head_ptr_app_tx_rd_resp_val       (head_ptr_app_tx_rd_resp_val    )
+        ,.head_ptr_app_tx_rd_resp_flowid    (head_ptr_app_tx_rd_resp_flowid )
+        ,.head_ptr_app_tx_rd_resp_data      (head_ptr_app_tx_rd_resp_data   )
+        ,.app_head_ptr_tx_rd_resp_rdy       (app_head_ptr_tx_rd_resp_rdy    )
+    
+        ,.app_sched_update_val              (app_sched_update_val           )
+        ,.app_sched_update_cmd              (app_sched_update_cmd           )
+        ,.sched_app_update_rdy              (sched_app_update_rdy           )
+    );
+
+endmodule

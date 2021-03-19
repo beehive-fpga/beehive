@@ -1,0 +1,144 @@
+`include "udp_echo_app_defs.svh"
+`include "udp_echo_app_stats_defs.svh"
+module udp_echo_app_copy #(
+     parameter SRC_X = -1
+    ,parameter SRC_Y = -1
+)(
+     input clk
+    ,input rst
+    
+    ,input                                  noc0_ctovr_udp_app_in_val
+    ,input          [`NOC_DATA_WIDTH-1:0]   noc0_ctovr_udp_app_in_data
+    ,output logic                           udp_app_in_noc0_ctovr_rdy
+    
+    ,output logic                           udp_app_out_noc0_vrtoc_val
+    ,output logic   [`NOC_DATA_WIDTH-1:0]   udp_app_out_noc0_vrtoc_data
+    ,input                                  noc0_vrtoc_udp_app_out_rdy
+    
+    ,input                                  noc0_ctovr_udp_stats_in_val
+    ,input          [`NOC_DATA_WIDTH-1:0]   noc0_ctovr_udp_stats_in_data
+    ,output logic                           udp_stats_in_noc0_ctovr_rdy
+    
+    ,output logic                           udp_stats_out_noc0_vrtoc_val
+    ,output logic   [`NOC_DATA_WIDTH-1:0]   udp_stats_out_noc0_vrtoc_data
+    ,input                                  noc0_vrtoc_udp_stats_out_rdy
+);
+<%
+# Get the basic configuration object
+import sys
+import os
+sys.path.append(os.environ["BEEHIVE_PROJECT_ROOT"] + "/tile_generator/")
+from tile_generator import BeehiveConfig
+from cam_gen_helpers import get_dst_x_localparam_str, get_dst_y_localparam_str
+import logging
+logging.basicConfig(level=logging.INFO)
+design_path = os.environ["BEEHIVE_DESIGN_ROOT"]
+logging.info(f"Using tile config at {design_path}")
+tile_config = BeehiveConfig(design_path + "/tile_config.xml")
+%>
+
+<%
+# find all the UDP App endpoint names
+udp_app_endpoints = tile_config.tiles.findall("./endpoint/[port_name='udp_app']")
+udp_app_names = []
+for endpoint in udp_app_endpoints:
+    endpoint_name = endpoint.find("endpoint_name").text
+    udp_app_names.append(endpoint_name)
+
+x_localparam_decl = "    localparam UDP_APP_DST_X = "
+x_ternary_lines = ""
+y_localparam_decl = "    localparam UDP_APP_DST_Y = "
+y_ternary_lines = ""
+for name in udp_app_names:
+    endpoint = tile_config.endpoint_dict[name]
+    interface = endpoint.interfaces["udp_app_pkt"]
+
+    x_ternary_lines += get_dst_x_localparam_str(tile_config, interface)
+    y_ternary_lines += get_dst_y_localparam_str(tile_config, interface)
+
+print(x_localparam_decl + x_ternary_lines + "0;")
+print(y_localparam_decl + y_ternary_lines + "0;")
+
+%>
+    
+    logic   in_store_hdr_flit;
+    logic   in_store_meta_flit;
+
+    udp_app_out_mux_sel_e   out_data_mux_sel;
+
+    logic   [`MSG_LENGTH_WIDTH-1:0] total_flits;
+
+    logic                           app_stats_do_log;
+    logic                           app_stats_incr_bytes_sent;
+    logic   [`NOC_DATA_BYTES_W:0]   app_stats_num_bytes_sent;
+    logic   [`UDP_LENGTH_W-1:0]     data_length;
+
+    udp_echo_app_stats #(
+         .SRC_X         (SRC_X  )
+        ,.SRC_Y         (SRC_Y  )
+        ,.NOC1_DATA_W   (`NOC_DATA_WIDTH    )
+        ,.NOC2_DATA_W   (`NOC_DATA_WIDTH    )
+    ) stats (
+         .clk   (clk    )
+        ,.rst   (rst    )
+
+        ,.app_stats_do_log              (app_stats_do_log               )
+        ,.app_stats_incr_bytes_sent     (app_stats_incr_bytes_sent      )
+        ,.app_stats_num_bytes_sent      (app_stats_num_bytes_sent       )
+
+        ,.ctovr_udp_stats_in_val        (noc0_ctovr_udp_stats_in_val    )
+        ,.ctovr_udp_stats_in_data       (noc0_ctovr_udp_stats_in_data   )
+        ,.udp_stats_in_ctovr_rdy        (udp_stats_in_noc0_ctovr_rdy    )
+
+        ,.udp_stats_out_vrtoc_val       (udp_stats_out_noc0_vrtoc_val   )
+        ,.udp_stats_out_vrtoc_data      (udp_stats_out_noc0_vrtoc_data  )
+        ,.vrtoc_udp_stats_out_rdy       (noc0_vrtoc_udp_stats_out_rdy   )
+    );
+
+    udp_echo_app_datap #(
+         .SRC_X (SRC_X  )
+        ,.SRC_Y (SRC_Y  )
+    ) datap (
+         .clk   (clk    )
+        ,.rst   (rst    )
+        
+        ,.noc0_ctovr_udp_app_in_data    (noc0_ctovr_udp_app_in_data     )
+                                                                        
+        ,.udp_app_out_noc0_vrtoc_data   (udp_app_out_noc0_vrtoc_data    )
+
+        ,.src_udp_app_out_dst_x         (UDP_APP_DST_X[`XY_WIDTH-1:0]   )
+        ,.src_udp_app_out_dst_y         (UDP_APP_DST_Y[`XY_WIDTH-1:0]   )
+                                                                        
+        ,.in_store_hdr_flit             (in_store_hdr_flit              )
+        ,.in_store_meta_flit            (in_store_meta_flit             )
+                                                                        
+        ,.out_data_mux_sel              (out_data_mux_sel               )
+
+        ,.total_flits                   (total_flits                    )
+        ,.data_length                   (data_length                    )
+    );
+
+    udp_echo_app_ctrl ctrl (
+         .clk   (clk    )
+        ,.rst   (rst    )
+        
+        ,.noc0_ctovr_udp_app_in_val     (noc0_ctovr_udp_app_in_val  )
+        ,.udp_app_in_noc0_ctovr_rdy     (udp_app_in_noc0_ctovr_rdy  )
+                                                                    
+        ,.udp_app_out_noc0_vrtoc_val    (udp_app_out_noc0_vrtoc_val )
+        ,.noc0_vrtoc_udp_app_out_rdy    (noc0_vrtoc_udp_app_out_rdy )
+                                                                    
+        ,.in_store_hdr_flit             (in_store_hdr_flit          )
+        ,.in_store_meta_flit            (in_store_meta_flit         )
+                                                                    
+        ,.out_data_mux_sel              (out_data_mux_sel           )
+
+        ,.app_stats_do_log              (app_stats_do_log           )
+        ,.app_stats_incr_bytes_sent     (app_stats_incr_bytes_sent  )
+        ,.app_stats_num_bytes_sent      (app_stats_num_bytes_sent   )
+        ,.data_length                   (data_length                )
+        ,.total_flits                   (total_flits                )
+    );
+
+
+endmodule

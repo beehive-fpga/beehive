@@ -1,0 +1,22 @@
+CAPI=2:
+name: uwcse:beehive:logging:0.1
+description: Beehive logging files
+
+filesets:
+    rtl:
+        files:
+            - include/simple_log_udp_noc_read_pkg.sv
+            - include/simple_log_udp_noc_read_defs.svh: {is_include_file: true}
+            - simple_log.sv
+            - simple_log_udp_noc_read.sv
+            - simple_log_udp_noc_read_ctrl.sv
+            - simple_log_udp_noc_read_datap.sv
+        depend:
+            - uwcse:buckfast:includes
+            - uwcse:beehive:msgs
+            - uwcse:beehive:topology
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]

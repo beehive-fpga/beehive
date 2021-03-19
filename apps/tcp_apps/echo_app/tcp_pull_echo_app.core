@@ -1,0 +1,36 @@
+CAPI=2:
+name: uwcse:beehive:tcp_pull_echo_app:0.1
+description: App that echos TCP messages using the Beehive NoC format
+
+filesets:
+    rtl:
+        files:
+            - include/echo_app_pkg.sv
+            - include/echo_app_defs.svh: {is_include_file: true}
+            - echo_app_msg_if.sv
+            - echo_app_new_flow_notif.sv
+            - echo_app_rx_msg_if.sv
+            - echo_app_rx_msg_if_ctrl.sv
+            - echo_app_rx_msg_if_datap.sv
+            - echo_app_tx_msg_if.sv
+            - echo_app_tx_msg_if_ctrl.sv
+            - echo_app_tx_msg_if_datap.sv
+        depend:
+            - uwcse:buckfast:includes
+            - uwcse:beehive:msgs
+            - uwcse:beehive:echo_app_stats
+            - uwcse:beehive:pyhp_generator
+            - uwcse:beehive:common_noc_adapters
+            - uwcse:beehive:noc_helpers
+            - uwcse:beehive:tcp_inc
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]
+        generate: [pyhp_generate]
+generate:
+    pyhp_generate:
+        generator: pyhp_gen
+        parameters:
+            process_me : [[echo_app_tiles_gen.sv.pyv, echo_app_tiles_gen.sv]]

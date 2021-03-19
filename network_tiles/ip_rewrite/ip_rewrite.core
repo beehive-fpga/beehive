@@ -1,0 +1,35 @@
+CAPI=2:
+name: uwcse:beehive:ip_rewrite:0.1
+description: Beehive IP rewrite tile
+
+filesets:
+    rtl:
+        files:
+            - include/ip_rewrite_noc_pipe_pkg.sv
+            - include/ip_rewrite_noc_pipe_defs.svh: {is_include_file: true}
+            - ip_rewrite_noc.sv
+            - ip_rewrite_noc_ctrl.sv
+            - ip_rewrite_noc_datap.sv
+            - ip_rewrite_noc_rx.sv
+            - ip_rewrite_noc_tx.sv
+            - lookup_table_ctrl.sv
+            - update_chksum_nat.sv
+        depend:
+            - uwcse:buckfast:includes
+            - uwcse:beehive:openpiton_beehive_noc
+            - uwcse:beehive:msgs
+            - uwcse:beehive:pyhp_generator
+            - uwcse:beehive:common_noc_adapters
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]
+        generate: [pyhp_generate]
+generate:
+    pyhp_generate:
+        generator: pyhp_gen
+        parameters:
+            process_me : [[ip_rewrite_out_cam_gen.sv.pyv, ip_rewrite_out_cam.sv],
+                          [ip_rewrite_rx_tile_gen.sv.pyv, ip_rewrite_rx_tile_gen.sv],
+                          [ip_rewrite_tx_tile_gen.sv.pyv, ip_rewrite_tx_tile_gen.sv]]

@@ -1,0 +1,29 @@
+CAPI=2:
+name: uwcse:beehive:ip_ctrl_noc:0.1
+description: Beehive IP tile with ctrl noc
+
+# Fileset is identical to the normal IP
+filesets:
+    rtl:
+        files: []
+        depend:
+            - uwcse:buckfast:includes
+            - uwcse:buckfast:frontend
+            - uwcse:beehive:openpiton_beehive_noc
+            - uwcse:beehive:msgs
+            - uwcse:beehive:pyhp_generator
+            - uwcse:beehive:data_converters
+            - uwcse:beehive:router_block
+            - uwcse:beehive:ip
+        file_type: systemVerilogSource
+targets:
+    default:
+        filesets: [rtl]
+        generate: [pyhp_generate]
+generate:
+    pyhp_generate:
+        generator: pyhp_gen
+        parameters:
+            process_me : [[ip_rx_out_cam_gen.sv.pyv, ip_rx_out_cam.sv],
+                          [ip_rx_tile_gen.sv.pyv, ip_rx_tile_gen.sv],
+                          [ip_tx_tile_gen.sv.pyv, ip_tx_tile_gen.sv]]

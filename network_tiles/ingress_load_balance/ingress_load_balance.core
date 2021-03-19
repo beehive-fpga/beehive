@@ -1,0 +1,29 @@
+CAPI=2:
+name: uwcse:beehive:ingress_load_balance:0.1
+description: Ingress load balancer tile
+
+filesets:
+    rtl:
+        files:
+            - include/ingress_load_balance_defs.svh: {is_include_file: true}
+            - ingress_noc_out.sv
+        depend:
+            - uwcse:buckfast:includes
+            - uwcse:buckfast:fifo
+            - uwcse:beehive:openpiton_beehive_noc
+            - uwcse:beehive:msgs
+            - uwcse:beehive:l4_hash
+            - uwcse:beehive:l4_extract
+            - uwcse:beehive:pyhp_generator
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]
+        generate: [pyhp_generate]
+generate:
+    pyhp_generate:
+        generator: pyhp_gen
+        parameters:
+            process_me : [[ingress_load_balance_tile_gen.sv.pyv, ingress_load_balance_tile_gen.sv],
+                        [ingress_hash_table_init_rom_gen.sv.pyv, ingress_hash_table_init_rom_gen.sv]]

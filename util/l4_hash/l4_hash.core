@@ -1,0 +1,20 @@
+CAPI=2:
+name: uwcse:beehive:l4_hash:0.1
+description: Hash for L4 fields
+
+filesets:
+    rtl:
+        files:
+            - include/hash_pkg.sv
+            - hash_lookup3.sv
+            - l4_hash_table.sv
+            - hash_table_init.sv
+        depend:
+            - uwcse:buckfast:includes
+            - uwcse:buckfast:ram
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]
+

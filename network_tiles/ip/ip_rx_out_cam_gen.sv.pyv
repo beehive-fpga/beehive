@@ -1,0 +1,74 @@
+`include "ip_rx_tile_defs.svh"
+module ip_rx_out_cam (
+     input clk
+    ,input rst
+    
+    ,input  logic                           rd_cam_val
+    ,input  logic   [`PROTOCOL_W-1:0]       rd_cam_tag  
+    ,output logic   [(`XY_WIDTH * 2)-1:0]   rd_cam_data
+    ,output logic                           rd_cam_hit
+);
+<%
+# Get the basic configuration object
+import sys
+import os
+sys.path.append(os.environ["BEEHIVE_PROJECT_ROOT"] + "/tile_generator/")
+from tile_generator import BeehiveConfig
+import logging
+logging.basicConfig(level=logging.INFO)
+design_path = os.environ["BEEHIVE_DESIGN_ROOT"]
+logging.info(f"Using tile config at {design_path}")
+tile_config = BeehiveConfig(design_path + "/tile_config.xml")
+%>
+
+<%
+endpoint = tile_config.endpoint_dict["ip_rx_tile"]
+interface = endpoint.interfaces["ip_pkt_rx"]
+cam_dsts = 0
+for dst in interface.dsts:
+    if "cam_target" in dst:
+        cam_dsts += 1
+print(f"    localparam IP_RX_NUM_DST = {cam_dsts};")
+%>
+    
+    logic   [IP_RX_NUM_DST-1:0][`PROTOCOL_W-1:0]   ip_proto_tags;
+    logic   [IP_RX_NUM_DST-1:0][(`XY_WIDTH*2)-1:0] ip_cam_data;
+    logic   [IP_RX_NUM_DST-1:0]                    one_hot_sel_mux_sel;
+    
+    assign rd_cam_hit = rd_cam_val & (|one_hot_sel_mux_sel);
+    
+    always_ff @(posedge clk) begin
+        if (rst) begin
+<%
+for i in range(0, len(interface.dsts)):
+    dst_endpoint = interface.dsts[i]
+    if "cam_target" in dst_endpoint:
+        dst_endpoint_obj = tile_config.endpoint_dict[dst_endpoint["endpoint_name"]]
+        x_coord_name = dst_endpoint_obj.get_x_coord_param()
+        y_coord_name = dst_endpoint_obj.get_y_coord_param()
+        print(
+f"""        ip_proto_tags[{i}] <= {dst_endpoint["endpoint_tag"]};
+            ip_cam_data[{i}] <= {{{x_coord_name},
+                               {y_coord_name}}};""")
+%>
+        end
+    end
+    
+    genvar i;
+    generate
+        for (i = 0; i < IP_RX_NUM_DST; i++) begin: one_hot_proto_sel
+            assign one_hot_sel_mux_sel[i] = ip_proto_tags[i] == rd_cam_tag;
+        end
+    endgenerate
+
+    bsg_mux_one_hot #(
+         .width_p   (2*`XY_WIDTH    )
+        ,.els_p     (IP_RX_NUM_DST  )
+    ) mux_proto_dst (
+         .data_i        (ip_cam_data        )
+        ,.sel_one_hot_i (one_hot_sel_mux_sel)
+        ,.data_o        (rd_cam_data        )
+    );
+
+
+endmodule

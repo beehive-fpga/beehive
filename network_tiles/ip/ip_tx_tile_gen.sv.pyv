@@ -1,0 +1,278 @@
+`include "ip_tx_tile_defs.svh"
+<%
+# Get the basic configuration object
+import sys
+import os
+sys.path.append(os.environ["BEEHIVE_PROJECT_ROOT"] + "/tile_generator/")
+from tile_generator import BeehiveConfig
+from noc_if_gen import NocInterfaceGen
+import logging
+logging.basicConfig(level=logging.INFO)
+design_path = os.environ["BEEHIVE_DESIGN_ROOT"]
+logging.info(f"Using tile config at {design_path}")
+tile_config = BeehiveConfig(design_path + "/tile_config.xml")
+noc_if_generator = NocInterfaceGen()
+%>
+module ip_tx_tile #(
+     parameter SRC_X = -1
+    ,parameter SRC_Y = -1
+    ,parameter USE_INT_LB = 0
+)(
+     input clk
+    ,input rst
+<%
+    noc_if_str = noc_if_generator.genNocInterface(src="src", module="ip_tx",
+         dst="dst", nocs=tile_config.nocs, noc_widths=tile_config.nocs_data_width)
+    print(noc_if_str)
+%>
+);
+    typedef struct packed {
+        logic   [`NOC_DATA_WIDTH-1:0]       data;
+        logic                               last;
+        logic   [`NOC_PADBYTES_WIDTH-1:0]   padbytes;
+    } data_buf_q_struct;
+    localparam DATA_BUF_Q_STRUCT_W = `NOC_DATA_WIDTH + 1 + `NOC_PADBYTES_WIDTH;
+<%
+router_wires = noc_if_generator.genNocProcessorWires(inst_name="router", nocs=tile_config.nocs,
+        noc_widths = tile_config.nocs_data_width)
+print(router_wires)
+%>
+    logic                           ip_tx_out_lb_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   ip_tx_out_lb_data;    
+    logic                           lb_ip_tx_out_rdy;
+    
+    logic                           lb_vrtoc_data_noc0_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   lb_vrtoc_data_noc0_data;    
+    logic                           vrtoc_lb_data_noc0_rdy;
+    
+    logic                           ip_tx_out_vrtoc_data_noc0_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   ip_tx_out_vrtoc_data_noc0_data;    
+    logic                           vrtoc_ip_tx_out_data_noc0_rdy;
+    
+    logic                           ctovr_ip_tx_in_data_noc0_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   ctovr_ip_tx_in_data_noc0_data;
+    logic                           ip_tx_in_ctovr_data_noc0_rdy; 
+    
+    logic                               ip_tx_in_assemble_meta_val;
+    ip_tx_metadata_flit                 ip_tx_in_assemble_meta_flit;
+    logic                               assemble_ip_tx_in_meta_rdy;
+    
+    logic                               ip_tx_in_assemble_data_val;
+    logic   [`MAC_INTERFACE_W-1:0]      ip_tx_in_assemble_data;
+    logic                               ip_tx_in_assemble_last;
+    logic   [`MAC_PADBYTES_W-1:0]       ip_tx_in_assemble_padbytes;
+    logic                               assemble_ip_tx_in_data_rdy;
+    
+    logic                               assemble_ip_to_ethstream_hdr_val;
+    ip_pkt_hdr                          assemble_ip_to_ethstream_ip_hdr;
+    logic   [MSG_TIMESTAMP_W-1:0]       assemble_ip_to_ethstream_timestamp;
+    logic                               ip_to_ethstream_assemble_hdr_rdy;
+
+    logic                               assemble_ip_to_ethstream_data_val;
+    logic   [`MAC_INTERFACE_W-1:0]      assemble_ip_to_ethstream_data;
+    logic                               assemble_ip_to_ethstream_data_last;
+    logic   [`MAC_PADBYTES_W-1:0]       assemble_ip_to_ethstream_data_padbytes;
+    logic                               ip_to_ethstream_assemble_data_rdy;
+    
+    logic                               src_data_buf_q_wr_req;
+    data_buf_q_struct                   src_data_buf_q_wr_data;
+    logic                               data_buf_q_src_full;
+
+    logic                               dst_data_buf_q_rd_req;
+    data_buf_q_struct                   data_buf_q_dst_rd_data;
+    logic                               data_buf_q_dst_empty;
+    
+    logic                               ip_to_ethstream_ip_tx_out_hdr_val;
+    eth_hdr                             ip_to_ethstream_ip_tx_out_eth_hdr;
+    logic   [`TOT_LEN_W-1:0]            ip_to_ethstream_ip_tx_out_data_len;
+    logic   [MSG_TIMESTAMP_W-1:0]       ip_to_ethstream_ip_tx_out_timestamp;
+    logic                               ip_tx_out_ip_to_ethstream_hdr_rdy;
+
+    logic                               ip_to_ethstream_ip_tx_out_data_val;
+    logic   [`MAC_INTERFACE_W-1:0]      ip_to_ethstream_ip_tx_out_data;
+    logic                               ip_to_ethstream_ip_tx_out_data_last;
+    logic   [`MAC_PADBYTES_W-1:0]       ip_to_ethstream_ip_tx_out_data_padbytes;
+    logic                               ip_tx_out_ip_to_ethstream_data_rdy;
+    
+    noc_router_block #(
+         .SRC_X (SRC_X  )
+        ,.SRC_Y (SRC_Y  )
+    ) ip_tx_noc_router_block (
+         .clk   (clk    )
+        ,.rst   (rst    )
+<%
+    noc_ports = noc_if_generator.genNocInstantiation(src="src",
+    port_name="router_block", dst="dst", noc_src="src", noc_dst="dst",
+    module="ip_tx", nocs=tile_config.nocs)
+    print(noc_ports)
+
+    processor_ports = noc_if_generator.genNocProcessorInstantiation(module="router_block", 
+        processor="process", inst_name="router", nocs=tile_config.nocs)
+    print(processor_ports)
+%>
+    );
+
+    assign ctovr_router_ctrl_noc1_yummy = 1'b0;
+    assign vrtoc_router_ctrl_noc1_val = 1'b0;
+    assign vrtoc_router_ctrl_noc1_data = '0;
+
+    assign ctovr_router_ctrl_noc2_yummy = 1'b0;
+    assign vrtoc_router_ctrl_noc2_val = 1'b0;
+    assign vrtoc_router_ctrl_noc2_data = '0;
+    
+    beehive_credit_to_valrdy #(
+        .NOC_DATA_W (`NOC_DATA_WIDTH    )
+    ) data_noc0_beehive_credit_to_valrdy (
+         .clk   (clk)
+        ,.reset (rst)
+        
+        ,.src_ctovr_data    (router_ctovr_data_noc0_data        )
+        ,.src_ctovr_val     (router_ctovr_data_noc0_val         )
+        ,.ctovr_src_yummy   (ctovr_router_data_noc0_yummy       )
+
+        ,.ctovr_dst_data    (ctovr_ip_tx_in_data_noc0_data      )
+        ,.ctovr_dst_val     (ctovr_ip_tx_in_data_noc0_val       )
+        ,.dst_ctovr_rdy     (ip_tx_in_ctovr_data_noc0_rdy       )
+    );
+
+    beehive_valrdy_to_credit #(
+        .NOC_DATA_W (`NOC_DATA_WIDTH    )
+    ) data_noc0_beehive_valrdy_to_credit (
+         .clk       (clk)
+        ,.reset     (rst)
+
+        ,.src_vrtoc_data    (lb_vrtoc_data_noc0_data        )
+        ,.src_vrtoc_val     (lb_vrtoc_data_noc0_val         )
+        ,.vrtoc_src_rdy     (vrtoc_lb_data_noc0_rdy         )
+
+        ,.vrtoc_dst_data    (vrtoc_router_data_noc0_data    )
+        ,.vrtoc_dst_val     (vrtoc_router_data_noc0_val     )
+		,.dst_vrtoc_yummy   (router_vrtoc_data_noc0_yummy   )
+    );
+    
+    ip_tx_tile_noc_in tx_noc_in (
+         .clk   (clk)
+        ,.rst   (rst)
+        
+        ,.noc0_ctovr_ip_tx_in_val       (ctovr_ip_tx_in_data_noc0_val   )
+        ,.noc0_ctovr_ip_tx_in_data      (ctovr_ip_tx_in_data_noc0_data  )
+        ,.ip_tx_in_noc0_ctovr_rdy       (ip_tx_in_ctovr_data_noc0_rdy   )
+   
+        ,.ip_tx_in_assemble_meta_val    (ip_tx_in_assemble_meta_val     )
+        ,.ip_tx_in_assemble_meta_flit   (ip_tx_in_assemble_meta_flit    )
+        ,.assemble_ip_tx_in_meta_rdy    (assemble_ip_tx_in_meta_rdy     )
+                                                                        
+        ,.ip_tx_in_assemble_data_val    (ip_tx_in_assemble_data_val     )
+        ,.ip_tx_in_assemble_data        (ip_tx_in_assemble_data         )
+        ,.ip_tx_in_assemble_last        (ip_tx_in_assemble_last         )
+        ,.ip_tx_in_assemble_padbytes    (ip_tx_in_assemble_padbytes     )
+        ,.assemble_ip_tx_in_data_rdy    (assemble_ip_tx_in_data_rdy     )
+    );
+
+    ip_hdr_assembler_pipe #(
+         .DATA_W         (`MAC_INTERFACE_W  )
+    ) hdr_assembler (
+         .clk   (clk    )
+        ,.rst   (rst    )
+    
+        ,.src_assembler_req_val             (ip_tx_in_assemble_meta_val                     )
+        ,.src_assembler_src_ip_addr         (ip_tx_in_assemble_meta_flit.src_ip             )
+        ,.src_assembler_dst_ip_addr         (ip_tx_in_assemble_meta_flit.dst_ip             )
+        ,.src_assembler_data_payload_len    (ip_tx_in_assemble_meta_flit.data_payload_len   )
+        ,.src_assembler_protocol            (ip_tx_in_assemble_meta_flit.protocol           )
+        ,.src_assembler_timestamp           (ip_tx_in_assemble_meta_flit.timestamp          )
+        ,.assembler_src_req_rdy             (assemble_ip_tx_in_meta_rdy                     )
+    
+        ,.src_assembler_data_val            (ip_tx_in_assemble_data_val                     )
+        ,.src_assembler_data                (ip_tx_in_assemble_data                         )
+        ,.src_assembler_data_last           (ip_tx_in_assemble_last                         )
+        ,.src_assembler_data_padbytes       (ip_tx_in_assemble_padbytes                     )
+        ,.assembler_src_data_rdy            (assemble_ip_tx_in_data_rdy                     )
+    
+        ,.assembler_dst_hdr_val             (assemble_ip_to_ethstream_hdr_val               )
+        ,.assembler_dst_timestamp           (assemble_ip_to_ethstream_timestamp             )
+        ,.assembler_dst_ip_hdr              (assemble_ip_to_ethstream_ip_hdr                )
+        ,.dst_assembler_hdr_rdy             (ip_to_ethstream_assemble_hdr_rdy               )
+    
+        ,.assembler_dst_data_val            (assemble_ip_to_ethstream_data_val              )
+        ,.assembler_dst_data                (assemble_ip_to_ethstream_data                  )
+        ,.assembler_dst_data_padbytes       (assemble_ip_to_ethstream_data_padbytes         )
+        ,.assembler_dst_data_last           (assemble_ip_to_ethstream_data_last             )
+        ,.dst_assembler_data_rdy            (ip_to_ethstream_assemble_data_rdy              )
+    );
+
+    ip_to_ethstream tx_ip_to_ethstream (
+         .clk   (clk)
+        ,.rst   (rst)
+        
+        ,.src_ip_to_ethstream_hdr_val       (assemble_ip_to_ethstream_hdr_val       )
+        ,.src_ip_to_ethstream_ip_hdr        (assemble_ip_to_ethstream_ip_hdr        )
+        ,.src_ip_to_ethstream_timestamp     (assemble_ip_to_ethstream_timestamp     )
+        ,.ip_to_ethstream_src_hdr_rdy       (ip_to_ethstream_assemble_hdr_rdy       )
+                                                                         
+        ,.src_ip_to_ethstream_data_val      (assemble_ip_to_ethstream_data_val      )
+        ,.src_ip_to_ethstream_data          (assemble_ip_to_ethstream_data          )
+        ,.src_ip_to_ethstream_data_last     (assemble_ip_to_ethstream_data_last     )
+        ,.src_ip_to_ethstream_data_padbytes (assemble_ip_to_ethstream_data_padbytes )
+        ,.ip_to_ethstream_src_data_rdy      (ip_to_ethstream_assemble_data_rdy      )
+    
+        ,.ip_to_ethstream_dst_hdr_val       (ip_to_ethstream_ip_tx_out_hdr_val      )
+        ,.ip_to_ethstream_dst_eth_hdr       (ip_to_ethstream_ip_tx_out_eth_hdr      )
+        ,.ip_to_ethstream_dst_data_len      (ip_to_ethstream_ip_tx_out_data_len     )
+        ,.ip_to_ethstream_dst_timestamp     (ip_to_ethstream_ip_tx_out_timestamp    )
+        ,.dst_ip_to_ethstream_hdr_rdy       (ip_tx_out_ip_to_ethstream_hdr_rdy      )
+        
+        ,.ip_to_ethstream_dst_data_val      (ip_to_ethstream_ip_tx_out_data_val     )
+        ,.ip_to_ethstream_dst_data          (ip_to_ethstream_ip_tx_out_data         )
+        ,.ip_to_ethstream_dst_data_last     (ip_to_ethstream_ip_tx_out_data_last    )
+        ,.ip_to_ethstream_dst_data_padbytes (ip_to_ethstream_ip_tx_out_data_padbytes)
+        ,.dst_ip_to_ethstream_data_rdy      (ip_tx_out_ip_to_ethstream_data_rdy     )
+    );
+
+    ip_tx_noc_out_copy #(
+         .SRC_X (SRC_X)
+        ,.SRC_Y (SRC_Y)
+    ) ip_tx_noc_out (
+         .clk   (clk)
+        ,.rst   (rst)
+        
+        ,.ip_tx_out_noc0_vrtoc_val                  (ip_tx_out_lb_val   )
+        ,.ip_tx_out_noc0_vrtoc_data                 (ip_tx_out_lb_data  )
+        ,.noc0_vrtoc_ip_tx_out_rdy                  (lb_ip_tx_out_rdy   )
+                                                                                                
+        ,.ip_to_ethstream_ip_tx_out_hdr_val         (ip_to_ethstream_ip_tx_out_hdr_val          )
+        ,.ip_to_ethstream_ip_tx_out_eth_hdr         (ip_to_ethstream_ip_tx_out_eth_hdr          )
+        ,.ip_to_ethstream_ip_tx_out_data_len        (ip_to_ethstream_ip_tx_out_data_len         )
+        ,.ip_to_ethstream_ip_tx_out_timestamp       (ip_to_ethstream_ip_tx_out_timestamp        )
+        ,.ip_tx_out_ip_to_ethstream_hdr_rdy         (ip_tx_out_ip_to_ethstream_hdr_rdy          )
+                                                                                                
+        ,.ip_to_ethstream_ip_tx_out_data_val        (ip_to_ethstream_ip_tx_out_data_val         )
+        ,.ip_to_ethstream_ip_tx_out_data            (ip_to_ethstream_ip_tx_out_data             )
+        ,.ip_to_ethstream_ip_tx_out_data_last       (ip_to_ethstream_ip_tx_out_data_last        )
+        ,.ip_to_ethstream_ip_tx_out_data_padbytes   (ip_to_ethstream_ip_tx_out_data_padbytes    )
+        ,.ip_tx_out_ip_to_ethstream_data_rdy        (ip_tx_out_ip_to_ethstream_data_rdy         )
+    );
+
+generate
+    if (USE_INT_LB == 1) begin
+        ip_tx_lb_out ip_tx_lb (
+             .clk   (clk    )
+            ,.rst   (rst    )
+            
+            ,.src_ip_tx_lb_val  (ip_tx_out_lb_val           )
+            ,.src_ip_tx_lb_data (ip_tx_out_lb_data          )
+            ,.ip_tx_lb_src_rdy  (lb_ip_tx_out_rdy           )
+        
+            ,.ip_tx_lb_dst_val  (lb_vrtoc_data_noc0_val     )
+            ,.ip_tx_lb_dst_data (lb_vrtoc_data_noc0_data    )
+            ,.dst_ip_tx_lb_rdy  (vrtoc_lb_data_noc0_rdy     )
+        );
+    end
+    else begin
+        assign lb_vrtoc_data_noc0_val = ip_tx_out_lb_val;
+        assign lb_vrtoc_data_noc0_data = ip_tx_out_lb_data;
+        assign lb_ip_tx_out_rdy = vrtoc_lb_data_noc0_rdy;
+    end
+endgenerate
+
+endmodule

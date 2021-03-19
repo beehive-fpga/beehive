@@ -1,0 +1,412 @@
+`include "soc_defs.vh"
+`include "packet_defs.vh"
+`include "noc_defs.vh"
+
+module beehive_vr_sharded_top
+import beehive_topology::*;
+(
+     input clk
+    ,input rst
+    
+    ,input                                      mac_engine_rx_val
+    ,input          [`MAC_INTERFACE_W-1:0]      mac_engine_rx_data
+    ,input                                      mac_engine_rx_startframe
+    ,input          [`MTU_SIZE_W-1:0]           mac_engine_rx_frame_size
+    ,input                                      mac_engine_rx_endframe
+    ,input          [`MAC_PADBYTES_W-1:0]       mac_engine_rx_padbytes
+    ,output logic                               engine_mac_rx_rdy
+    
+    ,output logic                               engine_mac_tx_val
+    ,input                                      mac_engine_tx_rdy
+    ,output logic                               engine_mac_tx_startframe
+    ,output logic   [`MTU_SIZE_W-1:0]           engine_mac_tx_frame_size 
+    ,output logic                               engine_mac_tx_endframe
+    ,output logic   [`MAC_INTERFACE_W-1:0]      engine_mac_tx_data
+    ,output logic   [`MAC_PADBYTES_W-1:0]       engine_mac_tx_padbytes
+);
+
+typedef struct packed {
+    logic   [`MAC_INTERFACE_W-1:0]  data;
+    logic                           startframe;
+    logic                           endframe;
+    logic   [`MTU_SIZE_W-1:0]       framesize;
+    logic   [`MAC_PADBYTES_W-1:0]   padbytes;
+} egress_mux_struct;
+localparam EGRESS_MUX_STRUCT_W = $bits(egress_mux_struct);
+localparam NUM_ETH_TX = 2;
+    
+    logic   [NUM_ETH_TX-1:0]                            engine_mux_tx_val;
+    logic   [NUM_ETH_TX-1:0]                            mux_engine_tx_rdy;
+    logic   [NUM_ETH_TX-1:0]                            engine_mux_tx_startframe;
+    logic   [NUM_ETH_TX-1:0][`MTU_SIZE_W-1:0]           engine_mux_tx_frame_size;
+    logic   [NUM_ETH_TX-1:0]                            engine_mux_tx_endframe;
+    logic   [NUM_ETH_TX-1:0][`MAC_INTERFACE_W-1:0]      engine_mux_tx_data;
+    logic   [NUM_ETH_TX-1:0][`MAC_PADBYTES_W-1:0]       engine_mux_tx_padbytes;
+
+    logic   [NUM_ETH_TX-1:0][EGRESS_MUX_STRUCT_W-1:0]   engine_mux_packed_data;
+    egress_mux_struct                                   mux_mac_packed_data;
+
+    assign engine_mac_tx_startframe = mux_mac_packed_data.startframe;
+    assign engine_mac_tx_frame_size = mux_mac_packed_data.framesize;
+    assign engine_mac_tx_endframe = mux_mac_packed_data.endframe;
+    assign engine_mac_tx_data = mux_mac_packed_data.data;
+    assign engine_mac_tx_padbytes = mux_mac_packed_data.padbytes;
+
+    genvar i;
+    generate
+        for (i = 0; i < NUM_ETH_TX; i = i + 1) begin
+            assign engine_mux_packed_data[i] = {engine_mux_tx_data[i],
+                                                engine_mux_tx_startframe[i],
+                                                engine_mux_tx_endframe[i],
+                                                engine_mux_tx_frame_size[i],
+                                                engine_mux_tx_padbytes[i]};
+        end
+    endgenerate
+
+<%
+# Get the basic configuration object
+import sys
+import os
+sys.path.append(os.environ["BEEHIVE_PROJECT_ROOT"] + "/tile_generator/")
+from tile_generator import BeehiveConfig
+from tile_generator import TileDirs
+import logging
+logging.basicConfig(level=logging.INFO)
+
+design_path = os.environ["BEEHIVE_DESIGN_ROOT"]
+logging.info(f"Using tile config at {design_path}")
+tile_config = BeehiveConfig(design_path + "/tile_config.xml")
+%>
+
+// main tile connection wires
+<%
+# generate wires for hooking the tiles together
+tile_config.printWires()
+%>
+
+// tiles
+
+    ingress_load_balance_tile #(
+<%
+end_x, end_y = tile_config.getEndpointCoords("ingress_load_balance")
+x_param = tile_config.getEndpointXParam("ingress_load_balance")
+y_param = tile_config.getEndpointYParam("ingress_load_balance")
+print(f"""
+         .SRC_X ({x_param}  )
+        ,.SRC_Y ({y_param}  )
+    ) ingress_load_balance_{end_x}_{end_y} (""")
+%>
+         .clk   (clk)
+        ,.rst   (rst)
+<%
+tile_std_ports = tile_config.getEndpointPorts("ingress_load_balance")
+print(tile_std_ports)
+%>
+		,.mac_engine_rx_val         (mac_engine_rx_val          )
+		,.mac_engine_rx_data        (mac_engine_rx_data         )
+		,.mac_engine_rx_startframe  (mac_engine_rx_startframe   )
+		,.mac_engine_rx_frame_size  (mac_engine_rx_frame_size   )
+		,.mac_engine_rx_endframe    (mac_engine_rx_endframe     )
+		,.mac_engine_rx_padbytes    (mac_engine_rx_padbytes     )
+		,.engine_mac_rx_rdy         (engine_mac_rx_rdy          )
+    );
+    
+    eth_rx_tile #(
+<%
+end_x, end_y = tile_config.getEndpointCoords("eth_rx_tile")
+x_param = tile_config.getEndpointXParam("eth_rx_tile")
+y_param = tile_config.getEndpointYParam("eth_rx_tile")
+print(f"""
+         .SRC_X ({x_param}  )
+        ,.SRC_Y ({y_param}  )
+        ,.IN_NOC(1)
+        ,.USE_INT_LB(1)     
+    ) eth_rx_{end_x}_{end_y} (""")
+%>
+         .clk   (clk)
+        ,.rst   (rst)
+<%
+tile_std_ports = tile_config.getEndpointPorts("eth_rx_tile")
+print(tile_std_ports)
+%>
+    );
+    
+    eth_rx_tile #(
+<%
+end_x, end_y = tile_config.getEndpointCoords("eth_rx_tile1")
+x_param = tile_config.getEndpointXParam("eth_rx_tile1")
+y_param = tile_config.getEndpointYParam("eth_rx_tile1")
+print(f"""
+         .SRC_X ({x_param}  )
+        ,.SRC_Y ({y_param}  )
+        ,.IN_NOC(1)
+        ,.USE_INT_LB(1)     
+    ) eth_rx_{end_x}_{end_y} (""")
+%>
+         .clk   (clk)
+        ,.rst   (rst)
+<%
+tile_std_ports = tile_config.getEndpointPorts("eth_rx_tile1")
+print(tile_std_ports)
+%>
+    );
+    
+    ip_rx_tile #(
+<%
+end_x, end_y = tile_config.getEndpointCoords("ip_rx_tile")
+x_param = tile_config.getEndpointXParam("ip_rx_tile")
+y_param = tile_config.getEndpointYParam("ip_rx_tile")
+print(f"""
+         .SRC_X ({x_param}  )
+        ,.SRC_Y ({y_param}  )
+        ,.USE_INT_LB    (1)
+    ) ip_rx_{end_x}_{end_y} (""")
+%>
+		 .clk   (clk)
+		,.rst   (rst)
+<%
+tile_std_ports = tile_config.getEndpointPorts("ip_rx_tile")
+print(tile_std_ports)
+%>
+	);
+    
+    ip_rx_tile #(
+<%
+end_x, end_y = tile_config.getEndpointCoords("ip_rx_tile1")
+x_param = tile_config.getEndpointXParam("ip_rx_tile1")
+y_param = tile_config.getEndpointYParam("ip_rx_tile1")
+print(f"""
+         .SRC_X ({x_param}  )
+        ,.SRC_Y ({y_param}  )
+        ,.USE_INT_LB    (1)
+    ) ip_rx_{end_x}_{end_y} (""")
+%>
+		 .clk   (clk)
+		,.rst   (rst)
+<%
+tile_std_ports = tile_config.getEndpointPorts("ip_rx_tile1")
+print(tile_std_ports)
+%>
+	);
+    
+    udp_rx_tile #(
+<%
+end_x, end_y = tile_config.getEndpointCoords("udp_rx_tile")
+x_param = tile_config.getEndpointXParam("udp_rx_tile")
+y_param = tile_config.getEndpointYParam("udp_rx_tile")
+print(f"""
+         .SRC_X ({x_param}  )
+        ,.SRC_Y ({y_param}  )
+    ) udp_rx_{end_x}_{end_y} (""")
+%>
+		 .clk   (clk)
+		,.rst   (rst)
+<%
+tile_std_ports = tile_config.getEndpointPorts("udp_rx_tile")
+print(tile_std_ports)
+%>
+	);
+    
+    udp_rx_tile #(
+<%
+end_x, end_y = tile_config.getEndpointCoords("udp_rx_tile1")
+x_param = tile_config.getEndpointXParam("udp_rx_tile1")
+y_param = tile_config.getEndpointYParam("udp_rx_tile1")
+print(f"""
+         .SRC_X ({x_param}  )
+        ,.SRC_Y ({y_param}  )
+    ) udp_rx_{end_x}_{end_y} (""")
+%>
+		 .clk   (clk)
+		,.rst   (rst)
+<%
+tile_std_ports = tile_config.getEndpointPorts("udp_rx_tile1")
+print(tile_std_ports)
+%>
+	);
+    
+    beehive_vr_tile #(
+<%
+end_x, end_y = tile_config.getEndpointCoords("beehive_vr_tile")
+x_param = tile_config.getEndpointXParam("beehive_vr_tile")
+y_param = tile_config.getEndpointYParam("beehive_vr_tile")
+print(f"""
+         .SRC_X ({x_param}  )
+        ,.SRC_Y ({y_param}  )
+    ) beehive_vr_tile{end_x}_{end_y} (""")
+%>
+		 .clk   (clk)
+		,.rst   (rst)
+<%
+tile_std_ports = tile_config.getEndpointPorts("beehive_vr_tile")
+print(tile_std_ports)
+%>
+	);
+
+    beehive_vr_tile #(
+<%
+end_x, end_y = tile_config.getEndpointCoords("beehive_vr_tile1")
+x_param = tile_config.getEndpointXParam("beehive_vr_tile1")
+y_param = tile_config.getEndpointYParam("beehive_vr_tile1")
+print(f"""
+         .SRC_X ({x_param}  )
+        ,.SRC_Y ({y_param}  )
+    ) beehive_vr_tile_{end_x}_{end_y} (""")
+%>
+		 .clk   (clk)
+		,.rst   (rst)
+<%
+tile_std_ports = tile_config.getEndpointPorts("beehive_vr_tile1")
+print(tile_std_ports)
+%>
+    );
+	
+    udp_tx_tile #(
+<%
+end_x, end_y = tile_config.getEndpointCoords("udp_tx_tile")
+x_param = tile_config.getEndpointXParam("udp_tx_tile")
+y_param = tile_config.getEndpointYParam("udp_tx_tile")
+print(f"""
+         .SRC_X ({x_param}  )
+        ,.SRC_Y ({y_param}  )
+        ,.USE_INT_LB    (1)
+    ) udp_tx_{end_x}_{end_y} (""")
+%>
+		 .clk   (clk)
+		,.rst   (rst)
+<%
+tile_std_ports = tile_config.getEndpointPorts("udp_tx_tile")
+print(tile_std_ports)
+%>
+	);
+    
+    udp_tx_tile #(
+<%
+end_x, end_y = tile_config.getEndpointCoords("udp_tx_tile1")
+x_param = tile_config.getEndpointXParam("udp_tx_tile1")
+y_param = tile_config.getEndpointYParam("udp_tx_tile1")
+print(f"""
+         .SRC_X ({x_param}  )
+        ,.SRC_Y ({y_param}  )
+        ,.USE_INT_LB    (1)
+    ) udp_tx_{end_x}_{end_y} (""")
+%>
+		 .clk   (clk)
+		,.rst   (rst)
+<%
+tile_std_ports = tile_config.getEndpointPorts("udp_tx_tile1")
+print(tile_std_ports)
+%>
+	);
+    
+    ip_tx_tile #(
+<%
+end_x, end_y = tile_config.getEndpointCoords("ip_tx_tile")
+x_param = tile_config.getEndpointXParam("ip_tx_tile")
+y_param = tile_config.getEndpointYParam("ip_tx_tile")
+print(f"""
+         .SRC_X ({x_param}  )
+        ,.SRC_Y ({y_param}  )
+        ,.USE_INT_LB    (1)
+    ) ip_tx_{end_x}_{end_y} (""")
+%>
+		 .clk   (clk)
+		,.rst   (rst)
+<%
+tile_std_ports = tile_config.getEndpointPorts("ip_tx_tile")
+print(tile_std_ports)
+%>
+	);
+    
+    ip_tx_tile #(
+<%
+end_x, end_y = tile_config.getEndpointCoords("ip_tx_tile1")
+x_param = tile_config.getEndpointXParam("ip_tx_tile1")
+y_param = tile_config.getEndpointYParam("ip_tx_tile1")
+print(f"""
+         .SRC_X ({x_param}  )
+        ,.SRC_Y ({y_param}  )
+        ,.USE_INT_LB    (1)
+    ) ip_tx_{end_x}_{end_y} (""")
+%>
+		 .clk   (clk)
+		,.rst   (rst)
+<%
+tile_std_ports = tile_config.getEndpointPorts("ip_tx_tile1")
+print(tile_std_ports)
+%>
+	);
+    
+    eth_tx_tile #(
+<%
+end_x, end_y = tile_config.getEndpointCoords("eth_tx_tile")
+x_param = tile_config.getEndpointXParam("eth_tx_tile")
+y_param = tile_config.getEndpointYParam("eth_tx_tile")
+print(f"""
+         .SRC_X ({x_param}  )
+        ,.SRC_Y ({y_param}  )
+    ) eth_tx_{end_x}_{end_y} (""")
+%>
+		 .clk   (clk)
+		,.rst   (rst)
+<%
+tile_std_ports = tile_config.getEndpointPorts("eth_tx_tile")
+print(tile_std_ports)
+%>
+		,.engine_mac_tx_val         (engine_mux_tx_val[0]           )
+		,.engine_mac_tx_startframe  (engine_mux_tx_startframe[0]    )
+		,.engine_mac_tx_frame_size  (engine_mux_tx_frame_size[0]    )
+		,.engine_mac_tx_endframe    (engine_mux_tx_endframe[0]      )
+		,.engine_mac_tx_data        (engine_mux_tx_data[0]          )
+		,.engine_mac_tx_padbytes    (engine_mux_tx_padbytes[0]      )
+		,.mac_engine_tx_rdy         (mux_engine_tx_rdy[0]           )
+	);
+
+    eth_tx_tile #(
+<%
+end_x, end_y = tile_config.getEndpointCoords("eth_tx_tile1")
+x_param = tile_config.getEndpointXParam("eth_tx_tile1")
+y_param = tile_config.getEndpointYParam("eth_tx_tile1")
+print(f"""
+         .SRC_X ({x_param}  )
+        ,.SRC_Y ({y_param}  )
+    ) eth_tx_{end_x}_{end_y} (""")
+%>
+		 .clk   (clk)
+		,.rst   (rst)
+<%
+tile_std_ports = tile_config.getEndpointPorts("eth_tx_tile1")
+print(tile_std_ports)
+%>
+		,.engine_mac_tx_val         (engine_mux_tx_val[1]           )
+		,.engine_mac_tx_startframe  (engine_mux_tx_startframe[1]    )
+		,.engine_mac_tx_frame_size  (engine_mux_tx_frame_size[1]    )
+		,.engine_mac_tx_endframe    (engine_mux_tx_endframe[1]      )
+		,.engine_mac_tx_data        (engine_mux_tx_data[1]          )
+		,.engine_mac_tx_padbytes    (engine_mux_tx_padbytes[1]      )
+		,.mac_engine_tx_rdy         (mux_engine_tx_rdy[1]           )
+	);
+    
+    stream_mux #(
+         .NUM_SRCS  (2                      )
+        ,.DATA_W    (EGRESS_MUX_STRUCT_W    )
+    ) egress_mux (
+         .clk   (clk    )
+        ,.rst   (rst    )
+    
+        ,.mux_dst_val   (engine_mac_tx_val      )
+        ,.mux_dst_last  ()
+        ,.mux_dst_data  (mux_mac_packed_data    )
+        ,.dst_mux_rdy   (mac_engine_tx_rdy      )
+
+        ,.src_mux_vals  (engine_mux_tx_val      )
+        ,.src_mux_lasts (engine_mux_tx_endframe )
+        ,.src_mux_datas (engine_mux_packed_data )
+        ,.mux_src_rdys  (mux_engine_tx_rdy      )
+    );
+
+<%
+empty_tiles = tile_config.getEmptyTiles()
+print(empty_tiles)
+%>
+endmodule

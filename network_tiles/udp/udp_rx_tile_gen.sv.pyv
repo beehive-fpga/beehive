@@ -1,0 +1,230 @@
+`include "udp_rx_tile_defs.svh"
+<%
+# Get the basic configuration object
+import sys
+import os
+sys.path.append(os.environ["BEEHIVE_PROJECT_ROOT"] + "/tile_generator/")
+from tile_generator import BeehiveConfig
+from noc_if_gen import NocInterfaceGen
+import logging
+logging.basicConfig(level=logging.INFO)
+design_path = os.environ["BEEHIVE_DESIGN_ROOT"]
+logging.info(f"Using tile config at {design_path}")
+tile_config = BeehiveConfig(design_path + "/tile_config.xml")
+noc_if_generator = NocInterfaceGen()
+%>
+module udp_rx_tile #(
+     parameter SRC_X = -1
+    ,parameter SRC_Y = -1
+)(
+     input clk
+    ,input rst
+
+<%
+    noc_if_str = noc_if_generator.genNocInterface(src="src", module="udp_rx",
+         dst="dst", nocs=tile_config.nocs, noc_widths=tile_config.nocs_data_width)
+    print(noc_if_str)
+%>
+);
+
+<%
+router_wires = noc_if_generator.genNocProcessorWires(inst_name="router", nocs=tile_config.nocs,
+        noc_widths = tile_config.nocs_data_width)
+print(router_wires)
+%>
+    
+    logic                           udp_rx_out_noc0_vrtoc_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   udp_rx_out_noc0_vrtoc_data;    
+    logic                           noc0_vrtoc_udp_rx_out_rdy;
+    
+    logic                           noc0_ctovr_udp_rx_in_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   noc0_ctovr_udp_rx_in_data;
+    logic                           udp_rx_in_noc0_ctovr_rdy;     
+    
+    logic                           udp_rx_in_udp_formatter_rx_hdr_val;
+    logic   [`IP_ADDR_W-1:0]        udp_rx_in_udp_formatter_rx_src_ip;
+    logic   [`IP_ADDR_W-1:0]        udp_rx_in_udp_formatter_rx_dst_ip;
+    logic   [`TOT_LEN_W-1:0]        udp_rx_in_udp_formatter_rx_udp_len;
+    logic   [`PKT_TIMESTAMP_W-1:0]  udp_rx_in_udp_formatter_rx_timestamp;
+    logic                           udp_formatter_udp_rx_in_rx_hdr_rdy;
+
+    logic                           udp_rx_in_udp_formatter_rx_data_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   udp_rx_in_udp_formatter_rx_data;
+    logic                           udp_rx_in_udp_formatter_rx_last;
+    logic   [`NOC_PADBYTES_WIDTH-1:0] udp_rx_in_udp_formatter_rx_padbytes;
+    logic                           udp_formatter_udp_rx_in_rx_data_rdy;
+    
+    logic                           udp_formatter_udp_rx_out_rx_hdr_val;
+    logic   [`IP_ADDR_W-1:0]        udp_formatter_udp_rx_out_rx_src_ip;
+    logic   [`IP_ADDR_W-1:0]        udp_formatter_udp_rx_out_rx_dst_ip;
+    udp_pkt_hdr                     udp_formatter_udp_rx_out_rx_udp_hdr;
+    logic   [`PKT_TIMESTAMP_W-1:0]  udp_formatter_udp_rx_out_rx_timestamp;
+    logic                           udp_rx_out_udp_formatter_rx_hdr_rdy;
+
+    logic                           udp_formatter_udp_rx_out_rx_data_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   udp_formatter_udp_rx_out_rx_data;
+    logic                           udp_formatter_udp_rx_out_rx_last;
+    logic   [`NOC_PADBYTES_WIDTH-1:0] udp_formatter_udp_rx_out_rx_padbytes;
+    logic                           udp_rx_out_udp_formatter_rx_data_rdy;
+    
+    logic                           noc_out_fifo_wr_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   noc_out_fifo_wr_data;
+    logic                           noc_out_fifo_wr_rdy;
+
+    logic                           noc_out_fifo_rd_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   noc_out_fifo_rd_data;
+    logic                           noc_out_fifo_rd_rdy;
+    logic                           noc_out_fifo_rd_yumi;
+
+   
+    noc_router_block #(
+         .SRC_X (SRC_X  )
+        ,.SRC_Y (SRC_Y  )
+    ) udp_rx_noc_router_block (
+         .clk   (clk    )
+        ,.rst   (rst    )
+<%
+    noc_ports = noc_if_generator.genNocInstantiation(src="src",
+    port_name="router_block", dst="dst", noc_src="src", noc_dst="dst",
+    module="udp_rx", nocs=tile_config.nocs)
+    print(noc_ports)
+    
+    processor_ports = noc_if_generator.genNocProcessorInstantiation(module="router_block", 
+        processor="process", inst_name="router", nocs=tile_config.nocs)
+    print(processor_ports)
+%>
+    );
+
+    beehive_credit_to_valrdy #(
+        .NOC_DATA_W (`NOC_DATA_WIDTH    )
+    ) tile_rx_noc0_beehive_credit_to_valrdy (
+         .clk   (clk)
+        ,.reset (rst)
+        //credit based interface 
+        ,.src_ctovr_data    (router_ctovr_data_noc0_data    )
+        ,.src_ctovr_val     (router_ctovr_data_noc0_val     )
+        ,.ctovr_src_yummy   (ctovr_router_data_noc0_yummy   )
+
+        //val/rdy interface
+        ,.ctovr_dst_data    (noc0_ctovr_udp_rx_in_data      )
+        ,.ctovr_dst_val     (noc0_ctovr_udp_rx_in_val       )
+        ,.dst_ctovr_rdy     (udp_rx_in_noc0_ctovr_rdy       )
+    );
+
+    beehive_valrdy_to_credit #(
+        .NOC_DATA_W (`NOC_DATA_WIDTH    )
+    ) tile_rx_noc0_beehive_valrdy_to_credit (
+         .clk       (clk)
+        ,.reset     (rst)
+
+        //val/rdy interface
+        ,.src_vrtoc_data    (udp_rx_out_noc0_vrtoc_data     )
+        ,.src_vrtoc_val     (udp_rx_out_noc0_vrtoc_val      )
+        ,.vrtoc_src_rdy     (noc0_vrtoc_udp_rx_out_rdy      )
+
+		//credit based interface	
+        ,.vrtoc_dst_data    (vrtoc_router_data_noc0_data    )
+        ,.vrtoc_dst_val     (vrtoc_router_data_noc0_val     )
+		,.dst_vrtoc_yummy   (router_vrtoc_data_noc0_yummy   )
+    );
+
+    udp_rx_noc_in udp_rx_noc_in (
+         .clk   (clk    )
+        ,.rst   (rst    )
+        
+        ,.noc0_ctovr_udp_rx_in_val              (noc0_ctovr_udp_rx_in_val               )
+        ,.noc0_ctovr_udp_rx_in_data             (noc0_ctovr_udp_rx_in_data              )
+        ,.udp_rx_in_noc0_ctovr_rdy              (udp_rx_in_noc0_ctovr_rdy               )
+                                                                                        
+        ,.udp_rx_in_udp_formatter_rx_hdr_val    (udp_rx_in_udp_formatter_rx_hdr_val     )
+        ,.udp_rx_in_udp_formatter_rx_src_ip     (udp_rx_in_udp_formatter_rx_src_ip      )
+        ,.udp_rx_in_udp_formatter_rx_dst_ip     (udp_rx_in_udp_formatter_rx_dst_ip      )
+        ,.udp_rx_in_udp_formatter_rx_udp_len    (udp_rx_in_udp_formatter_rx_udp_len     )
+        ,.udp_rx_in_udp_formatter_rx_timestamp  (udp_rx_in_udp_formatter_rx_timestamp   )
+        ,.udp_formatter_udp_rx_in_rx_hdr_rdy    (udp_formatter_udp_rx_in_rx_hdr_rdy     )
+                                                                                        
+        ,.udp_rx_in_udp_formatter_rx_data_val   (udp_rx_in_udp_formatter_rx_data_val    )
+        ,.udp_rx_in_udp_formatter_rx_data       (udp_rx_in_udp_formatter_rx_data        )
+        ,.udp_rx_in_udp_formatter_rx_last       (udp_rx_in_udp_formatter_rx_last        )
+        ,.udp_rx_in_udp_formatter_rx_padbytes   (udp_rx_in_udp_formatter_rx_padbytes    )
+        ,.udp_formatter_udp_rx_in_rx_data_rdy   (udp_formatter_udp_rx_in_rx_data_rdy    )
+    );
+
+    udp_stream_format #(
+        .DATA_WIDTH (`NOC_DATA_WIDTH)
+    ) rx_udp_formatter (
+         .clk   (clk    )
+        ,.rst   (rst    )
+
+        ,.src_udp_formatter_rx_hdr_val  (udp_rx_in_udp_formatter_rx_hdr_val     )
+        ,.src_udp_formatter_rx_src_ip   (udp_rx_in_udp_formatter_rx_src_ip      )
+        ,.src_udp_formatter_rx_dst_ip   (udp_rx_in_udp_formatter_rx_dst_ip      )
+        ,.src_udp_formatter_rx_udp_len  (udp_rx_in_udp_formatter_rx_udp_len     )
+        ,.src_udp_formatter_rx_timestamp(udp_rx_in_udp_formatter_rx_timestamp   )
+        ,.udp_formatter_src_rx_hdr_rdy  (udp_formatter_udp_rx_in_rx_hdr_rdy     )
+                                                                                
+        ,.src_udp_formatter_rx_data_val (udp_rx_in_udp_formatter_rx_data_val    )
+        ,.src_udp_formatter_rx_data     (udp_rx_in_udp_formatter_rx_data        )
+        ,.src_udp_formatter_rx_last     (udp_rx_in_udp_formatter_rx_last        )
+        ,.src_udp_formatter_rx_padbytes (udp_rx_in_udp_formatter_rx_padbytes    )
+        ,.udp_formatter_src_rx_data_rdy (udp_formatter_udp_rx_in_rx_data_rdy    )
+        
+        ,.udp_formatter_dst_rx_hdr_val  (udp_formatter_udp_rx_out_rx_hdr_val    )
+        ,.udp_formatter_dst_rx_src_ip   (udp_formatter_udp_rx_out_rx_src_ip     )
+        ,.udp_formatter_dst_rx_dst_ip   (udp_formatter_udp_rx_out_rx_dst_ip     )
+        ,.udp_formatter_dst_rx_udp_hdr  (udp_formatter_udp_rx_out_rx_udp_hdr    )
+        ,.udp_formatter_dst_rx_timestamp(udp_formatter_udp_rx_out_rx_timestamp  )
+        ,.dst_udp_formatter_rx_hdr_rdy  (udp_rx_out_udp_formatter_rx_hdr_rdy    )
+                                                                                 
+        ,.udp_formatter_dst_rx_data_val (udp_formatter_udp_rx_out_rx_data_val   )
+        ,.udp_formatter_dst_rx_data     (udp_formatter_udp_rx_out_rx_data       )
+        ,.udp_formatter_dst_rx_last     (udp_formatter_udp_rx_out_rx_last       )
+        ,.udp_formatter_dst_rx_padbytes (udp_formatter_udp_rx_out_rx_padbytes   )
+        ,.dst_udp_formatter_rx_data_rdy (udp_rx_out_udp_formatter_rx_data_rdy   )
+    );
+
+    udp_rx_noc_out_copy #(
+         .SRC_X (SRC_X  )
+        ,.SRC_Y (SRC_Y  )
+    ) udp_rx_noc_out (
+         .clk   (clk    )
+        ,.rst   (rst    )
+        
+        ,.udp_formatter_udp_rx_out_rx_hdr_val   (udp_formatter_udp_rx_out_rx_hdr_val    )
+        ,.udp_formatter_udp_rx_out_rx_src_ip    (udp_formatter_udp_rx_out_rx_src_ip     )
+        ,.udp_formatter_udp_rx_out_rx_dst_ip    (udp_formatter_udp_rx_out_rx_dst_ip     )
+        ,.udp_formatter_udp_rx_out_rx_udp_hdr   (udp_formatter_udp_rx_out_rx_udp_hdr    )
+        ,.udp_formatter_udp_rx_out_rx_timestamp (udp_formatter_udp_rx_out_rx_timestamp  )
+        ,.udp_rx_out_udp_formatter_rx_hdr_rdy   (udp_rx_out_udp_formatter_rx_hdr_rdy    )
+                                                                                        
+        ,.udp_formatter_udp_rx_out_rx_data_val  (udp_formatter_udp_rx_out_rx_data_val   )
+        ,.udp_formatter_udp_rx_out_rx_data      (udp_formatter_udp_rx_out_rx_data       )
+        ,.udp_formatter_udp_rx_out_rx_last      (udp_formatter_udp_rx_out_rx_last       )
+        ,.udp_formatter_udp_rx_out_rx_padbytes  (udp_formatter_udp_rx_out_rx_padbytes   )
+        ,.udp_rx_out_udp_formatter_rx_data_rdy  (udp_rx_out_udp_formatter_rx_data_rdy   )
+                                                                                        
+        ,.udp_rx_out_noc0_vrtoc_val             (noc_out_fifo_wr_val                    )
+        ,.udp_rx_out_noc0_vrtoc_data            (noc_out_fifo_wr_data                   )
+        ,.noc0_vrtoc_udp_rx_out_rdy             (noc_out_fifo_wr_rdy                    )
+    );
+
+    bsg_two_fifo #(
+        .width_p    (`NOC_DATA_WIDTH)
+    ) out_fifo (
+         .clk_i     (clk    )
+        ,.reset_i   (rst    )
+        
+        ,.ready_o   (noc_out_fifo_wr_rdy    )
+        ,.data_i    (noc_out_fifo_wr_data   )
+        ,.v_i       (noc_out_fifo_wr_val    )
+        
+        ,.v_o       (noc_out_fifo_rd_val    )
+        ,.data_o    (noc_out_fifo_rd_data   )
+        ,.yumi_i    (noc_out_fifo_rd_yumi   )
+    );
+
+    assign udp_rx_out_noc0_vrtoc_data = noc_out_fifo_rd_data;
+    assign udp_rx_out_noc0_vrtoc_val = noc_out_fifo_rd_val;
+    assign noc_out_fifo_rd_yumi = noc_out_fifo_rd_val & noc0_vrtoc_udp_rx_out_rdy;
+    
+endmodule

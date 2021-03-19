@@ -1,0 +1,47 @@
+CAPI=2:
+name: uwcse:beehive:udp_echo_app:0.1
+description: Beehive UDP design
+
+filesets:
+    tile:
+        files:
+            - include/udp_echo_app_pkg.sv
+            - include/udp_echo_app_defs.svh: {is_include_file: true}
+        depend:
+            - uwcse:buckfast:includes
+            - uwcse:beehive:msgs
+            - uwcse:beehive:topology
+            - uwcse:beehive:udp_echo_app_stats
+            - uwcse:beehive:pyhp_generator
+        file_type: systemVerilogSource
+    app:
+        files:
+            - udp_echo_app_ctrl.sv
+            - udp_echo_app_datap.sv
+            - udp_echo_app_in_ctrl.sv
+            - udp_echo_app_out_ctrl.sv
+        depend: 
+            - uwcse:beehive:msgs
+        file_type: systemVerilogSource
+    template:
+        files:
+            - template/udp_echo_app_template_ctrl.sv
+            - template/udp_echo_app_template_datap.sv
+        depend: 
+            - uwcse:beehive:msgs
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [tile, app, template]
+        generate: [pyhp_generate, template_generate]
+generate:
+    pyhp_generate:
+        generator: pyhp_gen
+        parameters:
+            process_me : [[udp_echo_app_copy_gen.sv.pyv, udp_echo_app_copy_gen.sv],
+                        [udp_echo_app_tile_gen.sv.pyv, udp_echo_app_tile_gen.sv]]
+    template_generate:
+        generator: pyhp_gen
+        parameters:
+            process_me: [[template/udp_echo_app_template_gen.sv.pyv, template/udp_echo_app_template_gen.sv]]

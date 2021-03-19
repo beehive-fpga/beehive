@@ -1,0 +1,211 @@
+`include "tcp_logger_tile_defs.svh"
+<%
+# Get the basic configuration object
+import sys
+import os
+sys.path.append(os.environ["BEEHIVE_PROJECT_ROOT"] + "/tile_generator/")
+from tile_generator import BeehiveConfig
+from noc_if_gen import NocInterfaceGen
+import logging
+logging.basicConfig(level=logging.INFO)
+design_path = os.environ["BEEHIVE_DESIGN_ROOT"]
+logging.info(f"Using tile config at {design_path}")
+tile_config = BeehiveConfig(design_path + "/tile_config.xml")
+noc_if_generator = NocInterfaceGen()
+%>
+module tcp_log_replay_tile #(
+     parameter SRC_X = -1
+    ,parameter SRC_Y = -1
+    ,parameter FORWARD_X = -1
+    ,parameter FORWARD_Y = -1
+    ,parameter INJECT=1
+)(
+     input  clk
+    ,input  rst
+    
+    ,input  logic                                   inject_logger_replay_val
+    ,input  logic   [`NOC_DATA_WIDTH-1:0]           inject_logger_replay_data
+    ,output logic                                   logger_replay_inject_rdy
+    
+    ,output logic                                   logger_replay_inject_val
+    ,output logic   [`NOC_DATA_WIDTH-1:0]           logger_replay_inject_data
+    ,input  logic                                   inject_logger_replay_rdy
+
+<%
+    noc_if_str = noc_if_generator.genNocInterface(src="src", module="tcp_logger",
+         dst="dst", nocs=tile_config.nocs, noc_widths=tile_config.nocs_data_width)
+    print(noc_if_str)
+%>
+);
+    logic                           vrtoc_router_data_noc0_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   vrtoc_router_data_noc0_data;
+    logic                           router_vrtoc_data_noc0_yummy;
+
+    logic                           router_ctovr_data_noc0_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   router_ctovr_data_noc0_data;
+    logic                           ctovr_router_data_noc0_yummy;
+    
+    logic                           vrtoc_router_ctrl_noc2_val;
+    logic   [`CTRL_NOC2_DATA_W-1:0] vrtoc_router_ctrl_noc2_data;
+    logic                           router_vrtoc_ctrl_noc2_yummy;
+
+    logic                           router_ctovr_ctrl_noc1_val;
+    logic   [`CTRL_NOC1_DATA_W-1:0] router_ctovr_ctrl_noc1_data;
+    logic                           ctovr_router_ctrl_noc1_yummy;
+    
+    logic                           ctovr_logger_replay_data_noc0_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   ctovr_logger_replay_data_noc0_data;
+    logic                           logger_replay_ctovr_data_noc0_rdy;
+    
+    logic                           logger_replay_vrtoc_data_noc0_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   logger_replay_vrtoc_data_noc0_data;
+    logic                           vrtoc_logger_replay_data_noc0_rdy;
+    
+    logic                           ctovr_logger_read_ctrl_noc1_val;
+    logic   [`CTRL_NOC1_DATA_W-1:0] ctovr_logger_read_ctrl_noc1_data;
+    logic                           logger_read_ctovr_ctrl_noc1_rdy;
+
+    logic                           logger_read_vrtoc_ctrl_noc2_val;
+    logic   [`CTRL_NOC2_DATA_W-1:0] logger_read_vrtoc_ctrl_noc2_data;
+    logic                           vrtoc_logger_read_ctrl_noc2_rdy;
+    
+    noc_router_block #(
+         .SRC_X (SRC_X  )
+        ,.SRC_Y (SRC_Y  )
+    ) tcp_logger_noc_router_block (
+         .clk   (clk    )
+        ,.rst   (rst    )
+<%
+    noc_ports = noc_if_generator.genNocInstantiation(src="src",
+    port_name="router_block", dst="dst", noc_src="src", noc_dst="dst",
+    module="tcp_logger", nocs=tile_config.nocs)
+    print(noc_ports)
+%>
+        ,.router_block_process_data_noc0_val    (router_ctovr_data_noc0_val     )
+        ,.router_block_process_data_noc0_data   (router_ctovr_data_noc0_data    )
+        ,.process_router_block_data_noc0_yummy  (ctovr_router_data_noc0_yummy   )
+    
+        ,.process_router_block_data_noc0_val    (vrtoc_router_data_noc0_val     )
+        ,.process_router_block_data_noc0_data   (vrtoc_router_data_noc0_data    )
+        ,.router_block_process_data_noc0_yummy  (router_vrtoc_data_noc0_yummy   )
+        
+        ,.router_block_process_ctrl_noc1_val    (router_ctovr_ctrl_noc1_val     )
+        ,.router_block_process_ctrl_noc1_data   (router_ctovr_ctrl_noc1_data    )
+        ,.process_router_block_ctrl_noc1_yummy  (ctovr_router_ctrl_noc1_yummy   )
+    
+        ,.process_router_block_ctrl_noc1_val    ('0)
+        ,.process_router_block_ctrl_noc1_data   ('0)
+        ,.router_block_process_ctrl_noc1_yummy  ()
+        
+        ,.router_block_process_ctrl_noc2_val    ()
+        ,.router_block_process_ctrl_noc2_data   ()
+        ,.process_router_block_ctrl_noc2_yummy  ('0)
+    
+        ,.process_router_block_ctrl_noc2_val    (vrtoc_router_ctrl_noc2_val     )
+        ,.process_router_block_ctrl_noc2_data   (vrtoc_router_ctrl_noc2_data    )
+        ,.router_block_process_ctrl_noc2_yummy  (router_vrtoc_ctrl_noc2_yummy   )
+    );
+    
+    beehive_credit_to_valrdy #(
+        .NOC_DATA_W (`NOC_DATA_WIDTH    )
+    ) data_noc0_beehive_credit_to_valrdy (
+         .clk   (clk)
+        ,.reset (rst)
+        //credit based interface 
+        ,.src_ctovr_data    (router_ctovr_data_noc0_data        )
+        ,.src_ctovr_val     (router_ctovr_data_noc0_val         )
+        ,.ctovr_src_yummy   (ctovr_router_data_noc0_yummy       )
+
+        //val/rdy interface
+        ,.ctovr_dst_data    (ctovr_logger_replay_data_noc0_data )
+        ,.ctovr_dst_val     (ctovr_logger_replay_data_noc0_val  )
+        ,.dst_ctovr_rdy     (logger_replay_ctovr_data_noc0_rdy  )
+    );
+
+    beehive_valrdy_to_credit #(
+        .NOC_DATA_W (`NOC_DATA_WIDTH    )
+    ) data_noc0_beehive_valrdy_to_credit (
+         .clk       (clk)
+        ,.reset     (rst)
+
+        //val/rdy interface
+        ,.src_vrtoc_data    (logger_replay_vrtoc_data_noc0_data )
+        ,.src_vrtoc_val     (logger_replay_vrtoc_data_noc0_val  )
+        ,.vrtoc_src_rdy     (vrtoc_logger_replay_data_noc0_rdy  )
+
+		//credit based interface	
+        ,.vrtoc_dst_data    (vrtoc_router_data_noc0_data        )
+        ,.vrtoc_dst_val     (vrtoc_router_data_noc0_val         )
+		,.dst_vrtoc_yummy   (router_vrtoc_data_noc0_yummy       )
+    );
+    
+    beehive_credit_to_valrdy #(
+        .NOC_DATA_W (`CTRL_NOC1_DATA_W  )
+    ) ctrl_noc1_beehive_credit_to_valrdy (
+         .clk   (clk)
+        ,.reset (rst)
+        //credit based interface 
+        ,.src_ctovr_data    (router_ctovr_ctrl_noc1_data        )
+        ,.src_ctovr_val     (router_ctovr_ctrl_noc1_val         )
+        ,.ctovr_src_yummy   (ctovr_router_ctrl_noc1_yummy       )
+
+        //val/rdy interface
+        ,.ctovr_dst_data    (ctovr_logger_read_ctrl_noc1_data   )
+        ,.ctovr_dst_val     (ctovr_logger_read_ctrl_noc1_val    )
+        ,.dst_ctovr_rdy     (logger_read_ctovr_ctrl_noc1_rdy    )
+    );
+    
+    beehive_valrdy_to_credit #(
+        .NOC_DATA_W (`CTRL_NOC2_DATA_W  )
+    ) ctrl_noc2_beehive_valrdy_to_credit (
+         .clk       (clk)
+        ,.reset     (rst)
+
+        //val/rdy interface
+        ,.src_vrtoc_data    (logger_read_vrtoc_ctrl_noc2_data   )
+        ,.src_vrtoc_val     (logger_read_vrtoc_ctrl_noc2_val    )
+        ,.vrtoc_src_rdy     (vrtoc_logger_read_ctrl_noc2_rdy    )
+
+		//credit based interface	
+        ,.vrtoc_dst_data    (vrtoc_router_ctrl_noc2_data        )
+        ,.vrtoc_dst_val     (vrtoc_router_ctrl_noc2_val         )
+		,.dst_vrtoc_yummy   (router_vrtoc_ctrl_noc2_yummy       )
+    );
+    
+    tcp_log_replay #(
+         .LOG_ENTRIES_LOG_2 (TCP_LOG_ENTRIES_LOG_2  )
+        ,.LOG_CLIENT_ADDR_W (TCP_LOG_CLIENT_ADDR_W  )
+        ,.SRC_X             (SRC_X                  )
+        ,.SRC_Y             (SRC_Y                  )
+        ,.FORWARD_X         (FORWARD_X              )
+        ,.FORWARD_Y         (FORWARD_Y              )
+        ,.INJECT            (INJECT                 )
+    ) logger_wrap (
+         .clk   (clk    )
+        ,.rst   (rst    )
+    
+        ,.inject_logger_replay_val  (inject_logger_replay_val           )
+        ,.inject_logger_replay_data (inject_logger_replay_data          )
+        ,.logger_replay_inject_rdy  (logger_replay_inject_rdy           )
+                                                                        
+        ,.logger_replay_inject_val  (logger_replay_inject_val           )
+        ,.logger_replay_inject_data (logger_replay_inject_data          )
+        ,.inject_logger_replay_rdy  (inject_logger_replay_rdy           )
+
+        ,.noc0_logger_replay_val    (ctovr_logger_replay_data_noc0_val  )
+        ,.noc0_logger_replay_data   (ctovr_logger_replay_data_noc0_data )
+        ,.logger_replay_noc0_rdy    (logger_replay_ctovr_data_noc0_rdy  )
+
+        ,.logger_replay_noc0_val    (logger_replay_vrtoc_data_noc0_val  )
+        ,.logger_replay_noc0_data   (logger_replay_vrtoc_data_noc0_data )
+        ,.noc0_logger_replay_rdy    (vrtoc_logger_replay_data_noc0_rdy  )
+
+        ,.noc_logger_read_val       (ctovr_logger_read_ctrl_noc1_val    )
+        ,.noc_logger_read_data      (ctovr_logger_read_ctrl_noc1_data   )
+        ,.logger_read_noc_rdy       (logger_read_ctovr_ctrl_noc1_rdy    )
+
+        ,.logger_read_noc_val       (logger_read_vrtoc_ctrl_noc2_val    )
+        ,.logger_read_noc_data      (logger_read_vrtoc_ctrl_noc2_data   )
+        ,.noc_logger_read_rdy       (vrtoc_logger_read_ctrl_noc2_rdy    )
+    );
+endmodule

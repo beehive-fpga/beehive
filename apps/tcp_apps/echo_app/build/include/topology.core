@@ -1,0 +1,19 @@
+CAPI=2:
+name: uwcse:beehive:topology:0.1
+description: Beehive topology package
+
+filesets:
+    rtl:
+        files:
+            - beehive_topology.sv
+        depend:
+            - uwcse:buckfast:includes
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]
+    fpga:
+        default_tool: vivado
+        filesets: [rtl]
+        toplevel: [udp_echo_top]

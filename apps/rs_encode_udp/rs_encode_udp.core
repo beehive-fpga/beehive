@@ -1,0 +1,33 @@
+CAPI=2:
+name: uwcse:beehive:rs_encode_udp:0.1
+description: Beehive RS encode over UDP tile
+
+filesets:
+    rtl:
+        files:
+            - include/udp_rs_encode_pkg.sv
+            - include/udp_rs_encode_defs.svh: {is_include_file: true}
+            - udp_rs_encode_in_ctrl.sv
+            - udp_rs_encode_in_datap.sv
+            - udp_rs_encode_out_ctrl.sv
+            - udp_rs_encode_out_datap.sv
+            - udp_rs_encode_wrap.sv
+        depend: 
+            - uwcse:buckfast:includes
+            - uwcse:buckfast:packet_queue
+            - uwcse:beehive:msgs
+            - uwcse:beehive:rs_encode_core
+            - uwcse:beehive:rs_encode_infra
+            - uwcse:beehive:rs_encode_stats
+            - uwcse:beehive:pyhp_generator
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]
+        generate: [pyhp_generate]
+generate:
+    pyhp_generate:
+        generator: pyhp_gen
+        parameters:
+            process_me: [[rs_encode_udp_tile_gen.sv.pyv, rs_encode_udp_tile_gen.sv]]

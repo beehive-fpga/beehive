@@ -1,0 +1,44 @@
+CAPI=2:
+name: uwcse:beehive:tcp_ip_rewrite:0.1
+description: Implementation of TCP design that includes an ip rewriter
+filesets:
+    rtl:
+        depend:
+            - uwcse:buckfast:includes
+            - uwcse:buckfast:mem_tile
+            - uwcse:buckfast:ram
+            - uwcse:beehive:tcp_pull_echo_app_ctrl_noc
+            - uwcse:beehive:eth_ctrl_noc
+            - uwcse:beehive:ip_ctrl_noc
+            - uwcse:beehive:tcp
+            - uwcse:beehive:udp_ctrl_noc
+            - uwcse:beehive:empty_tile
+            - uwcse:beehive:mem_controller_ctrl_noc
+            - uwcse:beehive:tcp_logger_ctrl_noc
+            - uwcse:beehive:data_converters
+            - uwcse:buckfast:packet_queue
+            - uwcse:beehive:common_noc_adapters
+            - uwcse:beehive:topology
+            - uwcse:beehive:pyhp_generator
+            - uwcse:beehive:ip_rewrite_manager_ctrl_noc
+            - uwcse:beehive:ip_rewrite_ctrl_noc
+        file_type: systemVerilogSource
+    sim:
+        files:
+            - tb_tcp_ip_rewrite.sv
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]
+        generate: [pyhp_generate]
+    sim:
+        default_tool: modelsim
+        filesets: [rtl, sim]
+        generate: [pyhp_generate]
+        toplevel: [tcp_ip_rewrite_top]
+generate:
+    pyhp_generate:
+        generator: pyhp_gen
+        parameters:
+            process_me : [[tcp_ip_rewrite_top_gen.sv.pyv, tcp_ip_rewrite_top_gen.sv]]

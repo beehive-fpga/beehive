@@ -1,0 +1,20 @@
+CAPI=2:
+name: uwcse:beehive:test_topology:0.1
+description: Beehive topology package
+
+filesets:
+    rtl:
+        depend:
+            - uwcse:buckfast:includes
+            - uwcse:beehive:pyhp_generator
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]
+        generate: [pyhp_generate]
+generate:
+    pyhp_generate:
+        generator: pyhp_gen
+        parameters:
+            process_me : [[test_topology_gen.sv.pyv, test_topology.sv]]

@@ -1,0 +1,31 @@
+CAPI=2:
+name: uwcse:beehive:udp_echo_app_ctrl_noc:0.1
+description: Beehive UDP echo app design
+
+filesets:
+    app:
+        files:
+            - include/udp_echo_app_pkg.sv
+            - include/udp_echo_app_defs.svh: {is_include_file: true}
+            - udp_echo_app.sv
+            - udp_echo_app_ctrl.sv
+            - udp_echo_app_datap.sv
+            - udp_echo_app_in_ctrl.sv
+            - udp_echo_app_out_ctrl.sv
+        depend: 
+            - uwcse:buckfast:includes
+            - uwcse:beehive:msgs
+            - uwcse:beehive:topology
+            - uwcse:beehive:udp_echo_app_stats
+            - uwcse:beehive:pyhp_generator
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [app]
+        generate: [pyhp_generate]
+generate:
+    pyhp_generate:
+        generator: pyhp_gen
+        parameters:
+            process_me : [[udp_echo_app_tile_ctrl_noc_gen.sv.pyv, udp_echo_app_tile_ctrl_noc_gen.sv]]

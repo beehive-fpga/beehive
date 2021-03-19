@@ -1,0 +1,20 @@
+CAPI=2:
+name: uwcse:beehive:echo_app_stats:0.1
+description: Beehive echo app stats
+
+filesets:
+    rtl:
+        files:
+            - include/echo_app_stats_pkg.sv
+            - include/echo_app_stats_defs.svh: {is_include_file: true}
+            - echo_app_stats_log.sv
+            - echo_app_stats_record.sv
+        depend: 
+            - uwcse:buckfast:includes
+            - uwcse:beehive:msgs
+            - uwcse:beehive:logging
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]

@@ -1,0 +1,36 @@
+CAPI=2:
+name: uwcse:beehive:load_balance_test_variable:0.1
+description: A design for testing the load balancer
+filesets:
+    rtl:
+        depend:
+            - uwcse:buckfast:includes
+            - uwcse:buckfast:bsg_mem
+            - uwcse:buckfast:bsg_misc
+            - uwcse:beehive:data_converters
+            - uwcse:beehive:misc
+            - uwcse:beehive:empty_tile
+            - uwcse:beehive:msgs
+            - uwcse:beehive:eth
+            - uwcse:beehive:ip
+            - uwcse:beehive:udp
+            - uwcse:beehive:udp_echo_app
+            - uwcse:beehive:topology
+            - uwcse:beehive:ingress_load_balance
+            - uwcse:beehive:pyhp_generator
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]
+        generate: [pyhp_generate]
+    sim:
+        default_tool: modelsim
+        filesets: [rtl]
+        generate: [pyhp_generate]
+        toplevel: [load_balance_top]
+generate:
+    pyhp_generate:
+        generator: pyhp_gen
+        parameters:
+            process_me : [[load_balance_top_gen.sv.pyv, load_balance_top_gen.sv]]

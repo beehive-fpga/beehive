@@ -1,0 +1,21 @@
+CAPI=2:
+name: uwcse:beehive:l4_extract:0.1
+description: Extract L4 fields for metadata
+
+filesets:
+    rtl:
+        files:
+            - include/parser_pkg.sv
+            - fixed_parser.sv
+        depend:
+            - uwcse:buckfast:includes
+            - uwcse:buckfast:fifo
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]
+    sim:
+        default_tool: modelsim
+        filesets: [rtl]
+        toplevel: [fixed_parser]

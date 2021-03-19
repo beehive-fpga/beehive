@@ -1,0 +1,45 @@
+CAPI=2:
+name: uwcse:beehive:udp_ctrl_noc:0.1
+description: Beehive UDP files with ctrl NoC
+
+filesets:
+    rtl:
+        files:
+            - include/udp_rx_tile_pkg.sv
+            - include/udp_tx_tile_pkg.sv
+            - include/udp_rx_tile_defs.svh: {is_include_file: true}
+            - include/udp_tx_tile_defs.svh: {is_include_file: true}
+            - udp_rx_noc_in.sv
+            - udp_rx_noc_in_ctrl.sv
+            - udp_rx_noc_in_datap.sv
+            - udp_rx_noc_out.sv
+            - udp_rx_noc_out_ctrl.sv
+            - udp_rx_noc_out_datap.sv
+            - udp_rx_out_steer.sv
+            - udp_tx_noc_in.sv
+            - udp_tx_noc_in_ctrl.sv
+            - udp_tx_noc_in_datap.sv
+            - udp_tx_noc_out.sv
+            - udp_tx_noc_out_ctrl.sv
+            - udp_tx_noc_out_datap.sv
+        depend:
+            - uwcse:buckfast:includes
+            - uwcse:buckfast:frontend
+            - uwcse:beehive:openpiton_beehive_noc
+            - uwcse:beehive:msgs
+            - uwcse:beehive:pyhp_generator
+            - uwcse:beehive:data_converters
+            - uwcse:beehive:router_block
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]
+        generate: [pyhp_generate]
+generate:
+    pyhp_generate:
+        generator: pyhp_gen
+        parameters:
+            process_me : [[udp_rx_out_cam_gen.sv.pyv, udp_rx_out_cam.sv],
+                          [udp_rx_tile_ctrl_noc_gen.sv.pyv, udp_rx_tile_ctrl_noc_gen.sv],
+                          [udp_tx_tile_ctrl_noc_gen.sv.pyv, udp_tx_tile_ctrl_noc_gen.sv]]

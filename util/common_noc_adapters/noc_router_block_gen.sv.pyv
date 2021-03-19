@@ -1,0 +1,93 @@
+`include "noc_router_block_defs.svh"
+<%
+# Get the basic configuration object
+import sys
+import os
+sys.path.append(os.environ["BEEHIVE_PROJECT_ROOT"] + "/tile_generator/")
+from tile_generator import BeehiveConfig
+from noc_if_gen import NocInterfaceGen
+import logging
+logging.basicConfig(level=logging.INFO)
+design_path = os.environ["BEEHIVE_DESIGN_ROOT"]
+logging.info(f"Using tile config at {design_path}")
+tile_config = BeehiveConfig(design_path + "/tile_config.xml")
+noc_if_generator = NocInterfaceGen()
+%>
+module noc_router_block #(
+     parameter SRC_X = -1
+    ,parameter SRC_Y = -1
+)(
+     input clk
+    ,input rst 
+<%
+noc_if_str = noc_if_generator.genNocInterface(src="src", module="router_block",
+     dst="dst", nocs=tile_config.nocs, noc_widths=tile_config.nocs_data_width)
+print(noc_if_str)
+
+processor_if_str = noc_if_generator.genNocProcessorInterface(module="router_block",
+    processor="process", nocs=tile_config.nocs, noc_widths = tile_config.nocs_data_width)
+print(processor_if_str)
+%>
+);
+
+<%
+ROUTER_TEMPLATE="""
+    beehive_dynamic_node_top_wrap #(
+         .NOC_DATA_W        ({noc_data_width}   )
+        ,.XY_COORD_W        (`XY_WIDTH          )
+        ,.CHIP_ID_W         (`CHIP_ID_WIDTH     )
+        ,.MSG_PAYLOAD_LEN   (`MSG_LENGTH_WIDTH  )
+    ) {noc_name}_router (
+         .clk                   (clk)
+        ,.reset_in              (rst)
+
+        ,.src_router_data_N     (src_router_block_{noc_name}_data_N     )
+        ,.src_router_data_E     (src_router_block_{noc_name}_data_E     )
+        ,.src_router_data_S     (src_router_block_{noc_name}_data_S     )
+        ,.src_router_data_W     (src_router_block_{noc_name}_data_W     )
+        ,.src_router_data_P     (process_router_block_{noc_name}_data   )
+
+        ,.src_router_val_N      (src_router_block_{noc_name}_val_N      )
+        ,.src_router_val_E      (src_router_block_{noc_name}_val_E      )
+        ,.src_router_val_S      (src_router_block_{noc_name}_val_S      )
+        ,.src_router_val_W      (src_router_block_{noc_name}_val_W      )
+        ,.src_router_val_P      (process_router_block_{noc_name}_val    )
+
+        ,.router_src_yummy_N    (router_block_src_{noc_name}_yummy_N    )
+        ,.router_src_yummy_E    (router_block_src_{noc_name}_yummy_E    )
+        ,.router_src_yummy_S    (router_block_src_{noc_name}_yummy_S    )
+        ,.router_src_yummy_W    (router_block_src_{noc_name}_yummy_W    )
+        ,.router_src_yummy_P    (router_block_process_{noc_name}_yummy  )
+
+        ,.myLocX                (SRC_X[`XY_WIDTH-1:0]   )
+        ,.myLocY                (SRC_Y[`XY_WIDTH-1:0]   )
+        ,.myChipID              (`CHIP_ID_WIDTH'd0      )
+
+        ,.router_dst_data_N     (router_block_dst_{noc_name}_data_N     )
+        ,.router_dst_data_E     (router_block_dst_{noc_name}_data_E     )
+        ,.router_dst_data_S     (router_block_dst_{noc_name}_data_S     )
+        ,.router_dst_data_W     (router_block_dst_{noc_name}_data_W     )
+        ,.router_dst_data_P     (router_block_process_{noc_name}_data   )
+
+        ,.router_dst_val_N      (router_block_dst_{noc_name}_val_N      )
+        ,.router_dst_val_E      (router_block_dst_{noc_name}_val_E      )
+        ,.router_dst_val_S      (router_block_dst_{noc_name}_val_S      )
+        ,.router_dst_val_W      (router_block_dst_{noc_name}_val_W      )
+        ,.router_dst_val_P      (router_block_process_{noc_name}_val    )
+
+        ,.dst_router_yummy_N    (dst_router_block_{noc_name}_yummy_N    )
+        ,.dst_router_yummy_E    (dst_router_block_{noc_name}_yummy_E    )
+        ,.dst_router_yummy_S    (dst_router_block_{noc_name}_yummy_S    )
+        ,.dst_router_yummy_W    (dst_router_block_{noc_name}_yummy_W    )
+        ,.dst_router_yummy_P    (process_router_block_{noc_name}_yummy  )
+
+        ,.router_src_thanks_P   ()
+    );"""
+
+for noc in tile_config.nocs:
+    format_dict = {"noc_name": noc, "noc_data_width": tile_config.nocs_data_width[noc]}
+    router_str = ROUTER_TEMPLATE.format(**format_dict)
+    print(router_str)
+%>
+    
+endmodule

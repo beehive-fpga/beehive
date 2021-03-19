@@ -1,0 +1,50 @@
+`include "soc_defs.vh"
+`include "packet_defs.vh"
+`include "state_defs.vh"
+`include "noc_defs.vh"
+
+import beehive_topology::*;
+module sha256_mrp_ip_encap_top (
+     input clk
+    ,input rst
+    
+    ,input                                      mac_engine_rx_val
+    ,input          [`MAC_INTERFACE_W-1:0]      mac_engine_rx_data
+    ,input                                      mac_engine_rx_startframe
+    ,input          [`MTU_SIZE_W-1:0]           mac_engine_rx_frame_size
+    ,input                                      mac_engine_rx_endframe
+    ,input          [`MAC_PADBYTES_W-1:0]       mac_engine_rx_padbytes
+    ,output logic                               engine_mac_rx_rdy
+    
+    ,output logic                               engine_mac_tx_val
+    ,input                                      mac_engine_tx_rdy
+    ,output logic                               engine_mac_tx_startframe
+    ,output logic   [`MTU_SIZE_W-1:0]           engine_mac_tx_frame_size 
+    ,output logic                               engine_mac_tx_endframe
+    ,output logic   [`MAC_INTERFACE_W-1:0]      engine_mac_tx_data
+    ,output logic   [`MAC_PADBYTES_W-1:0]       engine_mac_tx_padbytes
+);
+
+<%
+# Get the basic configuration object
+import sys
+import os
+sys.path.append(os.environ["BEEHIVE_PROJECT_ROOT"] + "/tile_generator/")
+from tile_generator import BeehiveConfig
+from tile_generator import TileDirs
+import logging
+logging.basicConfig(level=logging.INFO)
+config = BeehiveConfig("./tile_config.xml")
+%>
+
+// main tile connection wires
+<%
+# generate wires for hooking the tiles together
+config.printWires()
+%>
+
+// tiles
+<%
+config.printTiles()
+%>
+endmodule

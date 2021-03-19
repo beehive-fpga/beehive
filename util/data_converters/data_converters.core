@@ -1,0 +1,23 @@
+CAPI=2:
+name: uwcse:beehive:data_converters:0.1
+description: Beehive UDP files
+
+filesets:
+    rtl:
+        files:
+            - bit_flipper.sv
+            - byte_flipper.sv
+            - data_masker.sv
+            - if_w_startframe_convert.sv
+            - narrow_to_wide.sv
+            - wide_to_narrow.sv
+            - realign_compile.sv
+            - realign_runtime.sv
+            - inserter_compile.sv
+        depend:
+            - uwcse:buckfast:fifo
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]

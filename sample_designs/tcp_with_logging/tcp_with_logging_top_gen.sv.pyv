@@ -1,0 +1,319 @@
+`include "packet_defs.vh"
+`include "noc_defs.vh"
+`include "soc_defs.vh"
+
+module tcp_with_logging_top 
+import beehive_topology::*;
+#(
+     parameter MEM_ADDR_W = 0
+    ,parameter MEM_DATA_W = 0
+    ,parameter MEM_WR_MASK_W = MEM_DATA_W/8
+    ,parameter MEM_BURST_CNT_W = 0
+)(
+     input clk
+    ,input rst
+    
+    ,input                                      mac_engine_rx_val
+    ,input          [`MAC_INTERFACE_W-1:0]      mac_engine_rx_data
+    ,input                                      mac_engine_rx_startframe
+    ,input          [`MTU_SIZE_W-1:0]           mac_engine_rx_frame_size
+    ,input                                      mac_engine_rx_endframe
+    ,input          [`MAC_PADBYTES_W-1:0]       mac_engine_rx_padbytes
+    ,output logic                               engine_mac_rx_rdy
+                                                                        
+	,output logic                               engine_mac_tx_val      
+	,input                                      mac_engine_tx_rdy      
+	,output logic                               engine_mac_tx_startframe
+	,output logic   [`MTU_SIZE_W-1:0]           engine_mac_tx_frame_size
+	,output logic                               engine_mac_tx_endframe 
+	,output logic   [`MAC_INTERFACE_W-1:0]      engine_mac_tx_data     
+	,output logic   [`MAC_PADBYTES_W-1:0]       engine_mac_tx_padbytes 
+    
+    ,input  logic                               memA_ready_in           
+    ,output logic                               memA_read_out           
+    ,output logic                               memA_write_out
+    ,output logic   [MEM_ADDR_W-1:0]            memA_address_out
+    ,input  logic   [MEM_DATA_W-1:0]            memA_readdata_in
+    ,output logic   [MEM_DATA_W-1:0]            memA_writedata_out
+    ,output logic   [MEM_BURST_CNT_W-1:0]       memA_burstcount_out
+    ,output logic   [MEM_WR_MASK_W-1:0]         memA_byteenable_out
+    ,input  logic                               memA_readdatavalid_in
+    
+    ,input  logic                               memB_ready_in
+    ,output logic                               memB_read_out
+    ,output logic                               memB_write_out
+    ,output logic   [MEM_ADDR_W-1:0]            memB_address_out
+    ,input  logic   [MEM_DATA_W-1:0]            memB_readdata_in
+    ,output logic   [MEM_DATA_W-1:0]            memB_writedata_out
+    ,output logic   [MEM_BURST_CNT_W-1:0]       memB_burstcount_out
+    ,output logic   [MEM_WR_MASK_W-1:0]         memB_byteenable_out
+    ,input  logic                               memB_readdatavalid_in
+);
+<%
+# Get the basic configuration object
+import sys
+import os
+sys.path.append(os.environ["BEEHIVE_PROJECT_ROOT"] + "/tile_generator/")
+from tile_generator import BeehiveConfig
+from tile_generator import TileDirs
+import logging
+logging.basicConfig(level=logging.INFO)
+tile_config = BeehiveConfig("./tile_config.xml")
+%>
+
+// main tile connection wires
+<%
+# generate wires for hooking the tiles together
+tile_config.printWires()
+%>
+    
+    eth_rx_tile #(
+         .SRC_X (ETH_RX_TILE_X  )
+        ,.SRC_Y (ETH_RX_TILE_Y  )
+<%
+end_x, end_y = tile_config.getEndpointCoords("eth_rx_tile")
+print(f"    ) eth_rx_{end_x}_{end_y} (")
+%>
+         .clk   (clk)
+        ,.rst   (rst)
+<%
+tile_std_ports = tile_config.getEndpointPorts("eth_rx_tile")
+print(tile_std_ports)
+%>
+		,.mac_engine_rx_val         (mac_engine_rx_val          )
+		,.mac_engine_rx_data        (mac_engine_rx_data         )
+		,.mac_engine_rx_startframe  (mac_engine_rx_startframe   )
+		,.mac_engine_rx_frame_size  (mac_engine_rx_frame_size   )
+		,.mac_engine_rx_endframe    (mac_engine_rx_endframe     )
+		,.mac_engine_rx_padbytes    (mac_engine_rx_padbytes     )
+		,.engine_mac_rx_rdy         (engine_mac_rx_rdy          )
+    );
+
+	eth_tx_tile #(
+	     .SRC_X (ETH_TX_TILE_X  )
+	    ,.SRC_Y (ETH_TX_TILE_Y  )
+<%
+end_x, end_y = tile_config.getEndpointCoords("eth_tx_tile")
+print(f"    ) eth_tx_{end_x}_{end_y} (")
+%>
+		 .clk   (clk)
+		,.rst   (rst)
+<%
+tile_std_ports = tile_config.getEndpointPorts("eth_tx_tile")
+print(tile_std_ports)
+%>
+		,.engine_mac_tx_val         (engine_mac_tx_val          )
+		,.mac_engine_tx_rdy         (mac_engine_tx_rdy          )
+		,.engine_mac_tx_startframe  (engine_mac_tx_startframe   )
+		,.engine_mac_tx_frame_size  (engine_mac_tx_frame_size   )
+		,.engine_mac_tx_endframe    (engine_mac_tx_endframe     )
+		,.engine_mac_tx_data        (engine_mac_tx_data         )
+		,.engine_mac_tx_padbytes    (engine_mac_tx_padbytes     )
+	);
+
+
+    ip_rx_tile #(
+	     .SRC_X (IP_RX_TILE_X   )
+	    ,.SRC_Y (IP_RX_TILE_Y   )
+<%
+end_x, end_y = tile_config.getEndpointCoords("ip_rx_tile")
+print(f"    ) ip_rx_{end_x}_{end_y} (")
+%>
+		 .clk   (clk)
+		,.rst   (rst)
+<%
+tile_std_ports = tile_config.getEndpointPorts("ip_rx_tile")
+print(tile_std_ports)
+%>
+	);
+
+    ip_tx_tile #(
+	     .SRC_X (IP_TX_TILE_X   )
+	    ,.SRC_Y (IP_TX_TILE_Y   )
+<%
+end_x, end_y = tile_config.getEndpointCoords("ip_tx_tile")
+print(f"    ) ip_tx_{end_x}_{end_y} (")
+%>
+		 .clk   (clk)
+		,.rst   (rst)
+<%
+tile_std_ports = tile_config.getEndpointPorts("ip_tx_tile")
+print(tile_std_ports)
+%>
+	);
+
+    tcp_logger_tile #(
+         .SRC_X     (TCP_LOGGER_RX_TILE_X   )
+        ,.SRC_Y     (TCP_LOGGER_RX_TILE_Y   )
+        ,.FORWARD_X (TCP_RX_TILE_X          )
+        ,.FORWARD_Y (TCP_RX_TILE_Y          )
+<%
+end_x, end_y = tile_config.getEndpointCoords("tcp_logger_rx_tile")
+print(f"    ) tcp_logger_rx_tile_{end_x}_{end_y} (")
+%>
+		 .clk   (clk)
+		,.rst   (rst)
+
+<%
+tile_std_ports = tile_config.getEndpointPorts("tcp_logger_rx_tile")
+print(tile_std_ports)
+%>
+    );
+    
+    tcp_logger_tile #(
+         .SRC_X     (TCP_LOGGER_TX_TILE_X   )
+        ,.SRC_Y     (TCP_LOGGER_TX_TILE_Y   )
+        ,.FORWARD_X (IP_TX_TILE_X           )
+        ,.FORWARD_Y (IP_TX_TILE_Y           )
+<%
+end_x, end_y = tile_config.getEndpointCoords("tcp_logger_tx_tile")
+print(f"    ) tcp_logger_tx_tile_{end_x}_{end_y} (")
+%>
+		 .clk   (clk)
+		,.rst   (rst)
+
+<%
+tile_std_ports = tile_config.getEndpointPorts("tcp_logger_tx_tile")
+print(tile_std_ports)
+%>
+    );
+
+    tcp_tiles_wrap #(
+         .TCP_RX_SRC_X  (TCP_RX_TILE_X  )
+        ,.TCP_RX_SRC_Y  (TCP_RX_TILE_Y  )
+        ,.TCP_RX_DRAM_X (DRAM_RX_TILE_X )
+        ,.TCP_RX_DRAM_Y (DRAM_RX_TILE_Y )
+        ,.TCP_TX_SRC_X  (TCP_TX_TILE_X  )
+        ,.TCP_TX_SRC_Y  (TCP_TX_TILE_Y  )
+        ,.TCP_TX_DRAM_X (DRAM_TX_TILE_X )
+        ,.TCP_TX_DRAM_Y (DRAM_TX_TILE_Y )
+<%
+rx_end_x, rx_end_y = tile_config.getEndpointCoords("tcp_rx_tile")
+tx_end_x, tx_end_y = tile_config.getEndpointCoords("tcp_tx_tile")
+print(f"    ) tcp_rx_{rx_end_x}_{rx_end_y}_tcp_tx_{tx_end_x}_{tx_end_y} (")
+%>
+		 .clk   (clk)
+		,.rst   (rst)
+<%
+tcp_rx_std_ports = tile_config.getEndpointPorts("tcp_rx_tile")
+print(tcp_rx_std_ports)
+%>
+<%
+tcp_tx_std_ports = tile_config.getEndpointPorts("tcp_tx_tile")
+print(tcp_tx_std_ports)
+%>
+    );
+
+    udp_rx_tile #(
+         .SRC_X (UDP_RX_TILE_X)
+        ,.SRC_Y (UDP_RX_TILE_Y)
+<%
+end_x, end_y = tile_config.getEndpointCoords("udp_rx_tile")
+print(f"    ) udp_rx_{end_x}_{end_y} (")
+%>
+		 .clk   (clk)
+		,.rst   (rst)
+<%
+tile_std_ports = tile_config.getEndpointPorts("udp_rx_tile")
+print(tile_std_ports)
+%>
+	);
+    
+    udp_tx_tile #(
+         .SRC_X (UDP_TX_TILE_X)
+        ,.SRC_Y (UDP_TX_TILE_Y)
+<%
+end_x, end_y = tile_config.getEndpointCoords("udp_tx_tile")
+print(f"    ) udp_tx_{end_x}_{end_y} (")
+%>
+		 .clk   (clk)
+		,.rst   (rst)
+<%
+tile_std_ports = tile_config.getEndpointPorts("udp_tx_tile")
+print(tile_std_ports)
+%>
+	);
+    
+    masked_mem_tile #(
+         .SRC_X             (DRAM_RX_TILE_X     )
+        ,.SRC_Y             (DRAM_RX_TILE_Y     )
+        ,.MEM_ADDR_W        (MEM_ADDR_W         )
+        ,.MEM_DATA_W        (MEM_DATA_W         )
+<%
+end_x, end_y = tile_config.getEndpointCoords("dram_rx_tile")
+print(f"    ) dram_rx_{end_x}_{end_y} (")
+%>
+         .clk   (clk)
+        ,.rst   (rst)
+<%
+dram_rx_std_ports = tile_config.getEndpointPorts("dram_rx_tile")
+print(dram_rx_std_ports)
+%>
+        ,.controller_mem_read_en        (memA_read_out         )
+        ,.controller_mem_write_en       (memA_write_out        )
+        ,.controller_mem_addr           (memA_address_out      )
+        ,.controller_mem_wr_data        (memA_writedata_out    )
+        ,.controller_mem_byte_en        (memA_byteenable_out   )
+        ,.controller_mem_burst_cnt      (memA_burstcount_out   )
+        ,.mem_controller_rdy            (memA_ready_in         )
+
+        ,.mem_controller_rd_data_val    (memA_readdatavalid_in )
+        ,.mem_controller_rd_data        (memA_readdata_in      )
+    );
+
+    masked_mem_tile #(
+         .SRC_X (DRAM_TX_TILE_X)
+        ,.SRC_Y (DRAM_TX_TILE_Y)
+        ,.MEM_ADDR_W        (MEM_ADDR_W         )
+        ,.MEM_DATA_W        (MEM_DATA_W         )
+<%
+end_x, end_y = tile_config.getEndpointCoords("dram_tx_tile")
+print(f"    ) dram_tx_{end_x}_{end_y} (")
+%>
+         .clk   (clk)
+        ,.rst   (rst)
+<%
+dram_tx_std_ports = tile_config.getEndpointPorts("dram_tx_tile")
+print(dram_tx_std_ports)
+%>
+        ,.controller_mem_read_en        (memB_read_out         )
+        ,.controller_mem_write_en       (memB_write_out        )
+        ,.controller_mem_addr           (memB_address_out      )
+        ,.controller_mem_wr_data        (memB_writedata_out    )
+        ,.controller_mem_byte_en        (memB_byteenable_out   )
+        ,.controller_mem_burst_cnt      (memB_burstcount_out   )
+        ,.mem_controller_rdy            (memB_ready_in         )
+
+        ,.mem_controller_rd_data_val    (memB_readdatavalid_in )
+        ,.mem_controller_rd_data        (memB_readdata_in      )
+    );
+    
+    echo_app_tiles #(
+         .APP_TILE_RX_SRC_X     (APP_TILE_RX_X  )
+        ,.APP_TILE_RX_SRC_Y     (APP_TILE_RX_Y  )
+        ,.APP_TILE_TX_SRC_X     (APP_TILE_TX_X  )
+        ,.APP_TILE_TX_SRC_Y     (APP_TILE_TX_Y  )
+        ,.APP_TILE_TX_DST_BUF_X (DRAM_TX_TILE_X )
+        ,.APP_TILE_TX_DST_BUF_Y (DRAM_TX_TILE_Y )
+        ,.APP_TILE_RX_DST_BUF_X (DRAM_RX_TILE_X )
+        ,.APP_TILE_RX_DST_BUF_Y (DRAM_RX_TILE_Y )
+<%
+rx_end_x, rx_end_y = tile_config.getEndpointCoords("app_tile_rx")
+tx_end_x, tx_end_y = tile_config.getEndpointCoords("app_tile_tx")
+print(f"    ) app_rx_{rx_end_x}_{rx_end_y}_app_tx_{tx_end_x}_{tx_end_y} (")
+%>
+         .clk   (clk)
+        ,.rst   (rst)
+<%
+app_rx_std_ports = tile_config.getEndpointPorts("app_tile_rx")
+print(app_rx_std_ports)
+app_tx_std_ports = tile_config.getEndpointPorts("app_tile_tx")
+print(app_tx_std_ports)
+%>
+    );
+
+<%
+empty_tiles = tile_config.getEmptyTiles()
+print(empty_tiles)
+%>
+endmodule

@@ -1,0 +1,9 @@
+config,packet_size,bw_gbps
+beehive_fpga,64,21.2833
+beehive_fpga,128,36.485698
+beehive_fpga,256,56.75552
+beehive_fpga,512,78.58457
+beehive_fpga,1024,93.9444
+beehive_fpga,2048,96.87747
+beehive_fpga,4096,98.41372
+beehive_fpga,8192,99.20027

@@ -1,0 +1,32 @@
+CAPI=2:
+name: uwcse:beehive:tcp_pull_echo:0.1
+description: Implementation of TCP pull design
+
+filesets:
+    rtl:
+        files:
+            - tcp_pull_echo_top.sv
+        depend:
+            - uwcse:buckfast:includes
+            - uwcse:buckfast:mem_tile
+            - uwcse:beehive:tcp_pull_echo_app
+            - uwcse:beehive:eth
+            - uwcse:beehive:ip
+            - uwcse:beehive:tcp
+            - uwcse:beehive:data_converters
+            - uwcse:buckfast:packet_queue
+            - uwcse:beehive:common_noc_adapters
+            - uwcse:beehive:topology
+        file_type: systemVerilogSource
+    sim:
+        files:
+            - tb_tcp_pull_echo_top.sv
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]
+    sim:
+        default_tool: modelsim
+        filesets: [rtl, sim]
+        toplevel: [tcp_pull_echo_sim_top]

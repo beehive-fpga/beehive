@@ -1,0 +1,13 @@
++incdir+$BEEHIVE_PROJECT_ROOT/tcp_apps/echo_app/include
+$BEEHIVE_PROJECT_ROOT/tcp_apps/echo_app/include/echo_app_pkg.sv
+
+$BEEHIVE_PROJECT_ROOT/tcp_apps/echo_app/echo_app_msg_if.sv
+$BEEHIVE_PROJECT_ROOT/tcp_apps/echo_app/echo_app_new_flow_notif.sv
+$BEEHIVE_PROJECT_ROOT/tcp_apps/echo_app/echo_app_rx_msg_if.sv
+$BEEHIVE_PROJECT_ROOT/tcp_apps/echo_app/echo_app_rx_msg_if_ctrl.sv
+$BEEHIVE_PROJECT_ROOT/tcp_apps/echo_app/echo_app_rx_msg_if_datap.sv
+$BEEHIVE_PROJECT_ROOT/tcp_apps/echo_app/echo_app_rx_tile.sv
+$BEEHIVE_PROJECT_ROOT/tcp_apps/echo_app/echo_app_tiles.sv
+$BEEHIVE_PROJECT_ROOT/tcp_apps/echo_app/echo_app_tx_msg_if.sv
+$BEEHIVE_PROJECT_ROOT/tcp_apps/echo_app/echo_app_tx_msg_if_ctrl.sv
+$BEEHIVE_PROJECT_ROOT/tcp_apps/echo_app/echo_app_tx_msg_if_datap.sv

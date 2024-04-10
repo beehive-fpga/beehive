@@ -110,7 +110,6 @@ module ip_tx_noc_out_datap
         meta_flit.eth_src = eth_hdr_reg.src;
         meta_flit.eth_type = eth_hdr_reg.eth_type;
         meta_flit.payload_size = data_size_reg;
-        meta_flit.timestamp = pkt_timestamp_reg;
     end
 
 endmodule

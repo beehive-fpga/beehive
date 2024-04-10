@@ -123,7 +123,6 @@ module udp_tx_noc_out_datap
         meta_flit.dst_ip = dst_ip_reg;
         meta_flit.data_payload_len = udp_len_reg;
         meta_flit.protocol = protocol_reg;
-        meta_flit.timestamp = pkt_timestamp_reg;
     end
 
 endmodule

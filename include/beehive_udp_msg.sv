@@ -30,7 +30,6 @@ package beehive_udp_msg;
         logic   [`PORT_NUM_W-1:0]           src_port;
         logic   [`PORT_NUM_W-1:0]           dst_port;
         logic   [`UDP_LENGTH_W-1:0]         data_length; 
-        logic   [MSG_TIMESTAMP_W-1:0]       timestamp;
         logic   [UDP_RX_META_PADDING-1:0]   padding;
     } udp_rx_metadata_flit;
 
@@ -41,7 +40,6 @@ package beehive_udp_msg;
         logic   [`PORT_NUM_W-1:0]           src_port;
         logic   [`PORT_NUM_W-1:0]           dst_port;
         logic   [`UDP_LENGTH_W-1:0]         data_length; 
-        logic   [MSG_TIMESTAMP_W-1:0]       timestamp;
         logic   [UDP_TX_META_PADDING-1:0]   padding;
     } udp_tx_metadata_flit;
 

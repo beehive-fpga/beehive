@@ -33,4 +33,7 @@ package open_loop_pkg;
     localparam [`NOC_FBITS_WIDTH-1:0]   SETUP_IF_FBITS = {1'b1, SETUP_IF_FBITS_VALUE[`NOC_FBITS_WIDTH-2:0]};
     localparam TX_IF_FBITS_VALUE = 32'd5;
     localparam TX_IF_FBITS = {1'b1, TX_IF_FBITS_VALUE[`NOC_FBITS_WIDTH-2:0]};
+
+    localparam PTR_IF_FBITS_VALUE = 32'd4;
+    localparam [`NOC_FBITS_WIDTH-1:0]   PTR_IF_FBITS = {1'b1, PTR_IF_FBITS_VALUE[`NOC_FBITS_WIDTH-2:0]};
 endpackage

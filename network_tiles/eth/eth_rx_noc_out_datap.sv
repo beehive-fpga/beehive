@@ -135,7 +135,6 @@ import tracker_pkg::*;
         meta_flit.eth_dst = hdr_reg.dst;
         meta_flit.eth_src = hdr_reg.src;
         meta_flit.eth_data_len = data_size_reg;
-        meta_flit.timestamp =  timestamp_reg;
     end
 
 

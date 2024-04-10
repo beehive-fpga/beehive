@@ -19,7 +19,9 @@ import tracker_pkg::*;
      parameter SRC_X = -1
     ,parameter SRC_Y = -1
     ,parameter USE_INT_LB = 0
-)(
+)
+    import tracker_pkg::*;
+(
      input clk
     ,input rst
 

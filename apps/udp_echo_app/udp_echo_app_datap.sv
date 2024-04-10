@@ -93,7 +93,6 @@ module udp_echo_app_datap #(
         out_meta_flit.src_port = meta_flit_reg.dst_port;
         out_meta_flit.dst_port = meta_flit_reg.src_port;
         out_meta_flit.data_length = meta_flit_reg.data_length;
-        out_meta_flit.timestamp = meta_flit_reg.timestamp;
     end
 
 

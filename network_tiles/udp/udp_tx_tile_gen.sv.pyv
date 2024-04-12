@@ -82,13 +82,13 @@ print(router_wires)
     logic   [`NOC_PADBYTES_WIDTH-1:0] udp_to_stream_udp_tx_out_padbytes;
     logic                           udp_tx_out_udp_to_stream_rdy;
     
-    logic                               ctovr_rd_tracker_in_val
-    logic   [`CTRL_NOC_DATA_W-1:0]      ctovr_rd_tracker_in_data
-    logic                               rd_tracker_in_ctovr_rdy
+    logic                               ctovr_rd_tracker_in_val;
+    logic   [`CTRL_NOC_DATA_W-1:0]      ctovr_rd_tracker_in_data;
+    logic                               rd_tracker_in_ctovr_rdy;
 
-    logic                               rd_tracker_out_vrtoc_val
-    logic   [`CTRL_NOC_DATA_W-1:0]      rd_tracker_out_vrtoc_data
-    logic                               vrtoc_rd_tracker_out_rdy
+    logic                               rd_tracker_out_vrtoc_val;
+    logic   [`CTRL_NOC_DATA_W-1:0]      rd_tracker_out_vrtoc_data;
+    logic                               vrtoc_rd_tracker_out_rdy;
     
     noc_router_block #(
          .SRC_X (SRC_X  )
@@ -120,9 +120,9 @@ print(router_wires)
         ,.ctovr_src_yummy   (ctovr_router_data_noc0_yummy   )
 
         //val/rdy interface
-        ,.ctovr_dst_data    (noc0_ctovr_udp_tx_in_data      )
-        ,.ctovr_dst_val     (noc0_ctovr_udp_tx_in_val       )
-        ,.dst_ctovr_rdy     (udp_tx_in_noc0_ctovr_rdy       )
+        ,.ctovr_dst_data    (noc0_ctovr_log_data            )
+        ,.ctovr_dst_val     (noc0_ctovr_log_val             )
+        ,.dst_ctovr_rdy     (log_noc0_ctovr_rdy             )
     );
 
     beehive_valrdy_to_credit #(

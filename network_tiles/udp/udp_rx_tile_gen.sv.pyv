@@ -153,8 +153,8 @@ print(router_wires)
         ,.ctovr_src_yummy   (ctovr_router_ctrl_noc1_yummy   )
 
         //val/rdy interface
-        ,.ctovr_dst_data    (ctovr_rd_tracker_in_val        )
-        ,.ctovr_dst_val     (ctovr_rd_tracker_in_data       )
+        ,.ctovr_dst_data    (ctovr_rd_tracker_in_data       )
+        ,.ctovr_dst_val     (ctovr_rd_tracker_in_val        )
         ,.dst_ctovr_rdy     (rd_tracker_in_ctovr_rdy        )
     );
 

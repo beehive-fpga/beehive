@@ -89,11 +89,11 @@ print(router_wires)
     tracker_stats_struct            eth_wr_log_start_timestamp;
     
     logic                           ctovr_rd_tracker_in_val;
-    logic   [REQ_NOC_W-1:0]         ctovr_rd_tracker_in_data;
+    logic   [`CTRL_NOC_DATA_W-1:0]  ctovr_rd_tracker_in_data;
     logic                           rd_tracker_in_ctovr_rdy;
 
     logic                           rd_tracker_out_vrtoc_val;
-    logic   [RESP_NOC_W-1:0]        rd_tracker_out_vrtoc_data;
+    logic   [`CTRL_NOC_DATA_W-1:0]  rd_tracker_out_vrtoc_data;
     logic                           vrtoc_rd_tracker_out_rdy;
     
     noc_router_block #(
@@ -151,7 +151,7 @@ print(router_wires)
          .SRC_X                 (SRC_X              )
         ,.SRC_Y                 (SRC_Y              )
         ,.TRACKER_DEPTH_LOG2    (TRACKER_ADDR_W     )
-        ,.DATA_NOC_W            (`NOC_DATA_W        )
+        ,.DATA_NOC_W            (`NOC_DATA_WIDTH    )
         ,.REQ_NOC_W             (`CTRL_NOC_DATA_W   )
         ,.RESP_NOC_W            (`CTRL_NOC_DATA_W   )
     ) tracker (

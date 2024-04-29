@@ -146,6 +146,39 @@ print(router_wires)
         ,.vrtoc_dst_val     (vrtoc_router_data_noc0_val     )
 		,.dst_vrtoc_yummy   (router_vrtoc_data_noc0_yummy   )
     );
+    
+    beehive_credit_to_valrdy #(
+        .NOC_DATA_W (`CTRL_NOC_DATA_W   )
+    ) tile_tx_noc1_beehive_credit_to_valrdy (
+         .clk   (clk)
+        ,.reset (rst)
+        //credit based interface 
+        ,.src_ctovr_data    (router_ctovr_ctrl_noc1_data    )
+        ,.src_ctovr_val     (router_ctovr_ctrl_noc1_val     )
+        ,.ctovr_src_yummy   (ctovr_router_ctrl_noc1_yummy   )
+
+        //val/rdy interface
+        ,.ctovr_dst_data    (ctovr_rd_tracker_in_data       )
+        ,.ctovr_dst_val     (ctovr_rd_tracker_in_val        )
+        ,.dst_ctovr_rdy     (rd_tracker_in_ctovr_rdy        )
+    );
+
+    beehive_valrdy_to_credit #(
+        .NOC_DATA_W (`CTRL_NOC_DATA_W   )
+    ) tile_tx_noc1_beehive_valrdy_to_credit (
+         .clk       (clk)
+        ,.reset     (rst)
+
+        //val/rdy interface
+        ,.src_vrtoc_data    (rd_tracker_out_vrtoc_data      )
+        ,.src_vrtoc_val     (rd_tracker_out_vrtoc_val       )
+        ,.vrtoc_src_rdy     (vrtoc_rd_tracker_out_rdy       )
+
+		//credit based interface	
+        ,.vrtoc_dst_data    (vrtoc_router_ctrl_noc1_data    )
+        ,.vrtoc_dst_val     (vrtoc_router_ctrl_noc1_val     )
+		,.dst_vrtoc_yummy   (router_vrtoc_ctrl_noc1_yummy   )
+    );
 
     tracker_top #(
          .SRC_X                 (SRC_X              )
@@ -168,7 +201,7 @@ print(router_wires)
     
         ,.noc_wr_tracker_in_val     (noc0_ctovr_log_in_val      )
         ,.noc_wr_tracker_in_data    (noc0_ctovr_log_in_data     )
-        ,.wr_tracker_noc_in_rdy     (log_noc0_ctovr_rdy         )
+        ,.wr_tracker_noc_in_rdy     (log_in_noc0_ctovr_rdy      )
         
         ,.wr_tracker_noc_out_val    (log_splitter_in_val        )
         ,.wr_tracker_noc_out_data   (log_splitter_in_data       )

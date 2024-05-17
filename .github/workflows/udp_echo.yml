@@ -1,0 +1,34 @@
+name: Test UDP echo
+
+on:
+  schedule:
+    - cron: '0 7 * * *'  # Triggers the workflow daily at midnight PST/7 AM UTC
+
+jobs: 
+  test-udp-echo-sanity:
+    runs-on: ubuntu-latest
+    steps: 
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Setup Python 3.9
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.9
+
+    - name: Setup dependencies
+      run: |
+        ./ci/dependencies.sh
+
+    - name: Source settings
+      run: source settings.sh
+
+    - name: Setup experiment
+      run: |
+        cd cocotb_testing/udp_echo
+        make init_fusesoc
+        make gen_filelist
+
+    - name: Run experiment
+      run: make
+    

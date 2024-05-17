@@ -3,6 +3,7 @@ name: Test UDP echo
 on:
   schedule:
     - cron: '0 7 * * *'  # Triggers the workflow daily at midnight PST/7 AM UTC
+  workflow_dispatch:
 
 jobs: 
   test-udp-echo-sanity:

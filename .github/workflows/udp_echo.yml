@@ -29,8 +29,6 @@ jobs:
       with:
         path: verilator
         key: verilator
-      run: |
-        ls
 
     - name: Debug
       run: |

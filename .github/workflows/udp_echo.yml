@@ -36,9 +36,9 @@ jobs:
 
     - name: Setup env variables
       run: |
-        ls
-        echo "VERILATOR_ROOT=$GITHUB_WORKSPACE/verilator" >> $GITHUB_ENV
-        echo "PATH=$GITHUB_WORKSPACE/verilator/bin:$PATH" >> $GITHUB_ENV
+        cd verilator
+        echo "VERILATOR_ROOT=$PWD" >> $GITHUB_ENV
+        echo "PATH=$PWD/bin:$PATH" >> $GITHUB_ENV
         echo "SIM=verilator" >> $GITHUB_ENV
         
     - name: Source settings

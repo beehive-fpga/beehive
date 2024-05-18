@@ -49,7 +49,11 @@ jobs:
     - name: Run experiment
       run: |
         env
+        ls
         cd beehive
+        ls
+        ls $VERILATOR_ROOT
+        ls $VERILATOR_ROOT/bin
         source settings.sh
         cd cocotb_testing/udp_echo
         export SIM=verilator

@@ -8,7 +8,7 @@ TOPLEVEL_LANG ?= verilog
 # source file I guess to kick the compilation. There's probably a better way to 
 # hand it a dummy file, but just give it the top level for now I guess
 VERILOG_SOURCES += $(PWD)/udp_echo_top_gen.sv
-COMPILE_ARGS += "-f $(PWD)/test_udp_echo.flist"
+COMPILE_ARGS += -f $(PWD)/test_udp_echo.flist
 
 SIM_ARGS = -voptargs=+acc
 # SCRIPT_FILE = wave.do

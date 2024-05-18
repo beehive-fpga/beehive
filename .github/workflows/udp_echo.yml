@@ -46,6 +46,11 @@ jobs:
         cd beehive
         source settings.sh
 
+    - name: Get submodules
+      uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
     - name: Setup experiment
       run: |
         cd cocotb_testing/udp_echo

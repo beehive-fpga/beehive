@@ -26,18 +26,9 @@ pip3 install cocotb_bus
 pip3 install scapy
 pip3 install fusesoc
 
-# install Verilator
+# install Verilator dependencies
 sudo apt-get install -y help2man perl python3 make autoconf g++ flex bison ccache
-git clone git@github.com:verilator/verilator.git
-cd verilator
-git checkout stable
 
-autoconf
-./configure
-make -j
-
-export VERILATOR_ROOT=$PWD 
-export PATH=$VERILATOR_ROOT/bin:$PATH
 
 
 

@@ -35,7 +35,7 @@ jobs:
           cd verilator
           autoconf
           ./configure
-          make -j
+          make
           export VERILATOR_ROOT=$PWD
           export PATH=$VERILATOR_ROOT/bin:$PATH
 

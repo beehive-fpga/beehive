@@ -40,24 +40,20 @@ jobs:
         echo "VERILATOR_ROOT=$PWD" >> $GITHUB_ENV
         echo "PATH=$PWD/bin:$PATH" >> $GITHUB_ENV
         echo "SIM=verilator" >> $GITHUB_ENV
-        
-    - name: Source settings
-      run: |
-        cd beehive
-        source settings.sh
 
     - name: Get submodules
       uses: actions/checkout@v3
       with:
         submodules: recursive
 
-    - name: Setup experiment
+    - name: Run experiment
       run: |
+        env
+        cd beehive
+        source settings.sh
         cd cocotb_testing/udp_echo
         export SIM=verilator
         make init_fusesoc
         make gen_filelist
+        make
 
-    - name: Run experiment
-      run: make
-    

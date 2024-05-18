@@ -26,7 +26,6 @@ module tracker_read_ctrl
     ,input  logic                               width_fix_out_ctrl_last
     ,input  logic                               width_fix_in_ctrl_rdy
     ,output logic                               width_fix_in_ctrl_last
-    ,output logic                               width_fix_in_ctrl_val
 );
 
     typedef enum logic [3:0] {
@@ -57,7 +56,6 @@ module tracker_read_ctrl
   
     always_comb begin
         width_fix_in_ctrl_last = 1'b0;
-        width_fix_in_ctrl_val = 1'b0;
         ctrl_datap_store_req = 1'b0;
         ctrl_datap_store_flit_2 = 1'b0;
 

@@ -20,7 +20,6 @@ module simple_log_udp_noc_read_datap #(
     ,input  logic   [ADDR_W-1:0]                curr_wr_addr
     ,input  logic                               has_wrapped
 
-    ,input  logic                               ctrl_datap_store_hdr
     ,input  logic                               ctrl_datap_store_meta
     ,input  logic                               ctrl_datap_store_req
     ,input  logic                               ctrl_datap_store_log_resp

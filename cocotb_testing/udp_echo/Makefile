@@ -10,6 +10,11 @@ TOPLEVEL_LANG ?= verilog
 VERILOG_SOURCES += $(PWD)/udp_echo_top_gen.sv
 COMPILE_ARGS += -f $(PWD)/test_udp_echo.flist
 
+ifeq "$(SIM)" "verilator"
+	COMPILE_ARGS += -Wno-UNOPTFLAT -Wno-CASEINCOMPLETE -Wno-WIDTHEXPAND -Wno-WIDTHTRUNC -Wno-SELRANGE -Wno-MODDUP -Wno-IMPLICIT
+endif
+
+
 SIM_ARGS = -voptargs=+acc
 # SCRIPT_FILE = wave.do
 # use VHDL_SOURCES for VHDL files

@@ -189,6 +189,7 @@ endgenerate
         ,.eth_format_dst_eth_hdr        (eth_format_eth_rx_out_eth_hdr          )
         ,.eth_format_dst_data_size      (eth_format_eth_rx_out_data_size        )
         ,.eth_format_dst_hdr_val        (eth_format_eth_rx_out_hdr_val          )
+        ,.eth_format_dst_timestamp      ()
         ,.dst_eth_format_hdr_rdy        (eth_rx_out_eth_format_hdr_rdy          )
 
         ,.eth_format_dst_data_val       (eth_format_eth_rx_out_data_val         )

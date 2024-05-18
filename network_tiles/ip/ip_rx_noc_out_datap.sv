@@ -68,7 +68,7 @@ import tracker_pkg::*;
             timestamp_reg <= '0;
         end
         else begin
-            ip_hdr_reg = ip_hdr_next;
+            ip_hdr_reg <= ip_hdr_next;
             timestamp_reg <= timestamp_next;
         end
     end

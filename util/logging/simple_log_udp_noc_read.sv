@@ -55,7 +55,6 @@ module simple_log_udp_noc_read #(
         ,.curr_wr_addr                  (curr_wr_addr                   )
         ,.has_wrapped                   (has_wrapped                    )
 
-        ,.ctrl_datap_store_hdr          (ctrl_datap_store_hdr           )
         ,.ctrl_datap_store_meta         (ctrl_datap_store_meta          )
         ,.ctrl_datap_store_req          (ctrl_datap_store_req           )
         ,.ctrl_datap_store_log_resp     (ctrl_datap_store_log_resp      )

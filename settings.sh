@@ -1,7 +1,2 @@
 export BEEHIVE_PROJECT_ROOT=$PWD
-BUCKFAST_DIR=$BEEHIVE_PROJECT_ROOT/protocols/tcp_hw
-
-cd $BUCKFAST_DIR
-source settings.sh
-cd $BEEHIVE_PROJECT_ROOT
 

@@ -114,7 +114,7 @@ print(router_wires)
         ,.reset     (rst)
 
         //val/rdy interface
-`        ,.src_vrtoc_data    (rewrite_vrtoc_data_noc0_data   )
+        ,.src_vrtoc_data    (rewrite_vrtoc_data_noc0_data   )
         ,.src_vrtoc_val     (rewrite_vrtoc_data_noc0_val    )
         ,.vrtoc_src_rdy     (vrtoc_rewrite_data_noc0_rdy    )
 

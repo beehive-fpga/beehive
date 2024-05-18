@@ -41,7 +41,7 @@ jobs:
     - name: Debug 2
       run: |
         echo $VERILATOR_ROOT 
-        pwc
+        pwd
 
     - name: Check cache hit
       if: steps.cache.outputs.cache-hit != 'true'

@@ -49,6 +49,7 @@ jobs:
     - name: Run experiment
       run: |
         env
+        pwd
         ls
         cd beehive
         ls

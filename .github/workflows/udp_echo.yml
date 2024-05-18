@@ -34,8 +34,8 @@ jobs:
       run: |
         ls
         pwd
-        echo "VERILATOR_ROOT=$PWD" >> $GITHUB_ENV
-        echo "PATH=$PWD/bin:$PATH" >> $GITHUB_ENV
+        echo "VERILATOR_ROOT=${PWD}/verilator" >> $GITHUB_ENV
+        echo "PATH=${PWD}/verilator/bin:$PATH" >> $GITHUB_ENV
         echo "SIM=verilator" >> $GITHUB_ENV
 
     - name: Debug 2

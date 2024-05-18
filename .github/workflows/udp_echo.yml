@@ -58,5 +58,5 @@ jobs:
         make gen_filelist
 
     - name: Run experiment
-      run: make
+      run: make SIM=verilator
     

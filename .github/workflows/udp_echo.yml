@@ -5,6 +5,11 @@ on:
     - cron: '0 7 * * *'  # Triggers the workflow daily at midnight PST/7 AM UTC
   workflow_dispatch:
 
+env:        
+  VERILATOR_ROOT: $GITHUB_WORKSPACE/verilator
+  PATH: $VERILATOR_ROOT/bin:$PATH
+  SIM: verilator
+
 jobs: 
   test-udp-echo-sanity:
     runs-on: ubuntu-latest
@@ -37,8 +42,7 @@ jobs:
     - name: Setup env variables
       run: |
         cd verilator
-        export VERILATOR_ROOT=$PWD
-        export PATH=$VERILATOR_ROOT/bin:$PATH
+
         cd ..
 
     - name: Source settings

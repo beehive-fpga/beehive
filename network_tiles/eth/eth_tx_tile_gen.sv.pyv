@@ -338,6 +338,7 @@ print(router_wires)
         ,.src_eth_hdrtostream_eth_hdr_val   (eth_tx_in_eth_tostream_eth_hdr_val     )
         ,.src_eth_hdrtostream_eth_hdr       (eth_tx_in_eth_tostream_eth_hdr         )
         ,.src_eth_hdrtostream_payload_len   (eth_tx_in_eth_tostream_payload_len     )
+        ,.src_eth_hdrtostream_timestamp     ('0)
         ,.eth_hdrtostream_src_eth_hdr_rdy   (eth_tostream_eth_tx_in_eth_hdr_rdy     )
     
         ,.src_eth_hdrtostream_data_val      (eth_tx_in_eth_tostream_data_val        )
@@ -353,6 +354,9 @@ print(router_wires)
         ,.eth_hdrtostream_dst_data          (engine_mac_tx_data                     )
         ,.eth_hdrtostream_dst_data_padbytes (engine_mac_tx_padbytes                 )
         ,.dst_eth_hdrtostream_data_rdy      (mac_engine_tx_rdy                      )
+
+        ,.eth_lat_wr_val                    ()
+        ,.eth_lat_wr_timestamp              ()
     );
 
 endmodule

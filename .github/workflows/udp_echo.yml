@@ -10,7 +10,9 @@ jobs:
     runs-on: ubuntu-latest
     steps: 
     - name: Checkout repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
+      with: 
+        path: beehive
 
     - name: Setup Python 3.9
       uses: actions/setup-python@v4
@@ -20,6 +22,22 @@ jobs:
     - name: Setup dependencies
       run: |
         ./ci/dependencies.sh
+
+    - name: Setup Verilator
+      uses: actions/checkout@v4
+      with:
+        repository: verilator/verilator
+        ref: stable
+        path: verilator
+
+    - name: Build Verilator
+      run: |
+          cd verilator
+          autoconf
+          ./configure
+          make -j
+          export VERILATOR_ROOT=$PWD
+          export PATH=$VERILATOR_ROOT/bin:$PATH
 
     - name: Source settings
       run: source settings.sh

@@ -39,8 +39,9 @@ jobs:
         echo "SIM=verilator" >> $GITHUB_ENV
 
     - name: Debug 2
-      run:
-        env
+      run: |
+        echo $VERILATOR_ROOT 
+        pwc
 
     - name: Check cache hit
       if: steps.cache.outputs.cache-hit != 'true'
@@ -54,10 +55,6 @@ jobs:
     - name: Run experiment
       run: |
         pwd
-        ls
-        cd verilator
-
-        cd beehive
         ls
         ls $VERILATOR_ROOT
         ls $VERILATOR_ROOT/bin

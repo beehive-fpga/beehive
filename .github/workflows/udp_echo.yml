@@ -38,7 +38,7 @@ jobs:
       run: |
         cd verilator
         echo "VERILATOR_ROOT=$GITHUB_WORKSPACE/verilator" >> $GITHUB_ENV
-        echo "PATH=$VERILATOR_ROOT/bin:$PATH" >> $GITHUB_ENV
+        echo "PATH=$GITHUB_WORKSPACE/verilator/bin:$PATH" >> $GITHUB_ENV
         echo "SIM=verilator" >> $GITHUB_ENV
         cd ..
 

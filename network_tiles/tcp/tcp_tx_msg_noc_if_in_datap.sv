@@ -24,11 +24,11 @@ import tcp_misc_pkg::*;
     tcp_noc_hdr_flit hdr_flit_reg;
     tcp_noc_hdr_flit hdr_flit_next;
 
-    assign app_tail_ptr_tx_wr_req_addr = hdr_flit_reg.flowid;
-    assign app_tail_ptr_tx_wr_req_data = hdr_flit_reg.tail_ptr;
+    assign app_tail_ptr_tx_wr_req_addr = hdr_flit_reg.inner.flowid;
+    assign app_tail_ptr_tx_wr_req_data = hdr_flit_reg.inner.tail_ptr;
 
-    assign noc_if_poller_msg_req_flowid = hdr_flit_reg.flowid;
-    assign noc_if_poller_msg_req_len = hdr_flit_reg.length;
+    assign noc_if_poller_msg_req_flowid = hdr_flit_reg.inner.flowid;
+    assign noc_if_poller_msg_req_len = hdr_flit_reg.inner.length;
     assign noc_if_poller_msg_dst_x = hdr_flit_reg.core.src_x_coord;
     assign noc_if_poller_msg_dst_y = hdr_flit_reg.core.src_y_coord;
     assign noc_if_poller_msg_dst_fbits = hdr_flit_reg.core.src_fbits;
@@ -42,7 +42,7 @@ import tcp_misc_pkg::*;
                         : hdr_flit_reg;
 
     sched_req_fill req_fill (
-         .flowid        (hdr_flit_reg.flowid[FLOWID_W-1:0]  )
+         .flowid        (hdr_flit_reg.inner.flowid[FLOWID_W-1:0]  )
         ,.filled_req    (app_sched_update_cmd               )
     ); 
 

@@ -1,12 +1,14 @@
 `include "ip_rx_tile_defs.svh"
-module ip_rx_noc_in_datap (
+module ip_rx_noc_in_datap 
+    import tracker_pkg::*;
+(
      input clk
     ,input rst
     
     ,input          [`NOC_DATA_WIDTH-1:0]       noc0_ctovr_ip_rx_in_data
 
     ,output logic   [`MAC_INTERFACE_W-1:0]      ip_rx_in_ip_format_rx_data
-    ,output logic   [MSG_TIMESTAMP_W-1:0]       ip_rx_in_ip_format_rx_timestamp
+    ,output tracker_stats_struct                ip_rx_in_ip_format_rx_timestamp
     ,output logic                               ip_rx_in_ip_format_rx_last
     ,output logic   [`MAC_PADBYTES_W-1:0]       ip_rx_in_ip_format_rx_padbytes
     
@@ -39,7 +41,8 @@ module ip_rx_noc_in_datap (
     assign ip_rx_in_ip_format_rx_padbytes = eth_metadata_flit_reg.eth_data_len[`NOC_DATA_BYTES_W-1:0] == '0
                                         ? '0
                                         : `NOC_DATA_BYTES - eth_metadata_flit_reg.eth_data_len[`NOC_DATA_BYTES_W-1:0];
-    assign ip_rx_in_ip_format_rx_timestamp = eth_metadata_flit_reg.timestamp;
+    assign ip_rx_in_ip_format_rx_timestamp.packet_id = hdr_flit_reg.core.packet_id;
+    assign ip_rx_in_ip_format_rx_timestamp.timestamp = hdr_flit_reg.core.timestamp;
 
     always_ff @(posedge clk) begin
         if (rst) begin
@@ -78,7 +81,7 @@ module ip_rx_noc_in_datap (
 
     always_comb begin
         if (ctrl_datap_init_data) begin
-            data_flits_next = hdr_flit_next.core.msg_len - hdr_flit_next.core.metadata_flits;
+            data_flits_next = hdr_flit_next.core.core.msg_len - hdr_flit_next.core.metadata_flits;
         end
         else if (ctrl_datap_decr_data_flits) begin
             data_flits_next = data_flits_reg - 1'b1;

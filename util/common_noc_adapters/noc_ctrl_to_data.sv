@@ -195,7 +195,7 @@ module noc_ctrl_to_data (
         wide_hdr_flit = '0;
         wide_hdr_flit[`NOC_DATA_WIDTH-1 -: (2 * `CTRL_NOC1_DATA_W)] = 
             {narrow_hdr_flit_1_reg, narrow_hdr_flit_2_reg};
-        wide_hdr_flit.core.msg_len = (narrow_hdr_flit_1_reg.msg_len - 1) >> FLIT_SHIFT;
+        wide_hdr_flit.core.core.msg_len = (narrow_hdr_flit_1_reg.msg_len - 1) >> FLIT_SHIFT;
         wide_hdr_flit.core.metadata_flits = (narrow_hdr_flit_2_reg.metadata_flits) >> FLIT_SHIFT;
     end
 endmodule

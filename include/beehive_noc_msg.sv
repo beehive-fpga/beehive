@@ -6,12 +6,9 @@ package beehive_noc_msg;
     // this is a localparam, because I really don't want a literal insertion of all this
     // junk in something as a macro
     // This evaluates to 184 with default values
-    localparam BASE_FLIT_W = `MSG_DST_CHIPID_WIDTH + `MSG_DST_X_WIDTH + `MSG_DST_Y_WIDTH +
-                             `MSG_DST_FBITS_WIDTH + `MSG_LENGTH_WIDTH + `MSG_TYPE_WIDTH +
-                             `MSG_SRC_CHIPID_WIDTH + `MSG_SRC_X_WIDTH + `MSG_SRC_Y_WIDTH +
-                             `MSG_SRC_FBITS_WIDTH + MSG_METADATA_FLITS_W;
     localparam MSG_TIMESTAMP_W = 64;
     localparam MAX_FLOWID_W = 20;
+
 
     // the base header flit. this should be a member of a larger flit structure
     typedef struct packed {
@@ -25,8 +22,34 @@ package beehive_noc_msg;
         logic   [`MSG_SRC_X_WIDTH-1:0]      src_x_coord;
         logic   [`MSG_SRC_Y_WIDTH-1:0]      src_y_coord;
         logic   [`MSG_SRC_FBITS_WIDTH-1:0]  src_fbits;
-        logic   [MSG_METADATA_FLITS_W-1:0]  metadata_flits;
     } base_noc_hdr_flit;
+
+    localparam BASE_FLIT_W = $bits(base_noc_hdr_flit);
+
+
+    localparam PACKET_ID_W = 64;
+
+    typedef struct packed {
+        logic   [`MSG_DST_X_WIDTH-1:0]  x_src;
+        logic   [`MSG_DST_Y_WIDTH-1:0]  y_src;
+    } origin_struct;
+    localparam ORIGIN_ID_W = $bits(origin_struct);
+    
+    localparam PACKET_NUM_W = 64 - ORIGIN_ID_W;
+
+
+    typedef struct packed {
+        origin_struct               origin;
+        logic   [PACKET_NUM_W-1:0]  packet_num;
+    } packet_id_struct;
+    
+    typedef struct packed {
+        base_noc_hdr_flit   core;
+        logic   [MSG_METADATA_FLITS_W-1:0]      metadata_flits;
+        packet_id_struct                        packet_id;
+        logic   [MSG_TIMESTAMP_W-1:0]           timestamp;
+    } data_noc_hdr_flit;
+    localparam DATA_NOC_HDR_FLIT_W = $bits(data_noc_hdr_flit);
 
     typedef struct packed {
         logic   [`MSG_ADDR_WIDTH-1:0]       addr;
@@ -44,10 +67,10 @@ package beehive_noc_msg;
 
 
     // use this flit if you don't have protocol specific data to send
-    `define BASIC_HDR_PADDING_W (`NOC_DATA_WIDTH - BASE_FLIT_W)
+    localparam BASIC_HDR_PADDING_W =  (`NOC_DATA_WIDTH - DATA_NOC_HDR_FLIT_W);
     typedef struct packed {
-        base_noc_hdr_flit                   core;
-        logic   [`BASIC_HDR_PADDING_W-1:0]  padding;
+        data_noc_hdr_flit                   core;
+        logic   [BASIC_HDR_PADDING_W-1:0]   padding;
     } beehive_noc_hdr_flit;
 
     localparam [`MSG_TYPE_WIDTH-1:0]    ETH_RX_FRAME = `MSG_TYPE_WIDTH'd12;
@@ -68,6 +91,8 @@ package beehive_noc_msg;
     localparam [`MSG_TYPE_WIDTH-1:0]    TCP_TX_ADJUST_PTR = `MSG_TYPE_WIDTH'd11;
     
     localparam [`MSG_TYPE_WIDTH-1:0]    IP_REWRITE_ADJUST_TABLE = `MSG_TYPE_WIDTH'd15;
+
+    localparam [`MSG_TYPE_WIDTH-1:0]    TRACKER_MSG = `MSG_TYPE_WIDTH'd16;
     
     localparam PKT_IF_FBITS = {1'b1, {(`NOC_FBITS_WIDTH-1){1'd0}}};
 endpackage

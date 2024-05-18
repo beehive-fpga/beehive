@@ -1,5 +1,7 @@
 `include "eth_tx_tile_defs.svh"
-module eth_tx_noc_in_datap (
+module eth_tx_noc_in_datap 
+import tracker_pkg::*;    
+(
      input clk
     ,input rst
     
@@ -7,7 +9,7 @@ module eth_tx_noc_in_datap (
     
     ,output eth_hdr                             eth_tx_in_eth_tostream_eth_hdr
     ,output logic   [`MTU_SIZE_W-1:0]           eth_tx_in_eth_tostream_payload_len
-    ,output logic   [MSG_TIMESTAMP_W-1:0]       eth_tx_in_eth_tostream_timestamp
+    ,output tracker_stats_struct                eth_tx_in_eth_tostream_timestamp
 
     ,output logic   [`MAC_INTERFACE_W-1:0]      eth_tx_in_eth_tostream_data
     ,output logic                               eth_tx_in_eth_tostream_data_last
@@ -49,7 +51,7 @@ module eth_tx_noc_in_datap (
     assign eth_hdr_cast.src = meta_flit_next.eth_src;
     assign eth_hdr_cast.eth_type = meta_flit_next.eth_type;
     assign eth_tx_in_eth_tostream_payload_len = meta_flit_next.payload_size;
-    assign eth_tx_in_eth_tostream_timestamp = meta_flit_next.timestamp;
+    assign eth_tx_in_eth_tostream_timestamp = hdr_flit_reg.core.timestamp;
 
 
     always_ff @(posedge clk) begin
@@ -75,7 +77,7 @@ module eth_tx_noc_in_datap (
 
     always_comb begin
         if (ctrl_datap_init_num_flits) begin
-            flits_remaining_next = hdr_flit_next.core.msg_len;
+            flits_remaining_next = hdr_flit_next.core.core.msg_len;
         end
         else if (ctrl_datap_decr_num_flits) begin
             flits_remaining_next = flits_remaining_reg - 1'b1;

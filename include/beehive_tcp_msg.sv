@@ -26,17 +26,21 @@ package beehive_tcp_msg;
 
     localparam MAX_PAYLOAD_PTR_W = 32;
     // this is a TCP specific NoC flit
-    localparam TCP_EXTRA_W = MAX_FLOWID_W + ((MAX_PAYLOAD_PTR_W + 1) * 3);
-    localparam TCP_HDR_FLIT_W = BASE_FLIT_W + TCP_EXTRA_W;
-    localparam TCP_HDR_FLIT_PAD_W = `NOC_DATA_WIDTH - TCP_HDR_FLIT_W;
-
     typedef struct packed {
-        base_noc_hdr_flit                   core;
         logic   [MAX_FLOWID_W-1:0]          flowid;
         logic   [MAX_PAYLOAD_PTR_W:0]       length; 
         // these need to be one bit longer to save the wrap-around bit
         logic   [MAX_PAYLOAD_PTR_W:0]       head_ptr;
         logic   [MAX_PAYLOAD_PTR_W:0]       tail_ptr;
+    } tcp_flit_inner;
+    localparam TCP_FLIT_INNER_W = $bits(tcp_flit_inner);
+    
+    localparam TCP_HDR_FLIT_PAD_W = `NOC_DATA_WIDTH - BASE_FLIT_W - TCP_FLIT_INNER_W;
+    localparam TCP_EXTRA_W = TCP_FLIT_INNER_W;
+
+    typedef struct packed {
+        base_noc_hdr_flit                   core;
+        tcp_flit_inner                      inner;
         logic   [TCP_HDR_FLIT_PAD_W-1:0]    padding;
     } tcp_noc_hdr_flit;
 

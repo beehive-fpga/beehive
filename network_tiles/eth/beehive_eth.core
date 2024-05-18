@@ -13,9 +13,6 @@ filesets:
             - eth_rx_noc_out_ctrl.sv
             - eth_rx_noc_out_datap.sv
             - eth_rx_noc_in.sv
-            - eth_rx_noc_out.sv
-            - eth_rx_noc_out_ctrl.sv
-            - eth_rx_noc_out_datap.sv
             - eth_tx_noc_in.sv
             - eth_tx_noc_in_ctrl.sv
             - eth_tx_noc_in_datap.sv

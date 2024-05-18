@@ -1,6 +1,8 @@
 `include "udp_rx_tile_defs.svh"
 
-module udp_rx_noc_in (
+module udp_rx_noc_in 
+    import tracker_pkg::*;
+(
      input clk
     ,input rst
     
@@ -12,7 +14,7 @@ module udp_rx_noc_in (
     ,output logic   [`IP_ADDR_W-1:0]        udp_rx_in_udp_formatter_rx_src_ip
     ,output logic   [`IP_ADDR_W-1:0]        udp_rx_in_udp_formatter_rx_dst_ip
     ,output logic   [`TOT_LEN_W-1:0]        udp_rx_in_udp_formatter_rx_udp_len
-    ,output logic   [MSG_TIMESTAMP_W-1:0]   udp_rx_in_udp_formatter_rx_timestamp
+    ,output tracker_stats_struct            udp_rx_in_udp_formatter_rx_timestamp
     ,input  logic                           udp_formatter_udp_rx_in_rx_hdr_rdy
 
     ,output logic                           udp_rx_in_udp_formatter_rx_data_val

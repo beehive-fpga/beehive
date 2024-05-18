@@ -34,8 +34,8 @@ module hdr_flit_modify
 
     always_comb begin
         hdr_flit_cast = src_mod_data_data;
-        hdr_flit_cast.core.dst_x_coord = src_mod_new_dst.x_coord;
-        hdr_flit_cast.core.dst_y_coord = src_mod_new_dst.y_coord;
+        hdr_flit_cast.core.core.dst_x_coord = src_mod_new_dst.x_coord;
+        hdr_flit_cast.core.core.dst_y_coord = src_mod_new_dst.y_coord;
     end
 
     assign mod_dst_data = state_reg == HDR_FLIT

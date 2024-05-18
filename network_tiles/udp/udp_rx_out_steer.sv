@@ -46,7 +46,7 @@ module udp_rx_out_steer (
         ,.dst_sel_one_hot           (dst_sel                    )
     );
 
-    assign dst_sel = splitter_data_line.core.dst_fbits == PKT_IF_FBITS
+    assign dst_sel = splitter_data_line.core.core.dst_fbits == PKT_IF_FBITS
                     ? 2'b01
                     : 2'b10;
 

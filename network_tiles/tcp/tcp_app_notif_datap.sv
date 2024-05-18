@@ -77,7 +77,7 @@ module tcp_app_notif_datap #(
 
         tcp_hdr_flit.core.msg_type = TCP_NEW_FLOW_NOTIF;
 
-        tcp_hdr_flit.flowid = flowid_reg;
+        tcp_hdr_flit.inner.flowid = flowid_reg;
     end
 
 endmodule

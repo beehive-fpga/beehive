@@ -1,5 +1,7 @@
 `include "udp_tx_tile_defs.svh"
-module udp_tx_noc_out_copy #(
+module udp_tx_noc_out_copy 
+import tracker_pkg::*;
+#(
      parameter SRC_X = -1
     ,parameter SRC_Y = -1
 )(
@@ -15,7 +17,7 @@ module udp_tx_noc_out_copy #(
     ,input  logic   [`IP_ADDR_W-1:0]        udp_to_stream_udp_tx_out_dst_ip
     ,input  logic   [`TOT_LEN_W-1:0]        udp_to_stream_udp_tx_out_udp_len
     ,input  logic   [`PROTOCOL_W-1:0]       udp_to_stream_udp_tx_out_protocol
-    ,input  logic   [MSG_TIMESTAMP_W-1:0]   udp_to_stream_udp_tx_out_timestamp
+    ,input  tracker_stats_struct            udp_to_stream_udp_tx_out_timestamp
     ,output                                 udp_tx_out_udp_to_stream_hdr_rdy
     
     ,input  logic                           udp_to_stream_udp_tx_out_val

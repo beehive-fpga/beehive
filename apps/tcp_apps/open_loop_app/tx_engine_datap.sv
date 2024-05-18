@@ -122,8 +122,8 @@ import beehive_tcp_msg::*;
     always_comb begin
         notif_next = notif_reg;
         if (ctrl_datap_store_notif) begin
-            notif_next.ptr = notif_hdr_flit_cast.tail_ptr;
-            notif_next.len = notif_hdr_flit_cast.length;
+            notif_next.ptr = notif_hdr_flit_cast.inner.tail_ptr;
+            notif_next.len = notif_hdr_flit_cast.inner.length;
         end
     end
 
@@ -145,9 +145,9 @@ import beehive_tcp_msg::*;
         hdr_flit_cast.core.src_y_coord = SRC_Y;
         hdr_flit_cast.core.src_fbits = TX_IF_FBITS;
 
-        hdr_flit_cast.flowid = send_q_data_reg.flowid;
-        hdr_flit_cast.length = payload_len;
-        hdr_flit_cast.tail_ptr = (ctrl_datap_out_mux_sel == PTR_UPDATE) 
+        hdr_flit_cast.inner.flowid = send_q_data_reg.flowid;
+        hdr_flit_cast.inner.length = payload_len;
+        hdr_flit_cast.inner.tail_ptr = (ctrl_datap_out_mux_sel == PTR_UPDATE) 
                                 ? notif_reg.ptr + payload_len
                                 : '0;
     end

@@ -1,6 +1,3 @@
-[submodule "tcp_hw"]
-	path = protocols/tcp_hw
-	url = git@github.com:beehive-fpga/tcp_hw.git
 [submodule "sha256_mrp_tile/sha256_avocados"]
 	path = apps/sha256_mrp_tile/sha256_avocados
 	url = git@github.com:beehive-fpga/sha256_avocados.git
@@ -20,6 +17,7 @@
 	path = apps/beehive-vr-tile/beehive-vr
 	url = git@github.com:beehive-fpga/beehive-vr.git
 [submodule "protocols/tcp_hw"]
+	path = protocols/tcp_hw
 	url = git@github.com:beehive-fpga/tcp_hw.git
 [submodule "apps/rs_encode_mrp_tile/rs_encode_mrp"]
 	url = git@github.com:beehive-fpga/rs_encode_mrp.git

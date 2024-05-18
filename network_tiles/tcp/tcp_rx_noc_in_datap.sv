@@ -56,7 +56,7 @@ module tcp_rx_noc_in_datap (
 
     always_comb begin
         if (ctrl_datap_init_num_flits) begin
-            flits_remaining_next = hdr_flit_next.core.msg_len;
+            flits_remaining_next = hdr_flit_next.core.core.msg_len;
         end
         else if (ctrl_datap_decr_num_flits) begin
             flits_remaining_next = flits_remaining_reg - 1'b1;

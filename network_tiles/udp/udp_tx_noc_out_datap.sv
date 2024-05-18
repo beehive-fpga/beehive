@@ -1,5 +1,7 @@
 `include "udp_tx_tile_defs.svh"
-module udp_tx_noc_out_datap #(
+module udp_tx_noc_out_datap 
+    import tracker_pkg::*;
+#(
      parameter SRC_X = -1
     ,parameter SRC_Y = -1
 )(
@@ -12,7 +14,7 @@ module udp_tx_noc_out_datap #(
     ,input  logic   [`IP_ADDR_W-1:0]                udp_to_stream_udp_tx_out_dst_ip
     ,input  logic   [`TOT_LEN_W-1:0]                udp_to_stream_udp_tx_out_udp_len
     ,input  logic   [`PROTOCOL_W-1:0]               udp_to_stream_udp_tx_out_protocol
-    ,input  logic   [MSG_TIMESTAMP_W-1:0]           udp_to_stream_udp_tx_out_timestamp
+    ,input  tracker_stats_struct                    udp_to_stream_udp_tx_out_timestamp
 
     ,input  logic   [`XY_WIDTH-1:0]                 src_udp_tx_out_dst_x
     ,input  logic   [`XY_WIDTH-1:0]                 src_udp_tx_out_dst_y
@@ -36,13 +38,13 @@ module udp_tx_noc_out_datap #(
     logic   [`IP_ADDR_W-1:0]        dst_ip_reg;
     logic   [`TOT_LEN_W-1:0]        udp_len_reg;
     logic   [`PROTOCOL_W-1:0]       protocol_reg;
-    logic   [MSG_TIMESTAMP_W-1:0]   pkt_timestamp_reg;
+    tracker_stats_struct            pkt_timestamp_reg;
 
     logic   [`IP_ADDR_W-1:0]        src_ip_next;
     logic   [`IP_ADDR_W-1:0]        dst_ip_next;
     logic   [`TOT_LEN_W-1:0]        udp_len_next;
     logic   [`PROTOCOL_W-1:0]       protocol_next;
-    logic   [MSG_TIMESTAMP_W-1:0]   pkt_timestamp_next;
+    tracker_stats_struct            pkt_timestamp_next;
 
     always_ff @(posedge clk) begin
         if (rst) begin
@@ -100,15 +102,19 @@ module udp_tx_noc_out_datap #(
         hdr_flit = '0;
 
         // we always send thru IP
-        hdr_flit.core.dst_x_coord = src_udp_tx_out_dst_x;
-        hdr_flit.core.dst_y_coord = src_udp_tx_out_dst_y;
+        hdr_flit.core.core.dst_x_coord = src_udp_tx_out_dst_x;
+        hdr_flit.core.core.dst_y_coord = src_udp_tx_out_dst_y;
 
         // there's one metadata flit and then some number of data flits
-        hdr_flit.core.msg_len = 1 + num_data_flits;
-        hdr_flit.core.src_x_coord = SRC_X[`XY_WIDTH-1:0];
-        hdr_flit.core.src_y_coord = SRC_Y[`XY_WIDTH-1:0];
+        hdr_flit.core.core.msg_len = 1 + num_data_flits;
+        hdr_flit.core.core.src_x_coord = SRC_X[`XY_WIDTH-1:0];
+        hdr_flit.core.core.src_y_coord = SRC_Y[`XY_WIDTH-1:0];
+        hdr_flit.core.core.msg_type = IP_TX_DATAGRAM;
+
+        hdr_flit.core.packet_id = pkt_timestamp_reg.packet_id;
+        hdr_flit.core.timestamp = pkt_timestamp_reg.timestamp;
+        
         hdr_flit.core.metadata_flits = 1;
-        hdr_flit.core.msg_type = IP_TX_DATAGRAM;
     end
 
     always_comb begin
@@ -117,7 +123,6 @@ module udp_tx_noc_out_datap #(
         meta_flit.dst_ip = dst_ip_reg;
         meta_flit.data_payload_len = udp_len_reg;
         meta_flit.protocol = protocol_reg;
-        meta_flit.timestamp = pkt_timestamp_reg;
     end
 
 endmodule

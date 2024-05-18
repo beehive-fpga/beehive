@@ -20,11 +20,11 @@ module tcp_rx_msg_noc_if_in_datap (
     tcp_noc_hdr_flit hdr_flit_reg;
     tcp_noc_hdr_flit hdr_flit_next;
 
-    assign app_rx_head_ptr_wr_req_addr = hdr_flit_reg.flowid;
-    assign app_rx_head_ptr_wr_req_data = hdr_flit_reg.head_ptr;
+    assign app_rx_head_ptr_wr_req_addr = hdr_flit_reg.inner.flowid;
+    assign app_rx_head_ptr_wr_req_data = hdr_flit_reg.inner.head_ptr;
 
-    assign noc_if_poller_msg_req_flowid = hdr_flit_reg.flowid;
-    assign noc_if_poller_msg_req_len = hdr_flit_reg.length;
+    assign noc_if_poller_msg_req_flowid = hdr_flit_reg.inner.flowid;
+    assign noc_if_poller_msg_req_len = hdr_flit_reg.inner.length;
     assign noc_if_poller_msg_dst_x = hdr_flit_reg.core.src_x_coord;
     assign noc_if_poller_msg_dst_y = hdr_flit_reg.core.src_y_coord;
     assign noc_if_poller_msg_dst_fbits = hdr_flit_reg.core.src_fbits;

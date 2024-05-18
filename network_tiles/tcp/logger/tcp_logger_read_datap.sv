@@ -37,7 +37,7 @@ module tcp_logger_read_datap #(
     log_entry_struct        entry_reg;
     log_entry_struct        entry_next;
     
-    udp_noc_hdr_flit        resp_hdr_flit_cast;
+    beehive_noc_hdr_flit        resp_hdr_flit_cast;
     udp_tx_metadata_flit    resp_meta_flit_cast;
     log_rd_resp_flit        log_resp_cast;
 
@@ -108,15 +108,15 @@ module tcp_logger_read_datap #(
     always_comb begin
         resp_hdr_flit_cast = '0;
 
-        resp_hdr_flit_cast.core.dst_x_coord = UDP_TX_TILE_X[`XY_WIDTH-1:0];
-        resp_hdr_flit_cast.core.dst_y_coord = UDP_TX_TILE_Y[`XY_WIDTH-1:0];
+        resp_hdr_flit_cast.core.core.dst_x_coord = UDP_TX_TILE_X[`XY_WIDTH-1:0];
+        resp_hdr_flit_cast.core.core.dst_y_coord = UDP_TX_TILE_Y[`XY_WIDTH-1:0];
 
         // 1 metadata flit, one response flit
-        resp_hdr_flit_cast.core.msg_len = 2;
-        resp_hdr_flit_cast.core.src_x_coord = SRC_X[`XY_WIDTH-1:0];
-        resp_hdr_flit_cast.core.src_y_coord = SRC_Y[`XY_WIDTH-1:0];
+        resp_hdr_flit_cast.core.core.msg_len = 2;
+        resp_hdr_flit_cast.core.core.src_x_coord = SRC_X[`XY_WIDTH-1:0];
+        resp_hdr_flit_cast.core.core.src_y_coord = SRC_Y[`XY_WIDTH-1:0];
+        resp_hdr_flit_cast.core.core.msg_type = UDP_TX_SEGMENT;
         resp_hdr_flit_cast.core.metadata_flits = 1;
-        resp_hdr_flit_cast.core.msg_type = UDP_TX_SEGMENT;
     end
 
 endmodule

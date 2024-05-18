@@ -1,5 +1,7 @@
 `include "ip_rx_tile_defs.svh"
-module ip_rx_noc_out_datap #(
+module ip_rx_noc_out_datap 
+import tracker_pkg::*;
+#(
      parameter SRC_X = -1
     ,parameter SRC_Y = -1
 )(
@@ -7,7 +9,7 @@ module ip_rx_noc_out_datap #(
     ,input rst
     
     ,input  ip_pkt_hdr                              ip_format_ip_rx_out_rx_ip_hdr
-    ,input          [MSG_TIMESTAMP_W-1:0]           ip_format_ip_rx_out_rx_timestamp
+    ,input  tracker_stats_struct                    ip_format_ip_rx_out_rx_timestamp
 
     ,input  logic   [`MAC_INTERFACE_W-1:0]          ip_format_ip_rx_out_rx_data
     ,input  logic                                   ip_format_ip_rx_out_rx_last
@@ -27,8 +29,8 @@ module ip_rx_noc_out_datap #(
     ip_pkt_hdr ip_hdr_reg;
     ip_pkt_hdr ip_hdr_next;
 
-    logic   [MSG_TIMESTAMP_W-1:0]   timestamp_reg;
-    logic   [MSG_TIMESTAMP_W-1:0]   timestamp_next;
+    tracker_stats_struct   timestamp_reg;
+    tracker_stats_struct   timestamp_next;
 
     beehive_noc_hdr_flit    hdr_flit;
     ip_rx_metadata_flit     meta_flit;
@@ -97,20 +99,24 @@ module ip_rx_noc_out_datap #(
     always_comb begin
         hdr_flit = '0;
 
-        hdr_flit.core.dst_x_coord = dst_x;
-        hdr_flit.core.dst_y_coord = dst_y;
-        hdr_flit.core.dst_fbits = PKT_IF_FBITS;
+        hdr_flit.core.core.dst_x_coord = dst_x;
+        hdr_flit.core.core.dst_y_coord = dst_y;
+        hdr_flit.core.core.dst_fbits = PKT_IF_FBITS;
 
         // there's one metadata flit and then some number of data flits
-        hdr_flit.core.msg_len = 1 + num_data_flits;
-        hdr_flit.core.src_x_coord = SRC_X[`XY_WIDTH-1:0];
-        hdr_flit.core.src_y_coord = SRC_Y[`XY_WIDTH-1:0];
-        hdr_flit.core.src_fbits = PKT_IF_FBITS;
-        hdr_flit.core.metadata_flits = 1;
+        hdr_flit.core.core.msg_len = 1 + num_data_flits;
+        hdr_flit.core.core.src_x_coord = SRC_X[`XY_WIDTH-1:0];
+        hdr_flit.core.core.src_y_coord = SRC_Y[`XY_WIDTH-1:0];
+        hdr_flit.core.core.src_fbits = PKT_IF_FBITS;
 
-        hdr_flit.core.msg_type = (ip_hdr_next.protocol_no == `IPPROTO_TCP)
+        hdr_flit.core.core.msg_type = (ip_hdr_next.protocol_no == `IPPROTO_TCP)
                             ? TCP_RX_SEGMENT
                             : '0;
+
+        hdr_flit.core.packet_id = timestamp_next.packet_id;
+        hdr_flit.core.timestamp = timestamp_next.timestamp;
+        
+        hdr_flit.core.metadata_flits = 1;
     end
 
     always_comb begin
@@ -119,6 +125,5 @@ module ip_rx_noc_out_datap #(
         meta_flit.dst_ip = ip_hdr_reg.dest_addr;
         meta_flit.data_payload_len = data_size;
         meta_flit.protocol = ip_hdr_reg.protocol_no;
-        meta_flit.timestamp = timestamp_reg;
     end
 endmodule

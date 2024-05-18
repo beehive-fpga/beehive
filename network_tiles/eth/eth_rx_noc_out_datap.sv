@@ -1,6 +1,7 @@
 `include "eth_rx_tile_defs.svh"
 module eth_rx_noc_out_datap 
 import beehive_noc_msg::*;
+import tracker_pkg::*;
 #(
      parameter SRC_X = -1
     ,parameter SRC_Y = -1
@@ -19,6 +20,7 @@ import beehive_noc_msg::*;
 
     ,input  eth_rx_tile_pkg::noc_out_flit_mux_sel   ctrl_datap_flit_sel
     ,input                                          ctrl_datap_store_inputs
+    ,input  logic                                   ctrl_datap_incr_packet_num
 
     ,output logic   [`ETH_TYPE_W-1:0]               datap_cam_rd_tag
     ,input  logic   [(2 * `XY_WIDTH)-1:0]           cam_datap_rd_data
@@ -40,6 +42,9 @@ import beehive_noc_msg::*;
     logic   [`MTU_SIZE_W-1:0]           data_size_next;
 
     logic   [MSG_TIMESTAMP_W-1:0]       timestamp_reg;
+
+    logic   [PACKET_NUM_W-1:0]          packet_num_reg;
+    logic   [PACKET_NUM_W-1:0]          packet_num_next;
 
     assign {dst_x, dst_y} = cam_datap_rd_data;
 
@@ -73,9 +78,7 @@ import beehive_noc_msg::*;
             eth_rx_out_noc0_vrtoc_data = masked_data;
         end
     end
-
-
-
+    
     assign hdr_next = ctrl_datap_store_inputs
                     ? eth_format_eth_rx_out_eth_hdr
                     : hdr_reg;
@@ -84,16 +87,22 @@ import beehive_noc_msg::*;
                           ? eth_format_eth_rx_out_data_size
                           : data_size_reg;
 
+    assign packet_num_next = ctrl_datap_incr_packet_num
+                            ? packet_num_reg + 1'b1
+                            : packet_num_reg;
+
     always_ff @(posedge clk) begin
         if (rst) begin
             hdr_reg <= '0;
             data_size_reg <= '0;
             timestamp_reg <= '0;
+            packet_num_reg <= 1;
         end
         else begin
             hdr_reg <= hdr_next;
             data_size_reg <= data_size_next;
             timestamp_reg <= timestamp_reg + 1'b1;
+            packet_num_reg <= packet_num_next;
         end
     end
 
@@ -101,18 +110,23 @@ import beehive_noc_msg::*;
     always_comb begin
         hdr_flit = '0;
 
-        hdr_flit.core.dst_x_coord = dst_x;
-        hdr_flit.core.dst_y_coord = dst_y;
-        hdr_flit.core.dst_fbits = PKT_IF_FBITS;
+        hdr_flit.core.core.dst_x_coord = dst_x;
+        hdr_flit.core.core.dst_y_coord = dst_y;
+        hdr_flit.core.core.dst_fbits = PKT_IF_FBITS;
         // there's one metadata flit and then however many data flits
-        hdr_flit.core.msg_len = 1 + (num_data_flits);
-        hdr_flit.core.src_x_coord = SRC_X[`XY_WIDTH-1:0];
-        hdr_flit.core.src_y_coord = SRC_Y[`XY_WIDTH-1:0];
+        hdr_flit.core.core.msg_len = 1 + (num_data_flits);
+        hdr_flit.core.core.src_x_coord = SRC_X[`XY_WIDTH-1:0];
+        hdr_flit.core.core.src_y_coord = SRC_Y[`XY_WIDTH-1:0];
         hdr_flit.core.metadata_flits = 1;
         
-        hdr_flit.core.msg_type = (hdr_next.eth_type == `ETH_TYPE_IPV4)
+        hdr_flit.core.core.msg_type = (hdr_next.eth_type == `ETH_TYPE_IPV4)
                           ? IP_RX_DATAGRAM
                           : '0;
+
+        hdr_flit.core.packet_id.origin.x_src = SRC_X;
+        hdr_flit.core.packet_id.origin.y_src = SRC_Y;
+        hdr_flit.core.packet_id.packet_num = packet_num_reg;
+        hdr_flit.core.timestamp = timestamp_reg;
     end
 
     /* ETH metadata flit */
@@ -121,7 +135,6 @@ import beehive_noc_msg::*;
         meta_flit.eth_dst = hdr_reg.dst;
         meta_flit.eth_src = hdr_reg.src;
         meta_flit.eth_data_len = data_size_reg;
-        meta_flit.timestamp =  timestamp_reg;
     end
 
 

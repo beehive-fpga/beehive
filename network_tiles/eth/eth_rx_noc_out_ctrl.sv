@@ -15,6 +15,7 @@ module eth_rx_noc_out_ctrl(
 
     ,output eth_rx_tile_pkg::noc_out_flit_mux_sel   ctrl_datap_flit_sel
     ,output logic                                   ctrl_datap_store_inputs 
+    ,output logic                                   ctrl_datap_incr_packet_num
     
     ,output logic                                   ctrl_cam_rd_cam
     ,input  logic                                   cam_ctrl_rd_hit 
@@ -44,6 +45,7 @@ module eth_rx_noc_out_ctrl(
     always_comb begin
         ctrl_datap_store_inputs = 1'b0; 
         ctrl_datap_flit_sel = eth_rx_tile_pkg::SEL_HDR_FLIT;
+        ctrl_datap_incr_packet_num = 1'b0;
 
         ctrl_cam_rd_cam = 1'b0;
 
@@ -71,9 +73,6 @@ module eth_rx_noc_out_ctrl(
                         state_next = DROP_PKT;
                     end
                 end
-                else begin
-                    state_next = READY;
-                end
             end
             METADATA_FLIT_OUT: begin
                 ctrl_datap_flit_sel = eth_rx_tile_pkg::SEL_META_FLIT;
@@ -94,6 +93,7 @@ module eth_rx_noc_out_ctrl(
 
                 if (noc0_vrtoc_eth_rx_out_rdy & eth_rx_out_noc0_vrtoc_val) begin
                     if (eth_format_eth_rx_out_data_last) begin
+                        ctrl_datap_incr_packet_num = 1'b1;
                         state_next = READY;
                     end
                     else begin

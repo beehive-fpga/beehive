@@ -1,5 +1,7 @@
 `include "ip_rewrite_noc_pipe_defs.svh"
-module lookup_table_ctrl #(
+module lookup_table_ctrl 
+    import beehive_ip_rewrite_msg::*;
+#(
      parameter SRC_X = -1
     ,parameter SRC_Y = -1
     ,parameter TABLE_ENTRIES = -1
@@ -111,13 +113,13 @@ module lookup_table_ctrl #(
                     : match_reg;
 
     assign src_x_next = store_src
-                        ? hdr_cast.core.src_x_coord
+                        ? hdr_cast.core.core.src_x_coord
                         : src_x_reg;
     assign src_y_next = store_src
-                        ? hdr_cast.core.src_y_coord
+                        ? hdr_cast.core.core.src_y_coord
                         : src_y_reg;
     assign src_fbits_next = store_src
-                            ? hdr_cast.core.src_fbits
+                            ? hdr_cast.core.core.src_fbits
                             : src_fbits_reg;
 
     assign req_next = store_req
@@ -191,14 +193,14 @@ module lookup_table_ctrl #(
 
     always_comb begin
         resp_cast = '0;
-        resp_cast.core.dst_x_coord = src_x_reg;
-        resp_cast.core.dst_y_coord = src_y_reg;
-        resp_cast.core.dst_fbits = src_fbits_reg;
-        resp_cast.core.msg_len = '0;
-        resp_cast.core.msg_type = IP_REWRITE_ADJUST_TABLE;
-        resp_cast.core.src_x_coord = SRC_X[`MSG_SRC_X_WIDTH-1:0];
-        resp_cast.core.src_y_coord = SRC_Y[`MSG_SRC_X_WIDTH-1:0];
-        resp_cast.core.src_fbits = IP_REWRITE_TABLE_CTRL_FBITS;
+        resp_cast.core.core.dst_x_coord = src_x_reg;
+        resp_cast.core.core.dst_y_coord = src_y_reg;
+        resp_cast.core.core.dst_fbits = src_fbits_reg;
+        resp_cast.core.core.msg_len = '0;
+        resp_cast.core.core.msg_type = IP_REWRITE_ADJUST_TABLE;
+        resp_cast.core.core.src_x_coord = SRC_X[`MSG_SRC_X_WIDTH-1:0];
+        resp_cast.core.core.src_y_coord = SRC_Y[`MSG_SRC_X_WIDTH-1:0];
+        resp_cast.core.core.src_fbits = IP_REWRITE_TABLE_CTRL_FBITS;
     end
 
     bsg_cam_1r1w_tag_array #(

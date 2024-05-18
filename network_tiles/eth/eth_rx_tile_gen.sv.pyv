@@ -13,7 +13,9 @@ logging.info(f"Using tile config at {design_path}")
 tile_config = BeehiveConfig(design_path + "/tile_config.xml")
 noc_if_generator = NocInterfaceGen()
 %>
-module eth_rx_tile #(
+module eth_rx_tile 
+import tracker_pkg::*;
+#(
      parameter SRC_X = -1
     ,parameter SRC_Y = -1
     ,parameter IN_NOC = 0
@@ -45,13 +47,25 @@ module eth_rx_tile #(
     logic   [`NOC_DATA_WIDTH-1:0]   ctovr_eth_rx_in_data_noc0_data;
     logic                           eth_rx_in_ctovr_data_noc0_rdy;
     
-    logic                           eth_rx_out_lb_val;
-    logic   [`NOC_DATA_WIDTH-1:0]   eth_rx_out_lb_data;    
-    logic                           lb_eth_rx_out_rdy;
+    logic                           eth_rx_out_log_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   eth_rx_out_log_data;    
+    logic                           log_eth_rx_out_rdy;
+    
+    logic                           log_lb_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   log_lb_data;    
+    logic                           lb_log_rdy;
     
     logic                           lb_vrtoc_data_noc0_val;
     logic   [`NOC_DATA_WIDTH-1:0]   lb_vrtoc_data_noc0_data;    
     logic                           vrtoc_lb_data_noc0_rdy;
+    
+    logic                           ctovr_rd_tracker_in_val;
+    logic   [`CTRL_NOC_DATA_W-1:0]  ctovr_rd_tracker_in_data;
+    logic                           rd_tracker_in_ctovr_rdy;
+
+    logic                           rd_tracker_out_vrtoc_val;
+    logic   [`CTRL_NOC_DATA_W-1:0]  rd_tracker_out_vrtoc_data;
+    logic                           vrtoc_rd_tracker_out_rdy;
 
 <%
 router_wires = noc_if_generator.genNocProcessorWires(inst_name="router", nocs=tile_config.nocs,
@@ -94,10 +108,6 @@ print(router_wires)
     print(processor_ports)
 %>
     );
-
-    assign ctovr_router_ctrl_noc1_yummy = 1'b0;
-    assign vrtoc_router_ctrl_noc1_val = 1'b0;
-    assign vrtoc_router_ctrl_noc1_data = '0;
 
     assign ctovr_router_ctrl_noc2_yummy = 1'b0;
     assign vrtoc_router_ctrl_noc2_val = 1'b0;
@@ -195,9 +205,9 @@ endgenerate
          .clk   (clk)
         ,.rst   (rst)
     
-        ,.eth_rx_out_noc0_vrtoc_val             (eth_rx_out_lb_val                  )
-        ,.eth_rx_out_noc0_vrtoc_data            (eth_rx_out_lb_data                 )
-        ,.noc0_vrtoc_eth_rx_out_rdy             (lb_eth_rx_out_rdy                  )
+        ,.eth_rx_out_noc0_vrtoc_val             (eth_rx_out_log_val                 )
+        ,.eth_rx_out_noc0_vrtoc_data            (eth_rx_out_log_data                )
+        ,.noc0_vrtoc_eth_rx_out_rdy             (log_eth_rx_out_rdy                 )
 
         ,.eth_format_eth_rx_out_eth_hdr         (eth_format_eth_rx_out_eth_hdr      )
         ,.eth_format_eth_rx_out_hdr_val         (eth_format_eth_rx_out_hdr_val      )
@@ -210,6 +220,64 @@ endgenerate
         ,.eth_format_eth_rx_out_data_last       (eth_format_eth_rx_out_data_last    )
         ,.eth_format_eth_rx_out_data_padbytes   (eth_format_eth_rx_out_data_padbytes)
     );
+    
+    beehive_credit_to_valrdy #(
+        .NOC_DATA_W (`CTRL_NOC_DATA_W   )
+    ) ctrl_noc1_beehive_credit_to_valrdy (
+         .clk   (clk)
+        ,.reset (rst)
+        
+        ,.src_ctovr_data    (router_ctovr_ctrl_noc1_data        )
+        ,.src_ctovr_val     (router_ctovr_ctrl_noc1_val         )
+        ,.ctovr_src_yummy   (ctovr_router_ctrl_noc1_yummy       )
+
+        ,.ctovr_dst_data    (ctovr_rd_tracker_in_data           )
+        ,.ctovr_dst_val     (ctovr_rd_tracker_in_val            )
+        ,.dst_ctovr_rdy     (rd_tracker_in_ctovr_rdy            )
+    );
+
+    beehive_valrdy_to_credit #(
+        .NOC_DATA_W (`CTRL_NOC_DATA_W   )
+    ) ctrl_noc1_beehive_valrdy_to_credit (
+         .clk       (clk)
+        ,.reset     (rst)
+
+        ,.src_vrtoc_data    (rd_tracker_out_vrtoc_data      )
+        ,.src_vrtoc_val     (rd_tracker_out_vrtoc_val       )
+        ,.vrtoc_src_rdy     (vrtoc_rd_tracker_out_rdy       )
+
+        ,.vrtoc_dst_data    (vrtoc_router_ctrl_noc1_data    )
+        ,.vrtoc_dst_val     (vrtoc_router_ctrl_noc1_val     )
+		,.dst_vrtoc_yummy   (router_vrtoc_ctrl_noc1_yummy   )
+    );
+
+    tracker_top #(
+         .SRC_X                 (SRC_X              )
+        ,.SRC_Y                 (SRC_Y              )
+        ,.TRACKER_DEPTH_LOG2    (TRACKER_ADDR_W     )
+        ,.DATA_NOC_W            (`NOC_DATA_WIDTH    )
+        ,.REQ_NOC_W             (`CTRL_NOC_DATA_W   )
+        ,.RESP_NOC_W            (`CTRL_NOC_DATA_W   )
+    ) tracker (
+         .clk   (clk    )
+        ,.rst   (rst    )
+        
+        ,.ctovr_rd_tracker_in_val   (ctovr_rd_tracker_in_val    )
+        ,.ctovr_rd_tracker_in_data  (ctovr_rd_tracker_in_data   )
+        ,.rd_tracker_in_ctovr_rdy   (rd_tracker_in_ctovr_rdy    )
+                                                                
+        ,.rd_tracker_out_vrtoc_val  (rd_tracker_out_vrtoc_val   )
+        ,.rd_tracker_out_vrtoc_data (rd_tracker_out_vrtoc_data  )
+        ,.vrtoc_rd_tracker_out_rdy  (vrtoc_rd_tracker_out_rdy   )
+    
+        ,.noc_wr_tracker_in_val     (eth_rx_out_log_val         )
+        ,.noc_wr_tracker_in_data    (eth_rx_out_log_data        )
+        ,.wr_tracker_noc_in_rdy     (log_eth_rx_out_rdy         )
+        
+        ,.wr_tracker_noc_out_val    (log_lb_val                 )
+        ,.wr_tracker_noc_out_data   (log_lb_data                )
+        ,.noc_wr_tracker_out_rdy    (lb_log_rdy                 )
+    );
 
 generate
     if (USE_INT_LB == 1) begin
@@ -217,9 +285,9 @@ generate
              .clk   (clk    )
             ,.rst   (rst    )
         
-            ,.src_eth_rx_lb_noc_val     (eth_rx_out_lb_val  )
-            ,.src_eth_rx_lb_noc_data    (eth_rx_out_lb_data )
-            ,.eth_rx_lb_src_noc_rdy     (lb_eth_rx_out_rdy  )
+            ,.src_eth_rx_lb_noc_val     (log_lb_val             )
+            ,.src_eth_rx_lb_noc_data    (log_lb_data            )
+            ,.eth_rx_lb_src_noc_rdy     (lb_log_rdy             )
         
             ,.eth_rx_lb_dst_noc_val     (lb_vrtoc_data_noc0_val  )
             ,.eth_rx_lb_dst_noc_data    (lb_vrtoc_data_noc0_data )
@@ -227,9 +295,9 @@ generate
         );
     end
     else begin
-        assign lb_vrtoc_data_noc0_val = eth_rx_out_lb_val;
-        assign lb_vrtoc_data_noc0_data = eth_rx_out_lb_data;
-        assign lb_eth_rx_out_rdy = vrtoc_lb_data_noc0_rdy;
+        assign lb_vrtoc_data_noc0_val = log_lb_val;
+        assign lb_vrtoc_data_noc0_data = log_lb_data;
+        assign lb_log_rdy = vrtoc_lb_data_noc0_rdy;
     end
 endgenerate
 endmodule

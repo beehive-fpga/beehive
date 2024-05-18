@@ -22,16 +22,16 @@ module udp_echo_app_datap #(
     ,output         [`UDP_LENGTH_W-1:0]     data_length
 );
     
-    udp_noc_hdr_flit    hdr_flit_reg;
-    udp_noc_hdr_flit    hdr_flit_next;
+    beehive_noc_hdr_flit    hdr_flit_reg;
+    beehive_noc_hdr_flit    hdr_flit_next;
     
     udp_rx_metadata_flit    meta_flit_reg;
     udp_rx_metadata_flit    meta_flit_next;
     
-    udp_noc_hdr_flit        out_hdr_flit;
+    beehive_noc_hdr_flit    out_hdr_flit;
     udp_tx_metadata_flit    out_meta_flit;
 
-    assign total_flits = hdr_flit_reg.core.msg_len;
+    assign total_flits = hdr_flit_reg.core.core.msg_len;
     assign data_length = meta_flit_reg.data_length;
 
     always_ff @(posedge clk) begin
@@ -68,18 +68,22 @@ module udp_echo_app_datap #(
     always_comb begin
         out_hdr_flit = '0;
 
-        out_hdr_flit.core.dst_x_coord = src_udp_app_out_dst_x;
-        out_hdr_flit.core.dst_y_coord = src_udp_app_out_dst_y;
-        out_hdr_flit.core.dst_fbits = PKT_IF_FBITS;
+        out_hdr_flit.core.core.dst_x_coord = src_udp_app_out_dst_x;
+        out_hdr_flit.core.core.dst_y_coord = src_udp_app_out_dst_y;
+        out_hdr_flit.core.core.dst_fbits = PKT_IF_FBITS;
 
         // there's one metadata flit and then some number of data flits
-        out_hdr_flit.core.msg_len = hdr_flit_reg.core.msg_len;
-        out_hdr_flit.core.src_x_coord = SRC_X[`XY_WIDTH-1:0];
-        out_hdr_flit.core.src_y_coord = SRC_Y[`XY_WIDTH-1:0];
-        out_hdr_flit.core.src_fbits = PKT_IF_FBITS;
-        out_hdr_flit.core.metadata_flits = 1;
+        out_hdr_flit.core.core.msg_len = hdr_flit_reg.core.core.msg_len;
+        out_hdr_flit.core.core.src_x_coord = SRC_X[`XY_WIDTH-1:0];
+        out_hdr_flit.core.core.src_y_coord = SRC_Y[`XY_WIDTH-1:0];
+        out_hdr_flit.core.core.src_fbits = PKT_IF_FBITS;
 
-        out_hdr_flit.core.msg_type = UDP_TX_SEGMENT; 
+        out_hdr_flit.core.core.msg_type = UDP_TX_SEGMENT; 
+
+        out_hdr_flit.core.packet_id = hdr_flit_reg.core.packet_id;
+        out_hdr_flit.core.timestamp = hdr_flit_reg.core.timestamp;
+        
+        out_hdr_flit.core.metadata_flits = 1;
     end
     
     always_comb begin
@@ -89,7 +93,6 @@ module udp_echo_app_datap #(
         out_meta_flit.src_port = meta_flit_reg.dst_port;
         out_meta_flit.dst_port = meta_flit_reg.src_port;
         out_meta_flit.data_length = meta_flit_reg.data_length;
-        out_meta_flit.timestamp = meta_flit_reg.timestamp;
     end
 
 

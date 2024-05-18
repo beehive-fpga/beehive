@@ -13,7 +13,9 @@ logging.info(f"Using tile config at {design_path}")
 tile_config = BeehiveConfig(design_path + "/tile_config.xml")
 noc_if_generator = NocInterfaceGen()
 %>
-module ip_tx_tile #(
+module ip_tx_tile 
+    import tracker_pkg::*;
+#(
      parameter SRC_X = -1
     ,parameter SRC_Y = -1
     ,parameter USE_INT_LB = 0
@@ -49,12 +51,17 @@ print(router_wires)
     logic   [`NOC_DATA_WIDTH-1:0]   ip_tx_out_vrtoc_data_noc0_data;    
     logic                           vrtoc_ip_tx_out_data_noc0_rdy;
     
-    logic                           ctovr_ip_tx_in_data_noc0_val;
-    logic   [`NOC_DATA_WIDTH-1:0]   ctovr_ip_tx_in_data_noc0_data;
-    logic                           ip_tx_in_ctovr_data_noc0_rdy; 
+    logic                           ctovr_log_data_noc0_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   ctovr_log_data_noc0_data;
+    logic                           log_ctovr_data_noc0_rdy; 
+    
+    logic                           log_ip_tx_in_data_noc0_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   log_ip_tx_in_data_noc0_data;
+    logic                           ip_tx_in_log_data_noc0_rdy; 
     
     logic                               ip_tx_in_assemble_meta_val;
     ip_tx_metadata_flit                 ip_tx_in_assemble_meta_flit;
+    tracker_stats_struct                ip_tx_in_assemble_timestamp;
     logic                               assemble_ip_tx_in_meta_rdy;
     
     logic                               ip_tx_in_assemble_data_val;
@@ -65,7 +72,7 @@ print(router_wires)
     
     logic                               assemble_ip_to_ethstream_hdr_val;
     ip_pkt_hdr                          assemble_ip_to_ethstream_ip_hdr;
-    logic   [MSG_TIMESTAMP_W-1:0]       assemble_ip_to_ethstream_timestamp;
+    tracker_stats_struct                assemble_ip_to_ethstream_timestamp;
     logic                               ip_to_ethstream_assemble_hdr_rdy;
 
     logic                               assemble_ip_to_ethstream_data_val;
@@ -85,7 +92,7 @@ print(router_wires)
     logic                               ip_to_ethstream_ip_tx_out_hdr_val;
     eth_hdr                             ip_to_ethstream_ip_tx_out_eth_hdr;
     logic   [`TOT_LEN_W-1:0]            ip_to_ethstream_ip_tx_out_data_len;
-    logic   [MSG_TIMESTAMP_W-1:0]       ip_to_ethstream_ip_tx_out_timestamp;
+    tracker_stats_struct                ip_to_ethstream_ip_tx_out_timestamp;
     logic                               ip_tx_out_ip_to_ethstream_hdr_rdy;
 
     logic                               ip_to_ethstream_ip_tx_out_data_val;
@@ -93,6 +100,14 @@ print(router_wires)
     logic                               ip_to_ethstream_ip_tx_out_data_last;
     logic   [`MAC_PADBYTES_W-1:0]       ip_to_ethstream_ip_tx_out_data_padbytes;
     logic                               ip_tx_out_ip_to_ethstream_data_rdy;
+    
+    logic                               ctovr_rd_tracker_in_val;
+    logic   [`CTRL_NOC_DATA_W-1:0]      ctovr_rd_tracker_in_data;
+    logic                               rd_tracker_in_ctovr_rdy;
+
+    logic                               rd_tracker_out_vrtoc_val;
+    logic   [`CTRL_NOC_DATA_W-1:0]      rd_tracker_out_vrtoc_data;
+    logic                               vrtoc_rd_tracker_out_rdy;
     
     noc_router_block #(
          .SRC_X (SRC_X  )
@@ -112,10 +127,6 @@ print(router_wires)
 %>
     );
 
-    assign ctovr_router_ctrl_noc1_yummy = 1'b0;
-    assign vrtoc_router_ctrl_noc1_val = 1'b0;
-    assign vrtoc_router_ctrl_noc1_data = '0;
-
     assign ctovr_router_ctrl_noc2_yummy = 1'b0;
     assign vrtoc_router_ctrl_noc2_val = 1'b0;
     assign vrtoc_router_ctrl_noc2_data = '0;
@@ -126,13 +137,13 @@ print(router_wires)
          .clk   (clk)
         ,.reset (rst)
         
-        ,.src_ctovr_data    (router_ctovr_data_noc0_data        )
-        ,.src_ctovr_val     (router_ctovr_data_noc0_val         )
-        ,.ctovr_src_yummy   (ctovr_router_data_noc0_yummy       )
+        ,.src_ctovr_data    (router_ctovr_data_noc0_data    )
+        ,.src_ctovr_val     (router_ctovr_data_noc0_val     )
+        ,.ctovr_src_yummy   (ctovr_router_data_noc0_yummy   )
 
-        ,.ctovr_dst_data    (ctovr_ip_tx_in_data_noc0_data      )
-        ,.ctovr_dst_val     (ctovr_ip_tx_in_data_noc0_val       )
-        ,.dst_ctovr_rdy     (ip_tx_in_ctovr_data_noc0_rdy       )
+        ,.ctovr_dst_data    (ctovr_log_data_noc0_data      )
+        ,.ctovr_dst_val     (ctovr_log_data_noc0_val       )
+        ,.dst_ctovr_rdy     (log_ctovr_data_noc0_rdy       )
     );
 
     beehive_valrdy_to_credit #(
@@ -149,17 +160,76 @@ print(router_wires)
         ,.vrtoc_dst_val     (vrtoc_router_data_noc0_val     )
 		,.dst_vrtoc_yummy   (router_vrtoc_data_noc0_yummy   )
     );
+
+    beehive_credit_to_valrdy #(
+        .NOC_DATA_W (`CTRL_NOC_DATA_W   )
+    ) ctrl_noc1_beehive_credit_to_valrdy (
+         .clk   (clk)
+        ,.reset (rst)
+        
+        ,.src_ctovr_data    (router_ctovr_ctrl_noc1_data    )
+        ,.src_ctovr_val     (router_ctovr_ctrl_noc1_val     )
+        ,.ctovr_src_yummy   (ctovr_router_ctrl_noc1_yummy   )
+
+        ,.ctovr_dst_data    (ctovr_rd_tracker_in_data       )
+        ,.ctovr_dst_val     (ctovr_rd_tracker_in_val        )
+        ,.dst_ctovr_rdy     (rd_tracker_in_ctovr_rdy        )
+    );
+
+    beehive_valrdy_to_credit #(
+        .NOC_DATA_W (`CTRL_NOC_DATA_W   )
+    ) ctrl_noc1_beehive_valrdy_to_credit (
+         .clk       (clk)
+        ,.reset     (rst)
+
+        ,.src_vrtoc_data    (rd_tracker_out_vrtoc_data      )
+        ,.src_vrtoc_val     (rd_tracker_out_vrtoc_val       )
+        ,.vrtoc_src_rdy     (vrtoc_rd_tracker_out_rdy       )
+
+        ,.vrtoc_dst_data    (vrtoc_router_ctrl_noc1_data    )
+        ,.vrtoc_dst_val     (vrtoc_router_ctrl_noc1_val     )
+		,.dst_vrtoc_yummy   (router_vrtoc_ctrl_noc1_yummy   )
+    );
+ 
+    tracker_top #(
+         .SRC_X                 (SRC_X              )
+        ,.SRC_Y                 (SRC_Y              )
+        ,.TRACKER_DEPTH_LOG2    (TRACKER_ADDR_W     )
+        ,.DATA_NOC_W            (`NOC_DATA_WIDTH    )
+        ,.REQ_NOC_W             (`CTRL_NOC_DATA_W   )
+        ,.RESP_NOC_W            (`CTRL_NOC_DATA_W   )
+    ) tracker (
+         .clk   (clk    )
+        ,.rst   (rst    )
+        
+        ,.ctovr_rd_tracker_in_val   (ctovr_rd_tracker_in_val        )
+        ,.ctovr_rd_tracker_in_data  (ctovr_rd_tracker_in_data       )
+        ,.rd_tracker_in_ctovr_rdy   (rd_tracker_in_ctovr_rdy        )
+                                                              
+        ,.rd_tracker_out_vrtoc_val  (rd_tracker_out_vrtoc_val       )
+        ,.rd_tracker_out_vrtoc_data (rd_tracker_out_vrtoc_data      )
+        ,.vrtoc_rd_tracker_out_rdy  (vrtoc_rd_tracker_out_rdy       )
+    
+        ,.noc_wr_tracker_in_val     (ctovr_log_data_noc0_val        )
+        ,.noc_wr_tracker_in_data    (ctovr_log_data_noc0_data       )
+        ,.wr_tracker_noc_in_rdy     (log_ctovr_data_noc0_rdy        )
+        
+        ,.wr_tracker_noc_out_val    (log_ip_tx_in_data_noc0_val     )
+        ,.wr_tracker_noc_out_data   (log_ip_tx_in_data_noc0_data    )
+        ,.noc_wr_tracker_out_rdy    (ip_tx_in_log_data_noc0_rdy     )
+    );
     
     ip_tx_tile_noc_in tx_noc_in (
          .clk   (clk)
         ,.rst   (rst)
         
-        ,.noc0_ctovr_ip_tx_in_val       (ctovr_ip_tx_in_data_noc0_val   )
-        ,.noc0_ctovr_ip_tx_in_data      (ctovr_ip_tx_in_data_noc0_data  )
-        ,.ip_tx_in_noc0_ctovr_rdy       (ip_tx_in_ctovr_data_noc0_rdy   )
+        ,.noc0_ctovr_ip_tx_in_val       (log_ip_tx_in_data_noc0_val     )
+        ,.noc0_ctovr_ip_tx_in_data      (log_ip_tx_in_data_noc0_data    )
+        ,.ip_tx_in_noc0_ctovr_rdy       (ip_tx_in_log_data_noc0_rdy     )
    
         ,.ip_tx_in_assemble_meta_val    (ip_tx_in_assemble_meta_val     )
         ,.ip_tx_in_assemble_meta_flit   (ip_tx_in_assemble_meta_flit    )
+        ,.ip_tx_in_assemble_timestamp   (ip_tx_in_assemble_timestamp    )
         ,.assemble_ip_tx_in_meta_rdy    (assemble_ip_tx_in_meta_rdy     )
                                                                         
         ,.ip_tx_in_assemble_data_val    (ip_tx_in_assemble_data_val     )
@@ -180,7 +250,7 @@ print(router_wires)
         ,.src_assembler_dst_ip_addr         (ip_tx_in_assemble_meta_flit.dst_ip             )
         ,.src_assembler_data_payload_len    (ip_tx_in_assemble_meta_flit.data_payload_len   )
         ,.src_assembler_protocol            (ip_tx_in_assemble_meta_flit.protocol           )
-        ,.src_assembler_timestamp           (ip_tx_in_assemble_meta_flit.timestamp          )
+        ,.src_assembler_timestamp           (ip_tx_in_assemble_timestamp                    )
         ,.assembler_src_req_rdy             (assemble_ip_tx_in_meta_rdy                     )
     
         ,.src_assembler_data_val            (ip_tx_in_assemble_data_val                     )

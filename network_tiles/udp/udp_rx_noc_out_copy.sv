@@ -1,5 +1,7 @@
 `include "udp_rx_tile_defs.svh"
-module udp_rx_noc_out_copy #(
+module udp_rx_noc_out_copy 
+    import tracker_pkg::*;
+#(
      parameter SRC_X = -1
     ,parameter SRC_Y = -1
 )(
@@ -10,7 +12,7 @@ module udp_rx_noc_out_copy #(
     ,input          [`IP_ADDR_W-1:0]        udp_formatter_udp_rx_out_rx_src_ip
     ,input          [`IP_ADDR_W-1:0]        udp_formatter_udp_rx_out_rx_dst_ip
     ,input  udp_pkt_hdr                     udp_formatter_udp_rx_out_rx_udp_hdr
-    ,input          [MSG_TIMESTAMP_W-1:0]   udp_formatter_udp_rx_out_rx_timestamp
+    ,input  tracker_stats_struct            udp_formatter_udp_rx_out_rx_timestamp
     ,output logic                           udp_rx_out_udp_formatter_rx_hdr_rdy
 
     ,input                                  udp_formatter_udp_rx_out_rx_data_val

@@ -118,8 +118,6 @@ async def recv_loop(tb, done_event, full_event, wait_on_reqs=True):
     res = 0
     random_generator = random.Random(10)
 
-    await ClockCycles(tb.dut.clk, 10000)
-
     while not done_event.is_set():
         tb.log.info(f"Waiting for request {requests_recv}")
         #delay = random_generator.randint(0, 10)
@@ -142,8 +140,9 @@ async def recv_loop(tb, done_event, full_event, wait_on_reqs=True):
 
     res = done_event.data
 
-    tb.log.info(f"Requests sent {res}")
+    tb.log.info(f"Requests sent {res}, waiting: {wait_on_reqs}")
     if wait_on_reqs is False:
+        tb.log.info("Returning")
         return
 
     while requests_recv <= res:
@@ -246,30 +245,30 @@ async def bandwidth_log_test(tb, wait_on_reqs=True):
     done_event = Event()
     full_event = Event()
 
-    await ClockCycles(tb.dut.clk, 5000)
-    tb.log.info("Starting application echo`")
-    send_task = cocotb.start_soon(send_loop(tb, 20000, 64, done_event,
+#    await ClockCycles(tb.clk, 5000)
+    tb.log.info("Starting application echo")
+    send_task = cocotb.start_soon(send_loop(tb, 5000, 64, done_event,
         full_event))
     recv_task = cocotb.start_soon(recv_loop(tb, done_event, full_event,
-        wait_on_reqs=False))
+        wait_on_reqs=wait_on_reqs))
 
     await Combine(send_task, recv_task)
 
-    tb.log.debug("App 1 stats")
+    tb.log.info("App 1 stats")
     log_four_tuple = TCPFourTuple(our_ip = "198.0.0.5",
                                 our_port = 55000,
                                 their_ip = "198.0.0.7",
-                                their_port = 60000)
+                                their_port = 60001)
     log_reader = UDPAppLogRead(8, 2, tb, log_four_tuple)
 
     log_entries = await log_reader.read_log()
-    tb.log.debug(log_entries)
+    tb.log.info(log_entries)
     intervals = log_reader.calculate_bws(log_entries, tb.CLOCK_CYCLE_TIME)
-    tb.log.debug(intervals)
+    tb.log.info(intervals)
 
-    await RisingEdge(tb.dut.clk)
-    await RisingEdge(tb.dut.clk)
-    await RisingEdge(tb.dut.clk)
+    await RisingEdge(tb.clk)
+    await RisingEdge(tb.clk)
+    await RisingEdge(tb.clk)
 
 
 #@cocotb.test()

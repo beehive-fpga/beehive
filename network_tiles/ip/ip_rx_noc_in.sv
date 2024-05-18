@@ -1,5 +1,7 @@
 `include "ip_rx_tile_defs.svh"
-module ip_rx_noc_in (
+module ip_rx_noc_in 
+import tracker_pkg::*;
+(
      input clk
     ,input rst
     
@@ -8,7 +10,7 @@ module ip_rx_noc_in (
     ,output logic                               ip_rx_in_noc0_ctovr_rdy
 
     ,output logic                               ip_rx_in_ip_format_rx_val
-    ,output logic   [MSG_TIMESTAMP_W-1:0]       ip_rx_in_ip_format_rx_timestamp
+    ,output tracker_stats_struct                ip_rx_in_ip_format_rx_timestamp
     ,output logic   [`MAC_INTERFACE_W-1:0]      ip_rx_in_ip_format_rx_data
     ,output logic                               ip_rx_in_ip_format_rx_last
     ,output logic   [`MAC_PADBYTES_W-1:0]       ip_rx_in_ip_format_rx_padbytes

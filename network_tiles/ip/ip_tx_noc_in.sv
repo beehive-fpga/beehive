@@ -1,5 +1,7 @@
 `include "ip_tx_tile_defs.svh"
-module ip_tx_tile_noc_in (
+module ip_tx_tile_noc_in 
+import tracker_pkg::*;
+(
      input clk
     ,input rst
     
@@ -10,6 +12,7 @@ module ip_tx_tile_noc_in (
    
     ,output                                     ip_tx_in_assemble_meta_val
     ,output ip_tx_metadata_flit                 ip_tx_in_assemble_meta_flit
+    ,output tracker_stats_struct                ip_tx_in_assemble_timestamp
     ,input                                      assemble_ip_tx_in_meta_rdy 
     
     ,output logic                               ip_tx_in_assemble_data_val
@@ -54,6 +57,7 @@ module ip_tx_tile_noc_in (
         ,.noc0_ctovr_ip_tx_in_data      (noc0_ctovr_ip_tx_in_data       )
                                                                         
         ,.ip_tx_in_assemble_meta_flit   (ip_tx_in_assemble_meta_flit    )
+        ,.ip_tx_in_assemble_timestamp   (ip_tx_in_assemble_timestamp    )
                                                                         
         ,.ip_tx_in_assemble_data        (ip_tx_in_assemble_data         )
         ,.ip_tx_in_assemble_last        (ip_tx_in_assemble_last         )

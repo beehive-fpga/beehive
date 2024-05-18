@@ -43,7 +43,7 @@ import beehive_tcp_msg::*;
     assign hdr_flit_cast = noc_ctovr_notif_data;
 
     assign flowid_next = store_flowid
-                        ? hdr_flit_cast.flowid
+                        ? hdr_flit_cast.inner.flowid
                         : flowid_reg;
 
     assign notif_setup_q_wr_data = flowid_reg;

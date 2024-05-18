@@ -29,7 +29,6 @@ package open_loop_pkg;
 
     localparam APP_NOTIF_IF_FBITS = TCP_RX_APP_NOTIF_FBITS;
     localparam RX_IF_FBITS = TCP_RX_APP_PTR_IF_FBITS;
-
     localparam SETUP_IF_FBITS_VALUE = 32'd4;
     localparam [`NOC_FBITS_WIDTH-1:0]   SETUP_IF_FBITS = {1'b1, SETUP_IF_FBITS_VALUE[`NOC_FBITS_WIDTH-2:0]};
     localparam TX_IF_FBITS_VALUE = 32'd5;

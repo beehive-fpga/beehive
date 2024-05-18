@@ -16,6 +16,7 @@ filesets:
             - update_chksum_nat.sv
         depend:
             - uwcse:buckfast:includes
+            - uwcse:beehive:stats_manager
             - uwcse:beehive:openpiton_beehive_noc
             - uwcse:beehive:msgs
             - uwcse:beehive:pyhp_generator

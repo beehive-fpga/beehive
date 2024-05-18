@@ -99,7 +99,7 @@ module ip_lb_parse
                                     : meta_flit_cnt_reg;
 
     assign msg_flit_cnt_next = set_meta_data
-                            ? hdr_flit_cast.core.msg_len
+                            ? hdr_flit_cast.core.core.msg_len
                             : decr_msg_flit_cnt
                                 ? msg_flit_cnt_reg - 1'b1
                                 : msg_flit_cnt_reg;

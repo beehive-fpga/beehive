@@ -86,9 +86,9 @@ module tcp_rx_msg_noc_if_out_datap #(
         hdr_flit_cast.core.src_y_coord = SRC_Y[`MSG_SRC_Y_WIDTH-1:0];
         hdr_flit_cast.core.src_fbits = TCP_RX_APP_PTR_IF_FBITS;
         
-        hdr_flit_cast.flowid = flowid_reg;
-        hdr_flit_cast.head_ptr = head_ptr_reg;
-        hdr_flit_cast.length = len_reg;
+        hdr_flit_cast.inner.flowid = flowid_reg;
+        hdr_flit_cast.inner.head_ptr = head_ptr_reg;
+        hdr_flit_cast.inner.length = len_reg;
     end
 
 endmodule

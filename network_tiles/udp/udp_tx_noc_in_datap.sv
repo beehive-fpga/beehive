@@ -1,5 +1,7 @@
 `include "udp_tx_tile_defs.svh"
-module udp_tx_noc_in_datap (
+module udp_tx_noc_in_datap 
+    import tracker_pkg::*;
+(
      input clk
     ,input rst
     
@@ -8,7 +10,7 @@ module udp_tx_noc_in_datap (
     ,output logic   [`IP_ADDR_W-1:0]        udp_tx_in_udp_to_stream_src_ip_addr
     ,output logic   [`IP_ADDR_W-1:0]        udp_tx_in_udp_to_stream_dst_ip_addr
     ,output udp_pkt_hdr                     udp_tx_in_udp_to_stream_udp_hdr
-    ,output logic   [MSG_TIMESTAMP_W-1:0]   udp_tx_in_udp_to_stream_timestamp
+    ,output tracker_stats_struct            udp_tx_in_udp_to_stream_timestamp
     
     ,output logic   [`MAC_INTERFACE_W-1:0]  udp_tx_in_udp_to_stream_data
     ,output logic                           udp_tx_in_udp_to_stream_data_last
@@ -36,7 +38,8 @@ module udp_tx_noc_in_datap (
     assign udp_tx_in_udp_to_stream_udp_hdr = udp_pkt_hdr_cast;
     assign udp_tx_in_udp_to_stream_src_ip_addr = meta_flit_next.src_ip;
     assign udp_tx_in_udp_to_stream_dst_ip_addr = meta_flit_next.dst_ip;
-    assign udp_tx_in_udp_to_stream_timestamp = meta_flit_next.timestamp;
+    assign udp_tx_in_udp_to_stream_timestamp.packet_id = hdr_flit_reg.core.packet_id;
+    assign udp_tx_in_udp_to_stream_timestamp.timestamp = hdr_flit_reg.core.timestamp;
 
     always_comb begin
         udp_pkt_hdr_cast = '0;
@@ -68,7 +71,7 @@ module udp_tx_noc_in_datap (
 
     always_comb begin
         if (ctrl_datap_init_num_flits) begin
-            flits_remaining_next = hdr_flit_next.core.msg_len;
+            flits_remaining_next = hdr_flit_next.core.core.msg_len;
         end
         else if (ctrl_datap_decr_num_flits) begin
             flits_remaining_next = flits_remaining_reg - 1'b1;

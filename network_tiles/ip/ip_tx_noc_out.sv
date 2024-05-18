@@ -1,5 +1,7 @@
 `include "ip_tx_tile_defs.svh"
-module ip_tx_noc_out #(
+module ip_tx_noc_out 
+    import tracker_pkg::*;
+#(
      parameter SRC_X = -1
     ,parameter SRC_Y = -1
 )(
@@ -13,7 +15,7 @@ module ip_tx_noc_out #(
     ,input  logic                           ip_to_ethstream_ip_tx_out_hdr_val
     ,input  eth_hdr                         ip_to_ethstream_ip_tx_out_eth_hdr
     ,input  logic   [`TOT_LEN_W-1:0]        ip_to_ethstream_ip_tx_out_data_len
-    ,input  logic   [MSG_TIMESTAMP_W-1:0]   ip_to_ethstream_ip_tx_out_timestamp
+    ,input  tracker_stats_struct            ip_to_ethstream_ip_tx_out_timestamp
     ,output logic                           ip_tx_out_ip_to_ethstream_hdr_rdy
 
     ,input  logic                           ip_to_ethstream_ip_tx_out_data_val

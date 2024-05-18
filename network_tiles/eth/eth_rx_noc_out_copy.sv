@@ -24,6 +24,7 @@ module eth_rx_noc_out_copy #(
     
     eth_rx_tile_pkg::noc_out_flit_mux_sel   ctrl_datap_flit_sel;
     logic                                   ctrl_datap_store_inputs;
+    logic                                   ctrl_datap_incr_packet_num;
     
     logic   [`ETH_TYPE_W-1:0]               datap_cam_rd_tag;
     logic   [(2 * `XY_WIDTH)-1:0]           cam_datap_rd_data;
@@ -46,6 +47,7 @@ module eth_rx_noc_out_copy #(
                                                                                 
         ,.ctrl_datap_flit_sel               (ctrl_datap_flit_sel                )
         ,.ctrl_datap_store_inputs           (ctrl_datap_store_inputs            )
+        ,.ctrl_datap_incr_packet_num        (ctrl_datap_incr_packet_num         )
 
         ,.ctrl_cam_rd_cam                   (ctrl_cam_rd_cam                    )
         ,.cam_ctrl_rd_hit                   (cam_ctrl_rd_hit                    )
@@ -69,6 +71,7 @@ module eth_rx_noc_out_copy #(
                                                                                         
         ,.ctrl_datap_flit_sel                   (ctrl_datap_flit_sel                    )
         ,.ctrl_datap_store_inputs               (ctrl_datap_store_inputs                )
+        ,.ctrl_datap_incr_packet_num            (ctrl_datap_incr_packet_num             )
     
         ,.datap_cam_rd_tag                      (datap_cam_rd_tag                       )
         ,.cam_datap_rd_data                     (cam_datap_rd_data                      )

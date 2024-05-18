@@ -51,4 +51,5 @@ init_fusesoc:
 	fusesoc library add buckfast_front $(BEEHIVE_PROJECT_ROOT)/protocols/tcp_hw/frontend
 	fusesoc library add beehive_topology $(BEEHIVE_PROJECT_ROOT)/cocotb_testing/udp_echo/include
 
-
+clean::
+	rm -rf build/ generated/ modelsim.ini results.xml transcript vsim.wlf __pycache__

@@ -1,5 +1,7 @@
 `include "udp_tx_tile_defs.svh"
-module udp_tx_noc_in (
+module udp_tx_noc_in 
+    import tracker_pkg::*;
+(
      input clk
     ,input rst
     
@@ -11,7 +13,7 @@ module udp_tx_noc_in (
     ,output logic   [`IP_ADDR_W-1:0]        udp_tx_in_udp_to_stream_src_ip_addr
     ,output logic   [`IP_ADDR_W-1:0]        udp_tx_in_udp_to_stream_dst_ip_addr
     ,output udp_pkt_hdr                     udp_tx_in_udp_to_stream_udp_hdr
-    ,output logic   [MSG_TIMESTAMP_W-1:0]   udp_tx_in_udp_to_stream_timestamp
+    ,output tracker_stats_struct            udp_tx_in_udp_to_stream_timestamp
     ,input  logic                           udp_to_stream_udp_tx_in_hdr_rdy
     
     ,output logic                           udp_tx_in_udp_to_stream_data_val

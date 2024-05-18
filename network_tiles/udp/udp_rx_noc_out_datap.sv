@@ -1,5 +1,7 @@
 `include "udp_rx_tile_defs.svh"
-module udp_rx_noc_out_datap #(
+module udp_rx_noc_out_datap 
+    import tracker_pkg::*;
+    #(
      parameter SRC_X = -1
     ,parameter SRC_Y = -1
 )(
@@ -9,7 +11,7 @@ module udp_rx_noc_out_datap #(
     ,input          [`IP_ADDR_W-1:0]                udp_formatter_udp_rx_out_rx_src_ip
     ,input          [`IP_ADDR_W-1:0]                udp_formatter_udp_rx_out_rx_dst_ip
     ,input  udp_pkt_hdr                             udp_formatter_udp_rx_out_rx_udp_hdr
-    ,input          [MSG_TIMESTAMP_W-1:0]           udp_formatter_udp_rx_out_rx_timestamp
+    ,input  tracker_stats_struct                     udp_formatter_udp_rx_out_rx_timestamp
 
     ,input          [`MAC_INTERFACE_W-1:0]          udp_formatter_udp_rx_out_rx_data
     ,input                                          udp_formatter_udp_rx_out_rx_last
@@ -35,8 +37,8 @@ module udp_rx_noc_out_datap #(
     logic   [`IP_ADDR_W-1:0]    dst_ip_reg;
     logic   [`IP_ADDR_W-1:0]    dst_ip_next;
 
-    logic   [MSG_TIMESTAMP_W-1:0]   pkt_timestamp_reg;
-    logic   [MSG_TIMESTAMP_W-1:0]   pkt_timestamp_next;
+    tracker_stats_struct   pkt_timestamp_reg;
+    tracker_stats_struct   pkt_timestamp_next;
     
     beehive_noc_hdr_flit    hdr_flit;
     udp_rx_metadata_flit    meta_flit;
@@ -113,18 +115,22 @@ module udp_rx_noc_out_datap #(
     always_comb begin
         hdr_flit = '0;
 
-        hdr_flit.core.dst_x_coord = cam_datap_rd_data.x_coord;
-        hdr_flit.core.dst_y_coord = cam_datap_rd_data.y_coord;
-        hdr_flit.core.dst_fbits = cam_datap_rd_data.fbits;
+        hdr_flit.core.core.dst_x_coord = cam_datap_rd_data.x_coord;
+        hdr_flit.core.core.dst_y_coord = cam_datap_rd_data.y_coord;
+        hdr_flit.core.core.dst_fbits = cam_datap_rd_data.fbits;
 
         // there's one metadata flit and then some number of data flits
-        hdr_flit.core.msg_len = 1 + num_data_flits;
-        hdr_flit.core.src_x_coord = SRC_X[`XY_WIDTH-1:0];
-        hdr_flit.core.src_y_coord = SRC_Y[`XY_WIDTH-1:0];
-        hdr_flit.core.src_fbits = PKT_IF_FBITS;
-        hdr_flit.core.metadata_flits = 1;
+        hdr_flit.core.core.msg_len = 1 + num_data_flits;
+        hdr_flit.core.core.src_x_coord = SRC_X[`XY_WIDTH-1:0];
+        hdr_flit.core.core.src_y_coord = SRC_Y[`XY_WIDTH-1:0];
+        hdr_flit.core.core.src_fbits = PKT_IF_FBITS;
 
-        hdr_flit.core.msg_type = UDP_RX_SEGMENT; 
+        hdr_flit.core.core.msg_type = UDP_RX_SEGMENT; 
+
+        hdr_flit.core.packet_id = pkt_timestamp_next.packet_id;
+        hdr_flit.core.timestamp = pkt_timestamp_next.timestamp;
+        
+        hdr_flit.core.metadata_flits = 1;
     end
     
     always_comb begin
@@ -134,7 +140,6 @@ module udp_rx_noc_out_datap #(
         meta_flit.src_port = udp_hdr_reg.src_port;
         meta_flit.dst_port = udp_hdr_reg.dst_port;
         meta_flit.data_length = data_size;
-        meta_flit.timestamp = pkt_timestamp_reg;
     end
 
 

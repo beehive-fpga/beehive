@@ -105,18 +105,18 @@ import beehive_noc_msg::*;
 
     always_comb begin
         hdr_flit = '0;
+        hdr_flit.core.core.dst_x_coord = dst_x_next;
+        hdr_flit.core.core.dst_y_coord = dst_y_next;
+        hdr_flit.core.core.dst_fbits = PKT_IF_FBITS;
 
-        hdr_flit.core.dst_x_coord = dst_x_next;
-        hdr_flit.core.dst_y_coord = dst_y_next;
-        hdr_flit.core.dst_fbits = PKT_IF_FBITS;
+        hdr_flit.core.core.msg_len = 1 + num_data_flits;
+        hdr_flit.core.core.src_x_coord = SRC_X[`XY_WIDTH-1:0];
+        hdr_flit.core.core.src_y_coord = SRC_Y[`XY_WIDTH-1:0];
+        hdr_flit.core.core.src_fbits = PKT_IF_FBITS;
 
-        hdr_flit.core.msg_len = 1 + num_data_flits;
-        hdr_flit.core.src_x_coord = SRC_X[`XY_WIDTH-1:0];
-        hdr_flit.core.src_y_coord = SRC_Y[`XY_WIDTH-1:0];
-        hdr_flit.core.src_fbits = PKT_IF_FBITS;
+        hdr_flit.core.core.msg_type = IP_TX_DATAGRAM;
+        
         hdr_flit.core.metadata_flits = 1;
-
-        hdr_flit.core.msg_type = IP_TX_DATAGRAM;
     end
 
     always_comb begin

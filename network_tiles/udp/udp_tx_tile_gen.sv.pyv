@@ -13,7 +13,9 @@ logging.info(f"Using tile config at {design_path}")
 tile_config = BeehiveConfig(design_path + "/tile_config.xml")
 noc_if_generator = NocInterfaceGen()
 %>
-module udp_tx_tile #(
+module udp_tx_tile 
+import tracker_pkg::*;
+#(
      parameter SRC_X = -1
     ,parameter SRC_Y = -1
     ,parameter USE_INT_LB = 0
@@ -37,9 +39,13 @@ print(router_wires)
     logic   [`NOC_DATA_WIDTH-1:0]   udp_tx_out_noc0_vrtoc_data;    
     logic                           noc0_vrtoc_udp_tx_out_rdy;
     
-    logic                           noc0_ctovr_udp_tx_in_val;
-    logic   [`NOC_DATA_WIDTH-1:0]   noc0_ctovr_udp_tx_in_data;
-    logic                           udp_tx_in_noc0_ctovr_rdy;
+    logic                           noc0_ctovr_log_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   noc0_ctovr_log_data;
+    logic                           log_noc0_ctovr_rdy;
+    
+    logic                           log_udp_tx_in_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   log_udp_tx_in_data;
+    logic                           udp_tx_in_log_rdy;
     
     logic                           udp_tx_out_lb_val;
     logic   [`NOC_DATA_WIDTH-1:0]   udp_tx_out_lb_data;    
@@ -53,7 +59,7 @@ print(router_wires)
     logic   [`IP_ADDR_W-1:0]        udp_tx_in_udp_to_stream_src_ip_addr;
     logic   [`IP_ADDR_W-1:0]        udp_tx_in_udp_to_stream_dst_ip_addr;
     udp_pkt_hdr                     udp_tx_in_udp_to_stream_udp_hdr;
-    logic   [MSG_TIMESTAMP_W-1:0]   udp_tx_in_udp_to_stream_timestamp;
+    tracker_stats_struct            udp_tx_in_udp_to_stream_timestamp;
     logic                           udp_to_stream_udp_tx_in_hdr_rdy;
     
     logic                           udp_tx_in_udp_to_stream_data_val;
@@ -67,7 +73,7 @@ print(router_wires)
     logic   [`IP_ADDR_W-1:0]        udp_to_stream_udp_tx_out_dst_ip;
     logic   [`TOT_LEN_W-1:0]        udp_to_stream_udp_tx_out_udp_len;
     logic   [`PROTOCOL_W-1:0]       udp_to_stream_udp_tx_out_protocol;
-    logic   [MSG_TIMESTAMP_W-1:0]   udp_to_stream_udp_tx_out_timestamp;
+    tracker_stats_struct            udp_to_stream_udp_tx_out_timestamp;
     logic                           udp_tx_out_udp_to_stream_hdr_rdy;
     
     logic                           udp_to_stream_udp_tx_out_val;
@@ -75,6 +81,14 @@ print(router_wires)
     logic                           udp_to_stream_udp_tx_out_last;
     logic   [`NOC_PADBYTES_WIDTH-1:0] udp_to_stream_udp_tx_out_padbytes;
     logic                           udp_tx_out_udp_to_stream_rdy;
+    
+    logic                               ctovr_rd_tracker_in_val;
+    logic   [`CTRL_NOC_DATA_W-1:0]      ctovr_rd_tracker_in_data;
+    logic                               rd_tracker_in_ctovr_rdy;
+
+    logic                               rd_tracker_out_vrtoc_val;
+    logic   [`CTRL_NOC_DATA_W-1:0]      rd_tracker_out_vrtoc_data;
+    logic                               vrtoc_rd_tracker_out_rdy;
     
     noc_router_block #(
          .SRC_X (SRC_X  )
@@ -106,9 +120,9 @@ print(router_wires)
         ,.ctovr_src_yummy   (ctovr_router_data_noc0_yummy   )
 
         //val/rdy interface
-        ,.ctovr_dst_data    (noc0_ctovr_udp_tx_in_data      )
-        ,.ctovr_dst_val     (noc0_ctovr_udp_tx_in_val       )
-        ,.dst_ctovr_rdy     (udp_tx_in_noc0_ctovr_rdy       )
+        ,.ctovr_dst_data    (noc0_ctovr_log_data            )
+        ,.ctovr_dst_val     (noc0_ctovr_log_val             )
+        ,.dst_ctovr_rdy     (log_noc0_ctovr_rdy             )
     );
 
     beehive_valrdy_to_credit #(
@@ -127,26 +141,87 @@ print(router_wires)
         ,.vrtoc_dst_val     (vrtoc_router_data_noc0_val     )
 		,.dst_vrtoc_yummy   (router_vrtoc_data_noc0_yummy   )
     );
+    
+    beehive_credit_to_valrdy #(
+        .NOC_DATA_W (`CTRL_NOC_DATA_W   )
+    ) tile_tx_noc1_beehive_credit_to_valrdy (
+         .clk   (clk)
+        ,.reset (rst)
+        //credit based interface 
+        ,.src_ctovr_data    (router_ctovr_ctrl_noc1_data    )
+        ,.src_ctovr_val     (router_ctovr_ctrl_noc1_val     )
+        ,.ctovr_src_yummy   (ctovr_router_ctrl_noc1_yummy   )
 
-    logic                           udp_tx_in_buf_rd_val;
-    logic   [`NOC_DATA_WIDTH-1:0]   udp_tx_in_buf_rd_data;
-    logic                           udp_tx_in_buf_rd_yumi;
-    logic                           udp_tx_in_buf_rd_rdy;
-    assign udp_tx_in_buf_rd_yumi = udp_tx_in_buf_rd_rdy & udp_tx_in_buf_rd_val;
+        //val/rdy interface
+        ,.ctovr_dst_data    (ctovr_rd_tracker_in_data       )
+        ,.ctovr_dst_val     (ctovr_rd_tracker_in_val        )
+        ,.dst_ctovr_rdy     (rd_tracker_in_ctovr_rdy        )
+    );
 
-    bsg_two_fifo #(
-        .width_p    (`NOC_DATA_WIDTH    )
-    ) udp_tx_in_buf (
-         .clk_i     (clk    )
-        ,.reset_i   (rst    )
+    beehive_valrdy_to_credit #(
+        .NOC_DATA_W (`CTRL_NOC_DATA_W   )
+    ) tile_tx_noc1_beehive_valrdy_to_credit (
+         .clk       (clk)
+        ,.reset     (rst)
+
+        //val/rdy interface
+        ,.src_vrtoc_data    (rd_tracker_out_vrtoc_data      )
+        ,.src_vrtoc_val     (rd_tracker_out_vrtoc_val       )
+        ,.vrtoc_src_rdy     (vrtoc_rd_tracker_out_rdy       )
+
+		//credit based interface	
+        ,.vrtoc_dst_data    (vrtoc_router_ctrl_noc1_data    )
+        ,.vrtoc_dst_val     (vrtoc_router_ctrl_noc1_val     )
+		,.dst_vrtoc_yummy   (router_vrtoc_ctrl_noc1_yummy   )
+    );
+
+    //logic                           udp_tx_in_buf_rd_val;
+    //logic   [`NOC_DATA_WIDTH-1:0]   udp_tx_in_buf_rd_data;
+    //logic                           udp_tx_in_buf_rd_yumi;
+    //logic                           udp_tx_in_buf_rd_rdy;
+    //assign udp_tx_in_buf_rd_yumi = udp_tx_in_buf_rd_rdy & udp_tx_in_buf_rd_val;
+
+    //bsg_two_fifo #(
+    //    .width_p    (`NOC_DATA_WIDTH    )
+    //) udp_tx_in_buf (
+    //     .clk_i     (clk    )
+    //    ,.reset_i   (rst    )
+    //    
+    //    ,.ready_o   (udp_tx_in_noc0_ctovr_rdy   )
+    //    ,.data_i    (noc0_ctovr_udp_tx_in_data  )
+    //    ,.v_i       (noc0_ctovr_udp_tx_in_val   )
+    //    
+    //    ,.v_o       (udp_tx_in_buf_rd_val       )
+    //    ,.data_o    (udp_tx_in_buf_rd_data      )
+    //    ,.yumi_i    (udp_tx_in_buf_rd_yumi      )
+    //);
+
+    tracker_top #(
+         .SRC_X                 (SRC_X              )
+        ,.SRC_Y                 (SRC_Y              )
+        ,.TRACKER_DEPTH_LOG2    (TRACKER_ADDR_W     )
+        ,.DATA_NOC_W            (`NOC_DATA_WIDTH    )
+        ,.REQ_NOC_W             (`CTRL_NOC_DATA_W   )
+        ,.RESP_NOC_W            (`CTRL_NOC_DATA_W   )
+    ) tracker (
+         .clk   (clk    )
+        ,.rst   (rst    )
         
-        ,.ready_o   (udp_tx_in_noc0_ctovr_rdy   )
-        ,.data_i    (noc0_ctovr_udp_tx_in_data  )
-        ,.v_i       (noc0_ctovr_udp_tx_in_val   )
+        ,.ctovr_rd_tracker_in_val   (ctovr_rd_tracker_in_val    )
+        ,.ctovr_rd_tracker_in_data  (ctovr_rd_tracker_in_data   )
+        ,.rd_tracker_in_ctovr_rdy   (rd_tracker_in_ctovr_rdy    )
+                                                                
+        ,.rd_tracker_out_vrtoc_val  (rd_tracker_out_vrtoc_val   )
+        ,.rd_tracker_out_vrtoc_data (rd_tracker_out_vrtoc_data  )
+        ,.vrtoc_rd_tracker_out_rdy  (vrtoc_rd_tracker_out_rdy   )
+    
+        ,.noc_wr_tracker_in_val     (noc0_ctovr_log_val         )
+        ,.noc_wr_tracker_in_data    (noc0_ctovr_log_data        )
+        ,.wr_tracker_noc_in_rdy     (log_noc0_ctovr_rdy         )
         
-        ,.v_o       (udp_tx_in_buf_rd_val       )
-        ,.data_o    (udp_tx_in_buf_rd_data      )
-        ,.yumi_i    (udp_tx_in_buf_rd_yumi      )
+        ,.wr_tracker_noc_out_val    (log_udp_tx_in_val          )
+        ,.wr_tracker_noc_out_data   (log_udp_tx_in_data         )
+        ,.noc_wr_tracker_out_rdy    (udp_tx_in_log_rdy          )
     );
 
 
@@ -154,9 +229,9 @@ print(router_wires)
          .clk   (clk    )
         ,.rst   (rst    )
         
-        ,.noc0_ctovr_udp_tx_in_val              (udp_tx_in_buf_rd_val   )
-        ,.noc0_ctovr_udp_tx_in_data             (udp_tx_in_buf_rd_data  )
-        ,.udp_tx_in_noc0_ctovr_rdy              (udp_tx_in_buf_rd_rdy   )
+        ,.noc0_ctovr_udp_tx_in_val              (log_udp_tx_in_val                      )
+        ,.noc0_ctovr_udp_tx_in_data             (log_udp_tx_in_data                     )
+        ,.udp_tx_in_noc0_ctovr_rdy              (udp_tx_in_log_rdy                      )
         
         ,.udp_tx_in_udp_to_stream_hdr_val       (udp_tx_in_udp_to_stream_hdr_val        )
         ,.udp_tx_in_udp_to_stream_src_ip_addr   (udp_tx_in_udp_to_stream_src_ip_addr    )

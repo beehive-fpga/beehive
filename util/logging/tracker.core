@@ -1,0 +1,21 @@
+CAPI=2:
+name: uwcse:beehive:tracker:0.1
+description: Beehive tracking modules
+
+filesets:
+    rtl:
+        files:
+            - include/tracker_pkg.sv
+            - tracker_read.sv
+            - tracker_read_ctrl.sv
+            - tracker_read_datap.sv
+            - tracker_record_ctrl.sv
+            - tracker_record_datap.sv
+            - tracker_top.sv
+        depend:
+            - uwcse:beehive:msgs
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]

@@ -74,7 +74,7 @@ module noc_data_to_ctrl (
                             : wide_hdr_flit_reg;
 
     assign count_next = store_count
-                        ? wide_hdr_flit_next.core.msg_len
+                        ? wide_hdr_flit_next.core.core.msg_len
                         : decr_count
                             ? count_reg - 1'b1
                             : count_reg;
@@ -190,15 +190,15 @@ module noc_data_to_ctrl (
     always_comb begin
         narrow_hdr_flit_1 = wide_hdr_flit[`NOC_DATA_WIDTH-1 -: `CTRL_NOC1_DATA_W];
         // plus one for the extra hdr flit
-        narrow_hdr_flit_1.msg_len = (wide_hdr_flit.core.msg_len << FLIT_SHIFT) + 1;
+        narrow_hdr_flit_1.msg_len = (wide_hdr_flit.core.core.msg_len << FLIT_SHIFT) + 1;
     end
 
     always_comb begin
         narrow_hdr_flit_2 = '0;
-        narrow_hdr_flit_2.src_chip_id = wide_hdr_flit_reg.core.src_chip_id;
-        narrow_hdr_flit_2.src_x_coord = wide_hdr_flit_reg.core.src_x_coord;
-        narrow_hdr_flit_2.src_y_coord = wide_hdr_flit_reg.core.src_y_coord;
-        narrow_hdr_flit_2.src_fbits = wide_hdr_flit_reg.core.src_fbits;
+        narrow_hdr_flit_2.src_chip_id = wide_hdr_flit_reg.core.core.src_chip_id;
+        narrow_hdr_flit_2.src_x_coord = wide_hdr_flit_reg.core.core.src_x_coord;
+        narrow_hdr_flit_2.src_y_coord = wide_hdr_flit_reg.core.core.src_y_coord;
+        narrow_hdr_flit_2.src_fbits = wide_hdr_flit_reg.core.core.src_fbits;
         narrow_hdr_flit_2.metadata_flits = wide_hdr_flit_reg.core.metadata_flits << FLIT_SHIFT;
     end
 endmodule

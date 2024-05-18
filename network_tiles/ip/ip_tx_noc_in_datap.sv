@@ -1,11 +1,14 @@
 `include "ip_tx_tile_defs.svh"
-module ip_tx_tile_noc_in_datap (
+module ip_tx_tile_noc_in_datap 
+    import tracker_pkg::*;
+(
      input clk
     ,input rst
     
     ,input          [`NOC_DATA_WIDTH-1:0]       noc0_ctovr_ip_tx_in_data
    
     ,output ip_tx_metadata_flit                 ip_tx_in_assemble_meta_flit
+    ,output tracker_stats_struct                ip_tx_in_assemble_timestamp
 
     ,output logic   [`MAC_INTERFACE_W-1:0]      ip_tx_in_assemble_data
     ,output logic                               ip_tx_in_assemble_last
@@ -30,6 +33,8 @@ module ip_tx_tile_noc_in_datap (
     logic   [`MAC_PADBYTES_W:0]         padbytes_calc;
 
     assign ip_tx_in_assemble_meta_flit = meta_flit_next;
+    assign ip_tx_in_assemble_timestamp.packet_id = hdr_flit_reg.core.packet_id;
+    assign ip_tx_in_assemble_timestamp.timestamp = hdr_flit_reg.core.timestamp;
 
     assign ip_tx_in_assemble_data = noc0_ctovr_ip_tx_in_data;
     assign ip_tx_in_assemble_last = datap_ctrl_last_flit;
@@ -52,7 +57,7 @@ module ip_tx_tile_noc_in_datap (
 
     always_comb begin
         if (ctrl_datap_init_num_flits) begin
-            flits_remaining_next = hdr_flit_next.core.msg_len;
+            flits_remaining_next = hdr_flit_next.core.core.msg_len;
         end
         else if (ctrl_datap_decr_num_flits) begin
             flits_remaining_next = flits_remaining_reg - 1'b1;

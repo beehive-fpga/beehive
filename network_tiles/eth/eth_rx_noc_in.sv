@@ -60,7 +60,7 @@ module eth_rx_noc_in (
                             : frame_size_reg;
 
     assign msg_len_next = store_hdr_flit_data
-                        ? hdr_flit_cast.core.msg_len
+                        ? hdr_flit_cast.core.core.msg_len
                         : msg_len_reg;
 
     assign flit_cnt_next = reset_flit_cnt

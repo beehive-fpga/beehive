@@ -68,15 +68,15 @@ module tcp_logger_record_datap #(
                         : pkt_len_reg;
 
     assign num_flits_next = ctrl_datap_store_hdr
-                        ? hdr_cast.core.msg_len
+                        ? hdr_cast.core.core.msg_len
                         : num_flits_reg;
 
     assign datap_ctrl_last_flit = flits_read_reg == (num_flits_reg - 1'b1);
 
     always_comb begin
         mod_hdr_cast = hdr_cast;
-        mod_hdr_cast.core.dst_x_coord = FORWARD_X;
-        mod_hdr_cast.core.dst_y_coord = FORWARD_Y;
+        mod_hdr_cast.core.core.dst_x_coord = FORWARD_X;
+        mod_hdr_cast.core.core.dst_y_coord = FORWARD_Y;
     end
 
     always_comb begin

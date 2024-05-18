@@ -106,7 +106,7 @@ module ip_rewrite_noc_pipe_datap #(
         end
     end
 
-    assign datap_ctrl_last_flit = flit_cnt_reg == (hdr_flit_reg.core.msg_len - 1);
+    assign datap_ctrl_last_flit = flit_cnt_reg == (hdr_flit_reg.core.core.msg_len - 1);
 
     assign hdr_flit_next = ctrl_datap_store_hdr
                         ? noc0_ctovr_ip_rewrite_in_data
@@ -160,10 +160,10 @@ module ip_rewrite_noc_pipe_datap #(
 
     always_comb begin
         hdr_flit_cast = hdr_flit_reg;
-        hdr_flit_cast.core.dst_x_coord = dst_x_reg;
-        hdr_flit_cast.core.dst_y_coord = dst_y_reg;
-        hdr_flit_cast.core.src_x_coord = SRC_X;
-        hdr_flit_cast.core.src_y_coord = SRC_Y;
+        hdr_flit_cast.core.core.dst_x_coord = dst_x_reg;
+        hdr_flit_cast.core.core.dst_y_coord = dst_y_reg;
+        hdr_flit_cast.core.core.src_x_coord = SRC_X;
+        hdr_flit_cast.core.core.src_y_coord = SRC_Y;
     end
 
     always_comb begin

@@ -25,6 +25,8 @@ module ip_rewrite_noc_pipe_ctrl (
     
     ,input  logic                           datap_ctrl_last_flit
 );
+
+    localparam DELAY_CYCLES = 20;
     typedef enum logic[2:0] {
         READY = 3'd0,
         META = 3'd1,
@@ -32,6 +34,7 @@ module ip_rewrite_noc_pipe_ctrl (
         HDR_OUT = 3'd4,
         META_OUT = 3'd5,
         DATA_PASS = 3'd6,
+        DELAY = 3'd7,
         UND = 'X
     } state_e;
     
@@ -43,6 +46,9 @@ module ip_rewrite_noc_pipe_ctrl (
 
     assign ctrl_datap_use_rewrite_chksum = use_rewrite_chksum_reg;
 
+    logic [63:0]    delay_reg;
+    logic [63:0]    delay_next;
+
     always_ff @(posedge clk) begin
         if (rst) begin
             state_reg <= READY;
@@ -51,6 +57,7 @@ module ip_rewrite_noc_pipe_ctrl (
         else begin
             state_reg <= state_next;
             use_rewrite_chksum_reg <= use_rewrite_chksum_next;
+            delay_reg <= delay_next;
         end
     end
 
@@ -77,6 +84,7 @@ module ip_rewrite_noc_pipe_ctrl (
                 ctrl_datap_store_hdr = 1'b1;
                 ip_rewrite_in_noc0_ctovr_rdy = 1'b1;
                 ctrl_datap_init_flit_cnt = 1'b1;
+                delay_next = '0;
                 if (noc0_ctovr_ip_rewrite_in_val) begin
                     state_next = META;
                 end
@@ -122,8 +130,14 @@ module ip_rewrite_noc_pipe_ctrl (
                     use_rewrite_chksum_next = 1'b0;
                     ctrl_datap_incr_flit_cnt = 1'b1;
                     if (datap_ctrl_last_flit) begin
-                        state_next = READY;
+                        state_next = DELAY;
                     end
+                end
+            end
+            DELAY: begin
+                delay_next = delay_reg + 1'b1;
+                if (delay_reg == DELAY_CYCLES) begin
+                    state_next = READY;
                 end
             end
             default: begin

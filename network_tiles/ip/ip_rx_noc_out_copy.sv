@@ -1,5 +1,7 @@
 `include "ip_rx_tile_defs.svh"
-module ip_rx_noc_out_copy #(
+module ip_rx_noc_out_copy 
+    import tracker_pkg::*;
+#(
      parameter SRC_X = -1
     ,parameter SRC_Y = -1
 )(
@@ -8,7 +10,7 @@ module ip_rx_noc_out_copy #(
     
     ,input  logic                           ip_format_ip_rx_out_rx_hdr_val
     ,input  ip_pkt_hdr                      ip_format_ip_rx_out_rx_ip_hdr
-    ,input          [MSG_TIMESTAMP_W-1:0]   ip_format_ip_rx_out_rx_timestamp
+    ,input  tracker_stats_struct            ip_format_ip_rx_out_rx_timestamp
     ,output                                 ip_rx_out_ip_format_rx_hdr_rdy
 
     ,input  logic                           ip_format_ip_rx_out_rx_data_val

@@ -58,7 +58,7 @@ import beehive_noc_msg::*;
     end
 
     assign msg_flit_cnt_next = store_msg_flit_cnt
-                            ? hdr_flit_cast.core.msg_len
+                            ? hdr_flit_cast.core.core.msg_len
                             : decr_msg_flit_cnt
                                 ? msg_flit_cnt_reg - 1'b1
                                 : msg_flit_cnt_reg;
@@ -91,7 +91,7 @@ import beehive_noc_msg::*;
                 store_meta_flit_cnt = 1'b1;
                 if (src_strip_val & dst_strip_hdr_rdy) begin
                     // if there's more than a header flit
-                    if (hdr_flit_cast.core.msg_len != 0) begin
+                    if (hdr_flit_cast.core.core.msg_len != 0) begin
                         // if there are metadata flits
                         if (hdr_flit_cast.core.metadata_flits != 0) begin
                             state_next = META_FLITS;

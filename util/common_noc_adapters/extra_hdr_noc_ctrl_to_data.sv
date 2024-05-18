@@ -162,7 +162,7 @@ module extra_hdr_noc_ctrl_to_data
         wide_hdr_flit = '0;
         wide_hdr_flit[`NOC_DATA_WIDTH-1 -: (2 * `CTRL_NOC1_DATA_W)] = {hdr_flit_1_reg, hdr_flit_2_reg};
         wide_hdr_flit[`NOC_DATA_WIDTH-BASE_FLIT_W-1 -: EXTRA_W] = extra_flit[SAVE_W-1 -: EXTRA_W];
-        wide_hdr_flit.core.msg_len = '0;
+        wide_hdr_flit.core.core.msg_len = '0;
         wide_hdr_flit.core.metadata_flits = '0;
     end
 

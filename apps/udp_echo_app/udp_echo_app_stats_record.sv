@@ -13,13 +13,13 @@ module udp_echo_app_stats_record #(
     ,output         udp_app_stats_struct    log_wr_req_data
 );
 
-    logic   [TIMESTAMP_W-1:0]   timestamp_reg;
-    logic   [TIMESTAMP_W-1:0]   countup_reg;
-    logic   [TIMESTAMP_W-1:0]   countup_next;
-    logic                       incr_countup;
+    logic   [MSG_TIMESTAMP_W-1:0]   timestamp_reg;
+    logic   [MSG_TIMESTAMP_W-1:0]   countup_reg;
+    logic   [MSG_TIMESTAMP_W-1:0]   countup_next;
+    logic                           incr_countup;
 
-    logic   [BYTES_RECV_W-1:0]  bytes_recv_reg;
-    logic   [BYTES_RECV_W-1:0]  bytes_recv_next;
+    logic   [BYTES_RECV_W-1:0]      bytes_recv_reg;
+    logic   [BYTES_RECV_W-1:0]      bytes_recv_next;
 
     always_ff @(posedge clk) begin
         if (rst) begin

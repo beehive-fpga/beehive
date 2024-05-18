@@ -1,0 +1,30 @@
+CAPI=2:
+name: uwcse:beehive:stats_manager:0.1
+description: Retrieve stats from a tile
+
+filesets:
+    rtl:
+        files:
+            - include/stats_manager_pkg.sv
+            - stats_manager.sv
+            - stats_manager_ctrl.sv
+            - stats_manager_datap.sv
+            - stats_requester.sv
+        depend:
+            - uwcse:beehive:msgs
+            - uwcse:beehive:tracker
+            - uwcse:beehive:pyhp_generator
+            - uwcse:beehive:common_noc_adapters
+            - uwcse:beehive:noc_helpers
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]
+        generate: [pyhp_generate]
+generate:
+    pyhp_generate:
+        generator: pyhp_gen
+        parameters:
+            process_me : [[stats_manager_tile_gen.sv.pyv, stats_manager_tile_gen.sv]]
+ 

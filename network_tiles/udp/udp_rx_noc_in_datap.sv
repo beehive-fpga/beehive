@@ -1,6 +1,8 @@
 `include "udp_rx_tile_defs.svh"
 
-module udp_rx_noc_in_datap (
+module udp_rx_noc_in_datap 
+import tracker_pkg::*;
+(
      input clk
     ,input rst
     
@@ -9,7 +11,7 @@ module udp_rx_noc_in_datap (
     ,output logic   [`IP_ADDR_W-1:0]        udp_rx_in_udp_formatter_rx_src_ip
     ,output logic   [`IP_ADDR_W-1:0]        udp_rx_in_udp_formatter_rx_dst_ip
     ,output logic   [`TOT_LEN_W-1:0]        udp_rx_in_udp_formatter_rx_udp_len
-    ,output logic   [MSG_TIMESTAMP_W-1:0]   udp_rx_in_udp_formatter_rx_timestamp
+    ,output tracker_stats_struct            udp_rx_in_udp_formatter_rx_timestamp
 
     // Data stream in from MAC-side
     ,output logic   [`MAC_INTERFACE_W-1:0]  udp_rx_in_udp_formatter_rx_data
@@ -50,7 +52,8 @@ module udp_rx_noc_in_datap (
     assign udp_rx_in_udp_formatter_rx_src_ip = meta_flit_next.src_ip;
     assign udp_rx_in_udp_formatter_rx_dst_ip = meta_flit_next.dst_ip;
     assign udp_rx_in_udp_formatter_rx_udp_len = meta_flit_next.data_payload_len;
-    assign udp_rx_in_udp_formatter_rx_timestamp = meta_flit_next.timestamp;
+    assign udp_rx_in_udp_formatter_rx_timestamp.packet_id = hdr_flit_reg.core.packet_id;
+    assign udp_rx_in_udp_formatter_rx_timestamp.timestamp = hdr_flit_reg.core.timestamp;
 
     assign hdr_flit_next = ctrl_datap_store_hdr_flit
                             ? noc0_ctovr_udp_rx_in_data
@@ -61,7 +64,7 @@ module udp_rx_noc_in_datap (
 
     always_comb begin
         if (ctrl_datap_init_num_flits) begin
-            flits_remaining_next = hdr_flit_next.core.msg_len;
+            flits_remaining_next = hdr_flit_next.core.core.msg_len;
         end
         else if (ctrl_datap_decr_num_flits) begin
             flits_remaining_next = flits_remaining_reg - 1'b1;

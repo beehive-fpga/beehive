@@ -1,6 +1,8 @@
 `include "eth_tx_tile_defs.svh"
 
-module eth_tx_noc_in (
+module eth_tx_noc_in 
+    import tracker_pkg::*;
+(
      input clk
     ,input rst 
     
@@ -20,7 +22,7 @@ module eth_tx_noc_in (
     ,input                                      eth_tostream_eth_tx_in_data_rdy
     
     ,output                                     eth_wr_log
-    ,output         [MSG_TIMESTAMP_W-1:0]       eth_wr_log_start_timestamp
+    ,output tracker_stats_struct                eth_wr_log_start_timestamp
 );
     logic                               ctrl_datap_store_hdr_flit;
     logic                               ctrl_datap_store_meta_flit;

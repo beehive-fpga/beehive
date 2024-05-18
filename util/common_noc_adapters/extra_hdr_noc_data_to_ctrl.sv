@@ -171,10 +171,10 @@ import beehive_ctrl_noc_msg::*;
 
     always_comb begin
         narrow_hdr_flit_2 = '0;
-        narrow_hdr_flit_2.src_chip_id = hdr_flit_reg.core.src_chip_id;
-        narrow_hdr_flit_2.src_x_coord = hdr_flit_reg.core.src_x_coord;
-        narrow_hdr_flit_2.src_y_coord = hdr_flit_reg.core.src_y_coord;
-        narrow_hdr_flit_2.src_fbits = hdr_flit_reg.core.src_fbits;
+        narrow_hdr_flit_2.src_chip_id = hdr_flit_reg.core.core.src_chip_id;
+        narrow_hdr_flit_2.src_x_coord = hdr_flit_reg.core.core.src_x_coord;
+        narrow_hdr_flit_2.src_y_coord = hdr_flit_reg.core.core.src_y_coord;
+        narrow_hdr_flit_2.src_fbits = hdr_flit_reg.core.core.src_fbits;
         narrow_hdr_flit_2.metadata_flits = '0;
     end
 

@@ -93,11 +93,11 @@ async def test_wrapper(dut):
 
     dut.mac_engine_tx_rdy.setimmediatevalue(0)
 
-    cocotb.start_soon(Clock(dut.clk, CLOCK_CYCLE_TIME, units='ns').start())
+    cocotb.start_soon(Clock(dut.clk, tb.CLOCK_CYCLE_TIME, units='ns').start())
     await reset(dut)
 
-#    await sanity_test(tb)
-    await bandwidth_log_test(tb)
+    await sanity_test(tb)
+#    await bandwidth_log_test(tb)
 
 async def recv_event_wrapper(tb, done_event, recv_task, timeout_ns):
     timeout = Timer(time=timeout_ns, units="ns")

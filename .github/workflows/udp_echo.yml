@@ -31,29 +31,19 @@ jobs:
         path: verilator
         key: verilator
 
-    - name: Debug
-      run: |
-        ls
-        pwd
-        echo "VERILATOR_ROOT=${PWD}/verilator" >> $GITHUB_ENV
-        echo "PATH=${PWD}/verilator/bin:$PATH" >> $GITHUB_ENV
-        echo "SIM=verilator" >> $GITHUB_ENV
-
-    - name: Debug 2
-      run: |
-        echo $VERILATOR_ROOT 
-        pwd
-
     - name: Check cache hit
       if: steps.cache.outputs.cache-hit != 'true'
       run: exit 1
 
+    - name: Setup environment variables
+      run: |
+        echo "VERILATOR_ROOT=${PWD}/verilator" >> $GITHUB_ENV
+        echo "PATH=${PWD}/verilator/bin:$PATH" >> $GITHUB_ENV
+        echo "SIM=verilator" >> $GITHUB_ENV
+
     - name: Run experiment
       run: |
-        pwd
-        ls
-        ls $VERILATOR_ROOT
-        ls $VERILATOR_ROOT/bin
+        cd beehive
         source settings.sh
         cd cocotb_testing/udp_echo
         export SIM=verilator

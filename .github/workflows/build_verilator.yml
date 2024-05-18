@@ -32,7 +32,7 @@ jobs:
           make
           
     - name: Cache Verilator Build
-    - uses: actions/cache/save@v3
+      uses: actions/cache/save@v3
       id: cache
       with:
         path: verilator

@@ -29,6 +29,12 @@ jobs:
       with:
         path: verilator
         key: verilator
+      run: |
+        ls
+
+    - name: Debug
+      run: |
+        ls
 
     - name: Check cache hit
       if: steps.cache.outputs.cache-hit != 'true'

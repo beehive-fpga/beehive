@@ -21,7 +21,7 @@ jobs:
 
     - name: Setup dependencies
       run: |
-        ./ci/dependencies.sh
+        ./beehive/ci/dependencies.sh
 
     - name: Setup Verilator
       uses: actions/checkout@v4

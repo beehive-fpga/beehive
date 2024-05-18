@@ -34,13 +34,6 @@ jobs:
       if: steps.cache.outputs.cache-hit != 'true'
       run: exit 1
 
-    - name: Setup env variables
-      run: |
-        cd verilator
-        echo "VERILATOR_ROOT=$PWD" >> $GITHUB_ENV
-        echo "PATH=$PWD/bin:$PATH" >> $GITHUB_ENV
-        echo "SIM=verilator" >> $GITHUB_ENV
-
     - name: Get submodules
       uses: actions/checkout@v3
       with:
@@ -48,9 +41,12 @@ jobs:
 
     - name: Run experiment
       run: |
-        env
         pwd
         ls
+        cd verilator
+        echo "VERILATOR_ROOT=$PWD" >> $GITHUB_ENV
+        echo "PATH=$PWD/bin:$PATH" >> $GITHUB_ENV
+        echo "SIM=verilator" >> $GITHUB_ENV
         cd beehive
         ls
         ls $VERILATOR_ROOT

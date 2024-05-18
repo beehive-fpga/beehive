@@ -1,10 +1,10 @@
 #!/bin/bash
-apt-get update && \
-    apt-get install -y --no-install-recommends \
+sudo apt-get update && \
+    sudo apt-get install -y --no-install-recommends \
         software-properties-common && \
     add-apt-repository ppa:deadsnakes/ppa && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends \
+    sudo apt-get update && \
+    sudo apt-get install -y --no-install-recommends \
         python3.9 \
         python3.9-venv \
         python3.9-dev \
@@ -27,7 +27,7 @@ pip3 install scapy
 pip3 install fusesoc
 
 # install Verilator
-apt-get install -y help2man perl python3 make autoconf g++ flex bison ccache
+sudo apt-get install -y help2man perl python3 make autoconf g++ flex bison ccache
 git clone git@github.com:verilator/verilator.git
 cd verilator
 git checkout stable

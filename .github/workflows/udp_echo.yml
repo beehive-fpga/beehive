@@ -36,12 +36,11 @@ jobs:
 
     - name: Setup env variables
       run: |
-        cd verilator
+        ls
         echo "VERILATOR_ROOT=$GITHUB_WORKSPACE/verilator" >> $GITHUB_ENV
         echo "PATH=$GITHUB_WORKSPACE/verilator/bin:$PATH" >> $GITHUB_ENV
         echo "SIM=verilator" >> $GITHUB_ENV
-        cd ..
-
+        
     - name: Source settings
       run: |
         cd beehive

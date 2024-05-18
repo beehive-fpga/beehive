@@ -54,9 +54,10 @@ jobs:
     - name: Setup experiment
       run: |
         cd cocotb_testing/udp_echo
+        export SIM=verilator
         make init_fusesoc
         make gen_filelist
 
     - name: Run experiment
-      run: make SIM=verilator
+      run: make
     

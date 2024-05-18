@@ -23,6 +23,7 @@ jobs:
     - name: Setup dependencies
       run: |
         ./beehive/ci/dependencies.sh
+        ./beehive/ci/verilator_deps.sh
 
     - name: Restore Verilator
       uses: actions/cache/restore@v3

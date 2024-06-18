@@ -87,6 +87,8 @@ module echo_app_rx_msg_if_ctrl (
         end
     end
 
+
+
     always_comb begin
         if (reset_count) begin
             count_next = '0;

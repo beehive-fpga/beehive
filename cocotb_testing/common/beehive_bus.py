@@ -97,6 +97,35 @@ class BeehiveOutputInterface:
 
 
 """
+An interface (or as close as you're gonna get in Python) for modules that
+other Beehive things can interact with when injecting packets into the design.
+
+Allows us to be generic between when we're using Beehive's testing and
+Corundum's testing, which uses a slightly different interface
+"""
+class BeehiveInputInterface:
+    __metaclass__ = ABCMeta
+
+    @abstractmethod
+    async def xmit_frame(self, test_packet_bytes):
+        raise NotImplementedError
+
+"""
+An interface (or as close as you're gonna get in Python) for modules that
+other Beehive things can interact with when pulling packets from the design.
+
+Allows us to be generic between when we're using Beehive's testing and
+Corundum's testing, which uses a slightly different interface
+"""
+class BeehiveOutputInterface:
+    __metaclass__ = ABCMeta
+
+    @abstractmethod
+    async def recv_frame(self):
+        raise NotImplementedError
+
+
+"""
     A class for sending requests on a Beehive bus.
 
     bus: a BeehiveBus object

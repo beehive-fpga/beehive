@@ -72,6 +72,27 @@ class FakeMem():
         return res_buf
 
 
+    def read_mem(self, address, length):
+        block_addr_width = (self.mem_bytes - 1).bit_length()
+        block_addr_mask = (1 << block_addr_width) - 1
+
+        res_buf = bytearray()
+        iter_addr = address
+        # there's a more efficient way to do this, but i want something i know
+        # is correct
+        for i in range(0, length):
+            line_addr = iter_addr >> block_addr_width
+            block_addr = iter_addr & block_addr_mask
+
+            byte = self.mem[line_addr][block_addr]
+
+            res_buf.append(byte)
+
+            iter_addr += 1
+
+        return res_buf
+
+
     async def run_mem(self):
         while True:
             if self.input_delay_max is not None:

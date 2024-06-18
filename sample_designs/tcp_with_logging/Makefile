@@ -43,6 +43,12 @@ init_fusesoc:
 	fusesoc library add beehive_apps $(BEEHIVE_PROJECT_ROOT)/apps
 	fusesoc library add beehive_util $(BEEHIVE_PROJECT_ROOT)/util
 	fusesoc library add beehive_msgs $(BEEHIVE_PROJECT_ROOT)/include
+	fusesoc library add basejump $(BEEHIVE_PROJECT_ROOT)/protocols/tcp_hw/basejump_files
+	fusesoc library add buckfast_common_inc $(BEEHIVE_PROJECT_ROOT)/protocols/tcp_hw/include/common
+	fusesoc library add buckfast_common $(BEEHIVE_PROJECT_ROOT)/protocols/tcp_hw/common
+	fusesoc library add buckfast_noc $(BEEHIVE_PROJECT_ROOT)/protocols/tcp_hw/noc_stuff
+	fusesoc library add buckfast_front $(BEEHIVE_PROJECT_ROOT)/protocols/tcp_hw/frontend
+	fusesoc library add buckfast_data_move $(BEEHIVE_PROJECT_ROOT)/protocols/tcp_hw/recv_pipe
 	fusesoc library add tcp_log_test $(BEEHIVE_PROJECT_ROOT)/sample_designs/tcp_with_logging
 
 .PHONY: init_fusesoc_slow

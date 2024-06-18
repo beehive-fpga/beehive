@@ -114,6 +114,8 @@ class TB():
         self.TCP_driver = TCPAutomatonDriver(1, EchoGenerator, (self.MAC_W, 64, 64, 2),
                 self.clk, req_gen_list = conns)
 
+        self.TCP_driver = TCPAutomatonDriver(2, EchoGenerator, (self.MAC_W, 64, 64, 2),
+                self.dut.clk, req_gen_list = conns)
 
 async def reset(dut):
     dut.rst.setimmediatevalue(0)

@@ -80,6 +80,28 @@ class TB():
         self.MSS_SIZE=9100
         self.CLOCK_CYCLE_TIME = 4
 
+@cocotb.test()
+async def test_wrapper(dut):
+    tb = TB(dut)
+    # Set some initial values
+    dut.mac_engine_rx_val.setimmediatevalue(0)
+    dut.mac_engine_rx_startframe.setimmediatevalue(0)
+    dut.mac_engine_rx_data.setimmediatevalue(BinaryValue(value=0, n_bits=tb.MAC_W))
+    dut.mac_engine_rx_endframe.setimmediatevalue(0)
+    dut.mac_engine_rx_padbytes.setimmediatevalue(0)
+    dut.mac_engine_rx_frame_size.setimmediatevalue(0)
+
+    dut.mac_engine_tx_rdy.setimmediatevalue(0)
+
+    cocotb.start_soon(Clock(dut.clk, CLOCK_CYCLE_TIME, units='ns').start())
+    await reset(dut)
+
+#    await sanity_test(tb)
+    await bandwidth_log_test(tb)
+
+async def recv_event_wrapper(tb, done_event, recv_task, timeout_ns):
+    timeout = Timer(time=timeout_ns, units="ns")
+    trigger = timeout
 
 @cocotb.test()
 async def test_wrapper(dut):
@@ -271,6 +293,7 @@ async def bandwidth_log_test(tb, wait_on_reqs=True):
     await RisingEdge(tb.clk)
 
 
+
 #@cocotb.test()
 async def bandwidth_size_test(dut):
     # Set some initial values
@@ -394,6 +417,24 @@ async def sanity_test(tb):
     await tb.input_op.xmit_frame(test_right_packet_bytes, rand_delay=True)
     echoed_right_pkt_bytes = await tb.output_op.recv_frame()
     check_udp_frame(echoed_right_pkt_bytes, test_right_packet.build())
+    
+    await RisingEdge(dut.clk)
+
+    tb.log.info("Send a range of packet sizes")
+    for i in range(1, 128):
+        tb.log.info(f"Trying packet size {i}")
+        test_udp = create_udp_frame(i)
+        test_packet_bytes = bytearray(test_udp.build())
+        pad_packet(test_packet_bytes)
+
+        await tb.input_op.xmit_frame(test_packet_bytes, rand_delay=True)
+
+        echoed_pkt_bytes = await tb.output_op.recv_frame()
+
+        check_udp_frame(echoed_pkt_bytes, test_packet_bytes)
+
+        await RisingEdge(tb.clk)
+
 
     await RisingEdge(tb.clk)
 

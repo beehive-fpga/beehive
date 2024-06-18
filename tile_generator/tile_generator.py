@@ -305,6 +305,12 @@ class Endpoint():
     def get_y_coord_param(self):
         return f"{self.endpoint_name.upper()}_Y"
 
+    def get_x_coord_param(self):
+        return f"{self.endpoint_name.upper()}_X"
+
+    def get_y_coord_param(self):
+        return f"{self.endpoint_name.upper()}_Y"
+
     def add_attrs(self, endpoint_dict):
         for attr, value in endpoint_dict.items():
             if attr in self._req_attrs:

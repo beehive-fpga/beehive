@@ -328,6 +328,53 @@ def logger_to_pcap(entries):
 
             logger_tile_file.write(bytes_encode(final_pkt_bytes))
 
+def logger_to_pcap(entries):
+    server_port = 65432
+    with PcapWriter("logger_pcap.pcap", linktype=DLT_EN10MB) as logger_tile_file:
+        for entry in entries:
+            # rebuild the pkts
+            tcp_pkt = entry.tcp_hdr.copy()
+            tcp_pkt.chksum = None
+
+            # generate a fake payload
+            if entry.pkt_len > 20:
+                payload_len = entry.pkt_len - 20
+                payload = bytearray([(i % 32) + 65 for i in range(0, payload_len)])
+
+            # create an IP header
+            ip_pkt = IP()
+            if tcp_pkt.dport == server_port:
+                ip_pkt.dst = "198.0.0.7"
+                ip_pkt.src = "198.0.0.5"
+            else:
+                ip_pkt.dst = "198.0.0.5"
+                ip_pkt.src = "198.0.0.7"
+            ip_pkt.flags = "DF"
+
+            # create an Ethernet header
+            eth_pkt = Ether()
+            eth_pkt.src = IP_TO_MAC[ip_pkt.src]
+            eth_pkt.dst = IP_TO_MAC[ip_pkt.dst]
+
+            # create the whole damn packet
+            final_pkt = None
+            final_pkt = eth_pkt/ip_pkt/tcp_pkt
+            if entry.pkt_len > 20:
+                final_pkt = final_pkt/Raw(payload)
+
+            final_pkt_bytes = bytearray(final_pkt.build())
+
+            # check that the length of the final packet matches what was logged
+            check_pkt = Ether(final_pkt_bytes)
+            assert check_pkt["IP"].len == (entry.pkt_len + 20)
+
+            if len(final_pkt_bytes) < 64:
+                padding = 64 - len(final_pkt_bytes)
+                pad_bytes = bytearray([0] * padding)
+                final_pkt_bytes.extend(pad_bytes)
+
+            logger_tile_file.write(bytes_encode(final_pkt_bytes))
+
 #@cocotb.test()
 async def run_tcp_echo_trace(dut):
     tb = TB(dut)

@@ -140,6 +140,7 @@ module udp_rx_noc_out_datap
         meta_flit.src_port = udp_hdr_reg.src_port;
         meta_flit.dst_port = udp_hdr_reg.dst_port;
         meta_flit.data_length = data_size;
+        meta_flit.timestamp = pkt_timestamp_reg;
     end
 
 

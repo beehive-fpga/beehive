@@ -13,10 +13,7 @@ logging.info(f"Using tile config at {design_path}")
 tile_config = BeehiveConfig(design_path + "/tile_config.xml")
 noc_if_generator = NocInterfaceGen()
 %>
-module ip_rewrite_tx_tile 
-import tracker_pkg::*;
-import beehive_ip_rewrite_msg::*;
-#(
+module ip_rewrite_tx_tile #(
      parameter SRC_X = -1
     ,parameter SRC_Y = -1
 )(

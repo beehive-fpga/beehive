@@ -120,6 +120,7 @@ async def run_logger(dut, tb, send_queue, recv_queue):
 
             await RisingEdge(dut.clk)
 
+            await RisingEdge(dut.clk)
 
 async def run_send_loop(dut, tb, send_queue):
     pkts_sent = 0

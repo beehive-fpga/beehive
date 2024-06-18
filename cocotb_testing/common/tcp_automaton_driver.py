@@ -43,6 +43,15 @@ class TCPAutomatonDriver(TCPDriver):
         return Combine(*coroutines)
 
 
+    def run_req_gens(self):
+        coroutines = []
+        for (req_gen, four_tuple) in self.req_gen_list:
+            coroutines.append(req_gen.run_app())
+
+        self.log.debug("Starting request generators")
+        return Combine(*coroutines)
+
+
     def modify_tuple(self, old_tuple, new_addr):
         # remove the automaton from the dictionary
         automaton = self.flow_dict.pop(old_tuple)

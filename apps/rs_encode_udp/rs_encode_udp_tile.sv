@@ -248,6 +248,41 @@ module rs_encode_udp_tile #(
     
     );
 
+    logic   fifo_wr_req;
+    logic   fifo_full;
+    logic   fifo_empty;
+    logic   fifo_rd_req;
+    
+    logic                           fifo_app_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   fifo_app_data;
+    logic                           app_fifo_rdy;
+
+    assign udp_app_in_splitter_rdy = ~fifo_full;
+
+    assign fifo_wr_req = ~fifo_full & splitter_udp_app_in_val;
+
+    
+    assign fifo_rd_req = ~fifo_empty & app_fifo_rdy;
+
+    assign fifo_app_val = ~fifo_empty;
+
+    fifo_1r1w #(
+         .width_p       (`NOC_DATA_WIDTH    )
+        ,.log2_els_p    (8                  )
+    ) in_fifo (
+         .clk   (clk    )
+        ,.rst   (rst    )
+    
+        ,.wr_req    (fifo_wr_req                )
+        ,.wr_data   (splitter_udp_app_in_data   )
+        ,.full      (fifo_full                  )
+        
+        ,.rd_req    (fifo_rd_req                )
+        ,.rd_data   (fifo_app_data              )
+        ,.empty     (fifo_empty                 )
+    
+    );
+
     udp_rs_encode_wrap #(
          .SRC_X (SRC_X  )
         ,.SRC_Y (SRC_Y  )

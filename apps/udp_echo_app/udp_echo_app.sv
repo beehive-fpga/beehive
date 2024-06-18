@@ -76,6 +76,18 @@ endgenerate
     ) stats (
          .clk   (clk    )
         ,.rst   (rst    )
+        
+            ,.noc_ctd_dst_val   (noc_ctd_udp_stats_val      )
+            ,.noc_ctd_dst_data  (noc_ctd_udp_stats_data     )
+            ,.dst_noc_ctd_rdy   (udp_stats_noc_ctd_rdy      )
+        );
+    end
+    else begin
+        assign noc_ctd_udp_stats_val = ctovr_udp_stats_in_val;
+        assign noc_ctd_udp_stats_data = ctovr_udp_stats_in_data;
+        assign udp_stats_in_ctovr_rdy = udp_stats_noc_ctd_rdy;
+    end
+endgenerate
 
         ,.app_stats_incr_bytes_sent (app_stats_incr_bytes_sent      )
         ,.app_stats_num_bytes_sent  (app_stats_num_bytes_sent       )

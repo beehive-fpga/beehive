@@ -394,7 +394,7 @@ print(router_wires)
         ,.num_sources       (2)
     ) ctrl_noc1_merger (
          .clk       (clk    )
-        ,.rst_n     (rst    )
+        ,.rst_n     (~rst   )
     
         ,.src0_merger_vr_noc_val    (ptr_dtc_merger_ctrl_noc1_val   )
         ,.src0_merger_vr_noc_dat    (ptr_dtc_merger_ctrl_noc1_data  )

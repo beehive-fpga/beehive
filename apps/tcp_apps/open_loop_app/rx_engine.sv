@@ -1,6 +1,7 @@
 `include "noc_defs.vh"
 module open_loop_rx_engine 
 import tcp_pkg::*;
+import beehive_tcp_msg::*;
 import open_loop_pkg::*;
 import rx_open_loop_pkg::*;
 #(

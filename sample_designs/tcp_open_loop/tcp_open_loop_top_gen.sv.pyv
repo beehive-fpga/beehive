@@ -140,42 +140,6 @@ print(tile_std_ports)
 %>
 	);
 
-    tcp_logger_tile #(
-         .SRC_X     (TCP_LOGGER_RX_TILE_X   )
-        ,.SRC_Y     (TCP_LOGGER_RX_TILE_Y   )
-        ,.FORWARD_X (TCP_RX_TILE_X          )
-        ,.FORWARD_Y (TCP_RX_TILE_Y          )
-<%
-end_x, end_y = tile_config.getEndpointCoords("tcp_logger_rx_tile")
-print(f"    ) tcp_logger_rx_tile_{end_x}_{end_y} (")
-%>
-		 .clk   (clk)
-		,.rst   (rst)
-
-<%
-tile_std_ports = tile_config.getEndpointPorts("tcp_logger_rx_tile")
-print(tile_std_ports)
-%>
-    );
-    
-    tcp_logger_tile #(
-         .SRC_X     (TCP_LOGGER_TX_TILE_X   )
-        ,.SRC_Y     (TCP_LOGGER_TX_TILE_Y   )
-        ,.FORWARD_X (IP_TX_TILE_X           )
-        ,.FORWARD_Y (IP_TX_TILE_Y           )
-<%
-end_x, end_y = tile_config.getEndpointCoords("tcp_logger_tx_tile")
-print(f"    ) tcp_logger_tx_tile_{end_x}_{end_y} (")
-%>
-		 .clk   (clk)
-		,.rst   (rst)
-
-<%
-tile_std_ports = tile_config.getEndpointPorts("tcp_logger_tx_tile")
-print(tile_std_ports)
-%>
-    );
-
     tcp_tiles_wrap #(
          .TCP_RX_SRC_X  (TCP_RX_TILE_X  )
         ,.TCP_RX_SRC_Y  (TCP_RX_TILE_Y  )

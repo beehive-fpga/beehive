@@ -1,9 +1,10 @@
 `include "noc_defs.vh"
 module setup_handler 
 import tcp_pkg::*;
+import beehive_tcp_msg::*;
 import open_loop_pkg::*;
 import setup_open_loop_pkg::*;
-    import tx_open_loop_pkg::*;
+import tx_open_loop_pkg::*;
 #(
      parameter SRC_X = -1
     ,parameter SRC_Y = -1
@@ -153,6 +154,7 @@ import setup_open_loop_pkg::*;
         noc_ctovr_setup_rd_buf_val = 1'b0;
         noc_vrtoc_setup_eng_rdy = 1'b0;
         noc_vrtoc_setup_rd_buf_rdy = 1'b0;
+        noc_vrtoc_setup_wr_buf_rdy = 1'b0;
         setup_noc_ctovr_rdy = 1'b0;
 
         if (noc_mux_sel == setup_open_loop_pkg::BUF_READ) begin

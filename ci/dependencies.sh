@@ -25,7 +25,7 @@ pip3 install cocotb
 pip3 install cocotb_bus
 pip3 install scapy
 pip3 install fusesoc
-
+pip3 install pytest
 
 
 

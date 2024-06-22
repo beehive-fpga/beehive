@@ -5,8 +5,7 @@ package beehive_topology;
     localparam SERVER_IP = `IP_ADDR_W'hc6_00_00_09;
     localparam APP_PORT = `PORT_NUM_W'd65432;
 
-    localparam TCP_LOGGER_RX_PORT = `PORT_NUM_W'd60000;
-    localparam TCP_LOGGER_TX_PORT = `PORT_NUM_W'd60001;
+    localparam LATENCY_STATS_PORT = `PORT_NUM_W'd60000;
     localparam TCP_APP_STATS_PORT = `PORT_NUM_W'd60002;
 
 <%

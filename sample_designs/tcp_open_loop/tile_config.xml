@@ -111,6 +111,14 @@
             <interface>
                 <if_name>udp_pkt_rx</if_name>
                 <fbits>PKT_IF_FBITS</fbits>
+                <dsts>
+                    <dst_endpoint>
+                        <endpoint_name>eth_tx_tile</endpoint_name>
+                        <endpoint_tag>LATENCY_STATS_PORT</endpoint_tag>
+                        <if_name>eth_tx_latency_log_req</if_name>
+                        <cam_target/>
+                    </dst_endpoint>
+                </dsts>
             </interface>
         </interfaces>
     </endpoint>

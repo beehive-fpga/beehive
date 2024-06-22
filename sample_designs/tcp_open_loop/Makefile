@@ -16,7 +16,11 @@ MODULE = tb_$(CORE_NAME)_top
 # source file I guess to kick the compilation. There's probably a better way to 
 # hand it a dummy file, but just give it the top level for now I guess
 VERILOG_SOURCES += $(PWD)/tb_tcp_open_loop_top.sv
-COMPILE_ARGS += "-f $(PWD)/$(CORE_NAME).flist"
+COMPILE_ARGS += -f $(PWD)/$(CORE_NAME).flist
+
+ifeq "$(SIM)" "verilator"
+	COMPILE_ARGS += -Wno-UNOPTFLAT -Wno-CASEINCOMPLETE -Wno-WIDTHEXPAND -Wno-WIDTHTRUNC -Wno-SELRANGE -Wno-MODDUP -Wno-IMPLICIT
+endif
 
 SIM_ARGS = -voptargs=+acc
 # SCRIPT_FILE = wave.do

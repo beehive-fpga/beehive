@@ -1,6 +1,8 @@
 `include "soc_defs.vh"
+module udp_splitter 
 import packet_struct_pkg::*;
-module udp_splitter #(
+import tracker_pkg::*;
+#(
      parameter UDP_DSTS = 3
     ,parameter UDP_DST_ID_W = $clog2(UDP_DSTS)
     ,parameter UDP_APP_ID = 0
@@ -17,7 +19,7 @@ module udp_splitter #(
     ,input  logic   [`IP_ADDR_W-1:0]                        src_udp_splitter_rx_src_ip
     ,input  logic   [`IP_ADDR_W-1:0]                        src_udp_splitter_rx_dst_ip
     ,input  udp_pkt_hdr                                     src_udp_splitter_rx_udp_hdr
-    ,input          [`PKT_TIMESTAMP_W-1:0]                  src_udp_splitter_rx_timestamp
+    ,input  tracker_stats_struct                            src_udp_splitter_rx_timestamp
     ,output logic                                           udp_splitter_src_rx_hdr_rdy
 
     ,input  logic                                           src_udp_splitter_rx_data_val
@@ -30,7 +32,7 @@ module udp_splitter #(
     ,output logic                 [`IP_ADDR_W-1:0]          udp_splitter_dst_rx_src_ip
     ,output logic                 [`IP_ADDR_W-1:0]          udp_splitter_dst_rx_dst_ip
     ,output logic                 [UDP_HDR_W-1:0]           udp_splitter_dst_rx_udp_hdr
-    ,output logic                 [`PKT_TIMESTAMP_W-1:0]    udp_splitter_dst_rx_timestamp
+    ,output tracker_stats_struct                            udp_splitter_dst_rx_timestamp
     ,input  logic   [UDP_DSTS-1:0]                          dst_udp_splitter_rx_hdr_rdy
 
     ,output logic   [UDP_DSTS-1:0]                          udp_splitter_dst_rx_data_val

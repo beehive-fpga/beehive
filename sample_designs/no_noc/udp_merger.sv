@@ -1,7 +1,9 @@
 `include "packet_defs.vh"
 `include "soc_defs.vh"
+module udp_merger 
+import tracker_pkg::*;
 import packet_struct_pkg::*;
-module udp_merger #(
+#(
      parameter NUM_SRCS = 3
 )(
      input clk
@@ -11,7 +13,7 @@ module udp_merger #(
     ,input  logic   [NUM_SRCS-1:0][`IP_ADDR_W-1:0]          srcs_udp_merger_tx_src_ip
     ,input  logic   [NUM_SRCS-1:0][`IP_ADDR_W-1:0]          srcs_udp_merger_tx_dst_ip
     ,input  logic   [NUM_SRCS-1:0][UDP_HDR_W-1:0]           srcs_udp_merger_tx_udp_hdr
-    ,input  logic   [NUM_SRCS-1:0][`PKT_TIMESTAMP_W-1:0]    srcs_udp_merger_tx_timestamp
+    ,input  logic   [NUM_SRCS-1:0][TRACKER_STATS_W-1:0]     srcs_udp_merger_tx_timestamp
     ,output logic   [NUM_SRCS-1:0]                          udp_merger_srcs_tx_hdr_rdy
 
     ,input  logic   [NUM_SRCS-1:0]                          srcs_udp_merger_tx_data_val
@@ -24,7 +26,7 @@ module udp_merger #(
     ,output logic   [`IP_ADDR_W-1:0]                        udp_merger_dst_tx_src_ip
     ,output logic   [`IP_ADDR_W-1:0]                        udp_merger_dst_tx_dst_ip
     ,output udp_pkt_hdr                                     udp_merger_dst_tx_udp_hdr
-    ,output         [`PKT_TIMESTAMP_W-1:0]                  udp_merger_dst_tx_timestamp
+    ,output         [TRACKER_STATS_W-1:0]                   udp_merger_dst_tx_timestamp
     ,input                                                  dst_udp_merger_tx_hdr_rdy
 
     ,output logic                                           udp_merger_dst_tx_data_val
@@ -121,7 +123,7 @@ module udp_merger #(
     );
     
     bsg_mux_one_hot #(
-         .width_p   (`PKT_TIMESTAMP_W   )
+         .width_p   (TRACKER_STATS_W    )
         ,.els_p     (NUM_SRCS           )
     ) timestamp_mux (
          .data_i        (srcs_udp_merger_tx_timestamp   )

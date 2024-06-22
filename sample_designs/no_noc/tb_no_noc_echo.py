@@ -63,5 +63,5 @@ async def test_wrapper(dut):
 
     await reset(dut)
     #await sanity_test(tb)
-    await bandwidth_log_test(tb)
+    await bandwidth_log_test(tb, runtime=10000, buffer_size=2048)
 

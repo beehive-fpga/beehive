@@ -49,4 +49,5 @@ init_fusesoc:
 	fusesoc library add buckfast_front $(BEEHIVE_PROJECT_ROOT)/protocols/tcp_hw/frontend
 	fusesoc library add buckfast_common_inc $(BEEHIVE_PROJECT_ROOT)/protocols/tcp_hw/include/common
 	fusesoc library add buckfast_common $(BEEHIVE_PROJECT_ROOT)/protocols/tcp_hw/common
+	fusesoc library add beehive_noc $(BEEHIVE_PROJECT_ROOT)/beehive_noc
 	fusesoc library add tcp $(BEEHIVE_PROJECT_ROOT)/protocols/tcp_hw

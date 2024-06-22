@@ -1,40 +1,42 @@
 `include "soc_defs.vh"
+module eth_filter 
+import tracker_pkg::*;
 import packet_struct_pkg::*;
-module eth_filter (
+(
      input clk
     ,input rst
     
-    ,input  eth_hdr                         src_eth_filter_eth_hdr
+    ,input  eth_hdr                         src_eth_filter_eth_hdr  
     ,input  logic   [`MTU_SIZE_W-1:0]       src_eth_filter_data_size
-    ,input  logic                           src_eth_filter_hdr_val
-    ,input  logic   [`PKT_TIMESTAMP_W-1:0]  src_eth_filter_timestamp
-    ,output logic                           eth_filter_src_hdr_rdy
+    ,input  logic                           src_eth_filter_hdr_val  
+    ,input  tracker_stats_struct            src_eth_filter_timestamp
+    ,output logic                           eth_filter_src_hdr_rdy  
 
-    ,input  logic                           src_eth_filter_data_val
-    ,input  logic   [`MAC_INTERFACE_W-1:0]  src_eth_filter_data
-    ,input  logic                           src_eth_filter_data_last
+    ,input  logic                           src_eth_filter_data_val     
+    ,input  logic   [`MAC_INTERFACE_W-1:0]  src_eth_filter_data         
+    ,input  logic                           src_eth_filter_data_last    
     ,input  logic   [`MAC_PADBYTES_W-1:0]   src_eth_filter_data_padbytes
-    ,output                                 eth_filter_src_data_rdy
-    
-    ,output eth_hdr                         eth_filter_dst_eth_hdr
-    ,output logic   [`MTU_SIZE_W-1:0]       eth_filter_dst_data_size
-    ,output logic                           eth_filter_dst_hdr_val
-    ,output logic   [`PKT_TIMESTAMP_W-1:0]  eth_filter_dst_timestamp
-    ,input                                  dst_eth_filter_hdr_rdy
+    ,output                                 eth_filter_src_data_rdy     
 
-    ,output logic                           eth_filter_dst_data_val
-    ,output logic   [`MAC_INTERFACE_W-1:0]  eth_filter_dst_data
-    ,output logic                           eth_filter_dst_data_last
+    ,output eth_hdr                         eth_filter_dst_eth_hdr      
+    ,output logic   [`MTU_SIZE_W-1:0]       eth_filter_dst_data_size    
+    ,output logic                           eth_filter_dst_hdr_val      
+    ,output tracker_stats_struct            eth_filter_dst_timestamp    
+    ,input                                  dst_eth_filter_hdr_rdy      
+
+    ,output logic                           eth_filter_dst_data_val     
+    ,output logic   [`MAC_INTERFACE_W-1:0]  eth_filter_dst_data         
+    ,output logic                           eth_filter_dst_data_last    
     ,output logic   [`MAC_PADBYTES_W-1:0]   eth_filter_dst_data_padbytes
-    ,input                                  dst_eth_filter_data_rdy
+    ,input                                  dst_eth_filter_data_rdy     
 );
 
 
     logic   table_hit;
     logic   table_read;
     logic   store_table_res;
-    logic   [`PKT_TIMESTAMP_W-1:0]  pkt_timestamp_reg;
-    logic   [`PKT_TIMESTAMP_W-1:0]  pkt_timestamp_next;
+    tracker_stats_struct  pkt_timestamp_reg;
+    tracker_stats_struct  pkt_timestamp_next;
 
     always_ff @(posedge clk) begin
         if (rst) begin

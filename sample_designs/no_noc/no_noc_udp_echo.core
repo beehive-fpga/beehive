@@ -28,6 +28,7 @@ filesets:
             - uwcse:buckfast:frontend
             - uwcse:beehive:eth_stats
             - uwcse:beehive:udp_echo_app_stats
+            - uwcse:beehive:tracker
             - uwcse:buckfast:udp_echo_app
         file_type: systemVerilogSource
 targets:

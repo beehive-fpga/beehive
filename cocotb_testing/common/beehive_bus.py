@@ -252,10 +252,12 @@ class BeehiveBusSink(BeehiveBusOperator, BeehiveOutputInterface):
 
     Returns: a bytearray representing the frame
     """
-    async def recv_frame(self, pause_len=0):
+    async def recv_frame(self, pause_len=0, frame_in_progress=None):
         recv_buf = bytearray([])
         while True:
             output_frame = await self.recv_resp(pause_len=pause_len)
+            if frame_in_progress is not None:
+                frame_in_progress.set()
 
             good_bytes = 0
             if (output_frame.endframe == 1):

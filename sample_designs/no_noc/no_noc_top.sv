@@ -1,6 +1,8 @@
 `include "soc_defs.vh"
 `include "packet_defs.vh"
-module no_noc_top (
+module no_noc_top 
+import tracker_pkg::*;
+(
      input clk
     ,input rst
     
@@ -34,74 +36,74 @@ module no_noc_top (
     localparam UDP_SRCS = 3;
     localparam UDP_DSTS = 3;
 
-    eth_hdr                         eth_format_eth_filter_eth_hdr;
-    logic   [`MTU_SIZE_W-1:0]       eth_format_eth_filter_data_size;
-    logic   [`PKT_TIMESTAMP_W-1:0]  eth_format_eth_filter_timestamp;
-    logic                           eth_format_eth_filter_hdr_val;
-    logic                           eth_filter_eth_format_hdr_rdy;
+    eth_hdr                        eth_format_eth_filter_eth_hdr;          
+    logic   [`MTU_SIZE_W-1:0]      eth_format_eth_filter_data_size;        
+    tracker_stats_struct           eth_format_eth_filter_timestamp;        
+    logic                          eth_format_eth_filter_hdr_val;          
+    logic                          eth_filter_eth_format_hdr_rdy;          
 
-    logic                           eth_format_eth_filter_data_val;
-    logic   [`MAC_INTERFACE_W-1:0]  eth_format_eth_filter_data;
-    logic                           eth_filter_eth_format_data_rdy;
-    logic                           eth_format_eth_filter_data_last;
-    logic   [`MAC_PADBYTES_W-1:0]   eth_format_eth_filter_data_padbytes;
+    logic                          eth_format_eth_filter_data_val;         
+    logic   [`MAC_INTERFACE_W-1:0] eth_format_eth_filter_data;             
+    logic                          eth_filter_eth_format_data_rdy;         
+    logic                          eth_format_eth_filter_data_last;        
+    logic   [`MAC_PADBYTES_W-1:0]  eth_format_eth_filter_data_padbytes;    
     
-    eth_hdr                         eth_filter_ip_format_eth_hdr;
-    logic   [`MTU_SIZE_W-1:0]       eth_filter_ip_format_data_size;
-    logic   [`PKT_TIMESTAMP_W-1:0]  eth_filter_ip_format_timestamp;
-    logic                           eth_filter_ip_format_hdr_val;
-    logic                           ip_format_eth_filter_hdr_rdy;
+    eth_hdr                        eth_filter_ip_format_eth_hdr;           
+    logic   [`MTU_SIZE_W-1:0]      eth_filter_ip_format_data_size;         
+    tracker_stats_struct           eth_filter_ip_format_timestamp;         
+    logic                          eth_filter_ip_format_hdr_val;           
+    logic                          ip_format_eth_filter_hdr_rdy;           
 
-    logic                           eth_filter_ip_format_data_val;
-    logic   [`MAC_INTERFACE_W-1:0]  eth_filter_ip_format_data;
-    logic                           ip_format_eth_filter_data_rdy;
-    logic                           eth_filter_ip_format_data_last;
-    logic   [`MAC_PADBYTES_W-1:0]   eth_filter_ip_format_data_padbytes;
+    logic                          eth_filter_ip_format_data_val;          
+    logic   [`MAC_INTERFACE_W-1:0] eth_filter_ip_format_data;              
+    logic                          ip_format_eth_filter_data_rdy;          
+    logic                          eth_filter_ip_format_data_last;         
+    logic   [`MAC_PADBYTES_W-1:0]  eth_filter_ip_format_data_padbytes;     
     
-    logic                           ip_format_ip_filter_rx_hdr_val;
-    ip_pkt_hdr                      ip_format_ip_filter_rx_ip_hdr;
-    logic   [`PKT_TIMESTAMP_W-1:0]  ip_format_ip_filter_rx_timestamp;
-    logic                           ip_filter_ip_format_rx_hdr_rdy;
+    logic                          ip_format_ip_filter_rx_hdr_val;         
+    ip_pkt_hdr                     ip_format_ip_filter_rx_ip_hdr;          
+    tracker_stats_struct           ip_format_ip_filter_rx_timestamp;       
+    logic                          ip_filter_ip_format_rx_hdr_rdy;         
 
-    logic                           ip_format_ip_filter_rx_data_val;
-    logic                           ip_filter_ip_format_rx_data_rdy;
-    logic   [`MAC_INTERFACE_W-1:0]  ip_format_ip_filter_rx_data;
-    logic                           ip_format_ip_filter_rx_last;
-    logic   [`MAC_PADBYTES_W-1:0]   ip_format_ip_filter_rx_padbytes;
+    logic                          ip_format_ip_filter_rx_data_val;        
+    logic                          ip_filter_ip_format_rx_data_rdy;        
+    logic   [`MAC_INTERFACE_W-1:0] ip_format_ip_filter_rx_data;            
+    logic                          ip_format_ip_filter_rx_last;            
+    logic   [`MAC_PADBYTES_W-1:0]  ip_format_ip_filter_rx_padbytes;        
     
-    logic                           ip_filter_udp_formatter_rx_hdr_val;
-    ip_pkt_hdr                      ip_filter_udp_formatter_rx_ip_hdr;
-    logic   [`TOT_LEN_W-1:0]        ip_filter_udp_formatter_rx_udp_len;
-    logic   [`IP_ADDR_W-1:0]        ip_filter_udp_formatter_rx_src_ip;
-    logic   [`IP_ADDR_W-1:0]        ip_filter_udp_formatter_rx_dst_ip;
-    logic   [`PKT_TIMESTAMP_W-1:0]  ip_filter_udp_formatter_rx_timestamp;
-    logic                           udp_formatter_ip_filter_rx_hdr_rdy;
+    logic                          ip_filter_udp_formatter_rx_hdr_val;     
+    ip_pkt_hdr                     ip_filter_udp_formatter_rx_ip_hdr;      
+    logic   [`TOT_LEN_W-1:0]       ip_filter_udp_formatter_rx_udp_len;     
+    logic   [`IP_ADDR_W-1:0]       ip_filter_udp_formatter_rx_src_ip;      
+    logic   [`IP_ADDR_W-1:0]       ip_filter_udp_formatter_rx_dst_ip;      
+    tracker_stats_struct           ip_filter_udp_formatter_rx_timestamp;   
+    logic                          udp_formatter_ip_filter_rx_hdr_rdy;     
 
-    logic                           ip_filter_udp_formatter_rx_data_val;
-    logic                           udp_formatter_ip_filter_rx_data_rdy;
-    logic   [`MAC_INTERFACE_W-1:0]  ip_filter_udp_formatter_rx_data;
-    logic                           ip_filter_udp_formatter_rx_last;
-    logic   [`MAC_PADBYTES_W-1:0]   ip_filter_udp_formatter_rx_padbytes;
+    logic                          ip_filter_udp_formatter_rx_data_val;        
+    logic                          udp_formatter_ip_filter_rx_data_rdy;        
+    logic   [`MAC_INTERFACE_W-1:0] ip_filter_udp_formatter_rx_data;                
+    logic                          ip_filter_udp_formatter_rx_last;                
+    logic   [`MAC_PADBYTES_W-1:0]  ip_filter_udp_formatter_rx_padbytes;        
     
-    logic                           udp_formatter_udp_splitter_rx_hdr_val;
-    logic   [`IP_ADDR_W-1:0]        udp_formatter_udp_splitter_rx_src_ip;
-    logic   [`IP_ADDR_W-1:0]        udp_formatter_udp_splitter_rx_dst_ip;
-    udp_pkt_hdr                     udp_formatter_udp_splitter_rx_udp_hdr;
-    logic   [`PKT_TIMESTAMP_W-1:0]  udp_formatter_udp_splitter_rx_timestamp;
-    logic                           udp_splitter_udp_formatter_rx_hdr_rdy;
+    logic                          udp_formatter_udp_splitter_rx_hdr_val;    
+    logic   [`IP_ADDR_W-1:0]       udp_formatter_udp_splitter_rx_src_ip;      
+    logic   [`IP_ADDR_W-1:0]       udp_formatter_udp_splitter_rx_dst_ip;      
+    udp_pkt_hdr                    udp_formatter_udp_splitter_rx_udp_hdr;    
+    tracker_stats_struct           udp_formatter_udp_splitter_rx_timestamp;
+    logic                          udp_splitter_udp_formatter_rx_hdr_rdy;    
 
-    logic                           udp_formatter_udp_splitter_rx_data_val;
-    logic   [`MAC_INTERFACE_W-1:0]  udp_formatter_udp_splitter_rx_data;
-    logic                           udp_formatter_udp_splitter_rx_last;
-    logic   [`MAC_PADBYTES_W-1:0]   udp_formatter_udp_splitter_rx_padbytes;
-    logic                           udp_splitter_udp_formatter_rx_data_rdy;
+    logic                          udp_formatter_udp_splitter_rx_data_val;
+    logic   [`MAC_INTERFACE_W-1:0] udp_formatter_udp_splitter_rx_data;
+    logic                          udp_formatter_udp_splitter_rx_last;
+    logic   [`MAC_PADBYTES_W-1:0]  udp_formatter_udp_splitter_rx_padbytes;
+    logic                          udp_splitter_udp_formatter_rx_data_rdy;
     
-    logic   [UDP_DSTS-1:0]                          udp_splitter_dsts_rx_hdr_val;
-    logic                 [`IP_ADDR_W-1:0]          udp_splitter_dsts_rx_src_ip;
-    logic                 [`IP_ADDR_W-1:0]          udp_splitter_dsts_rx_dst_ip;
-    logic                 [UDP_HDR_W-1:0]           udp_splitter_dsts_rx_udp_hdr;
-    logic                 [`PKT_TIMESTAMP_W-1:0]    udp_splitter_dsts_rx_timestamp;
-    logic   [UDP_DSTS-1:0]                          dsts_udp_splitter_rx_hdr_rdy;
+    logic   [UDP_DSTS-1:0]                   udp_splitter_dsts_rx_hdr_val;
+    logic                 [`IP_ADDR_W-1:0]   udp_splitter_dsts_rx_src_ip;
+    logic                 [`IP_ADDR_W-1:0]   udp_splitter_dsts_rx_dst_ip;
+    logic                 [UDP_HDR_W-1:0]    udp_splitter_dsts_rx_udp_hdr;
+    tracker_stats_struct                     udp_splitter_dsts_rx_timestamp;
+    logic   [UDP_DSTS-1:0]                   dsts_udp_splitter_rx_hdr_rdy;
 
     logic   [UDP_DSTS-1:0]                          udp_splitter_dsts_rx_data_val;
     logic                 [`MAC_INTERFACE_W-1:0]    udp_splitter_dsts_rx_data;
@@ -118,75 +120,75 @@ module no_noc_top (
     logic                                           data_buf_q_dst_empty;
     
     
-    logic                           udp_to_stream_ip_assemble_hdr_val;
-    logic   [`IP_ADDR_W-1:0]        udp_to_stream_ip_assemble_src_ip;
-    logic   [`IP_ADDR_W-1:0]        udp_to_stream_ip_assemble_dst_ip;
-    logic   [`TOT_LEN_W-1:0]        udp_to_stream_ip_assemble_udp_len;
-    logic   [`PROTOCOL_W-1:0]       udp_to_stream_ip_assemble_protocol;
-    logic   [`PKT_TIMESTAMP_W-1:0]  udp_to_stream_ip_assemble_timestamp;
-    logic                           ip_assemble_udp_to_stream_hdr_rdy;
+    logic                          udp_to_stream_ip_assemble_hdr_val;  
+    logic   [`IP_ADDR_W-1:0]       udp_to_stream_ip_assemble_src_ip;   
+    logic   [`IP_ADDR_W-1:0]       udp_to_stream_ip_assemble_dst_ip;   
+    logic   [`TOT_LEN_W-1:0]       udp_to_stream_ip_assemble_udp_len;  
+    logic   [`PROTOCOL_W-1:0]      udp_to_stream_ip_assemble_protocol; 
+    tracker_stats_struct           udp_to_stream_ip_assemble_timestamp;
+    logic                          ip_assemble_udp_to_stream_hdr_rdy;  
     
-    logic                           udp_to_stream_ip_stream_val;
-    logic   [`MAC_INTERFACE_W-1:0]  udp_to_stream_ip_stream_data;
-    logic                           udp_to_stream_ip_stream_last;
-    logic   [`MAC_PADBYTES_W-1:0]   udp_to_stream_ip_stream_padbytes;
-    logic                           ip_stream_udp_to_stream_rdy;
+    logic                          udp_to_stream_ip_stream_val;
+    logic   [`MAC_INTERFACE_W-1:0] udp_to_stream_ip_stream_data;
+    logic                          udp_to_stream_ip_stream_last;
+    logic   [`MAC_PADBYTES_W-1:0]  udp_to_stream_ip_stream_padbytes;
+    logic                          ip_stream_udp_to_stream_rdy;
     
-    logic                               ip_assemble_ip_to_ethstream_hdr_val;
-    ip_pkt_hdr                          ip_assemble_ip_to_ethstream_ip_hdr;
-    logic       [`PKT_TIMESTAMP_W-1:0]  ip_assemble_ip_to_ethstream_timestamp;
-    logic                               ip_to_ethstream_ip_assemble_hdr_rdy;
+    logic                          ip_assemble_ip_to_ethstream_hdr_val;
+    ip_pkt_hdr                     ip_assemble_ip_to_ethstream_ip_hdr;
+    tracker_stats_struct           ip_assemble_ip_to_ethstream_timestamp;
+    logic                          ip_to_ethstream_ip_assemble_hdr_rdy;
     
-    logic                               ip_assemble_ip_to_ethstream_data_val;
-    logic   [`MAC_INTERFACE_W-1:0]      ip_assemble_ip_to_ethstream_data;
-    logic                               ip_assemble_ip_to_ethstream_data_last;
-    logic   [`MAC_PADBYTES_W-1:0]       ip_assemble_ip_to_ethstream_data_padbytes;
-    logic                               ip_to_ethstream_ip_assemble_data_rdy;
+    logic                          ip_assemble_ip_to_ethstream_data_val;
+    logic   [`MAC_INTERFACE_W-1:0] ip_assemble_ip_to_ethstream_data;
+    logic                          ip_assemble_ip_to_ethstream_data_last;
+    logic   [`MAC_PADBYTES_W-1:0]  ip_assemble_ip_to_ethstream_data_padbytes;
+    logic                          ip_to_ethstream_ip_assemble_data_rdy;
     
-    logic                               ip_to_ethstream_eth_stream_hdr_val;
-    eth_hdr                             ip_to_ethstream_eth_stream_eth_hdr;
-    logic   [`TOT_LEN_W-1:0]            ip_to_ethstream_eth_stream_data_len;
-    logic   [`PKT_TIMESTAMP_W-1:0]      ip_to_ethstream_eth_stream_timestamp;
-    logic                               eth_stream_ip_to_ethstream_hdr_rdy;
+    logic                          ip_to_ethstream_eth_stream_hdr_val;      
+    eth_hdr                        ip_to_ethstream_eth_stream_eth_hdr;      
+    logic   [`TOT_LEN_W-1:0]       ip_to_ethstream_eth_stream_data_len;     
+    tracker_stats_struct           ip_to_ethstream_eth_stream_timestamp;    
+    logic                          eth_stream_ip_to_ethstream_hdr_rdy;      
 
-    logic                               ip_to_ethstream_eth_stream_data_val;
-    logic   [`MAC_INTERFACE_W-1:0]      ip_to_ethstream_eth_stream_data;
-    logic                               ip_to_ethstream_eth_stream_data_last;
-    logic   [`MAC_PADBYTES_W-1:0]       ip_to_ethstream_eth_stream_data_padbytes;
-    logic                               eth_stream_ip_to_ethstream_data_rdy;
+    logic                          ip_to_ethstream_eth_stream_data_val;     
+    logic   [`MAC_INTERFACE_W-1:0] ip_to_ethstream_eth_stream_data;         
+    logic                          ip_to_ethstream_eth_stream_data_last;    
+    logic   [`MAC_PADBYTES_W-1:0]  ip_to_ethstream_eth_stream_data_padbytes;
+    logic                          eth_stream_ip_to_ethstream_data_rdy;     
     
-    logic                               eth_lat_wr_val;
-    logic   [`PKT_TIMESTAMP_W-1:0]      eth_lat_wr_timestamp;
+    logic                          eth_lat_wr_val;                          
+    logic   [MSG_TIMESTAMP_W-1:0]  eth_lat_wr_timestamp;                    
    
     logic                               app_stats_do_log;
     logic                               app_stats_incr_bytes_sent;
     logic   [`MAC_INTERFACE_BYTES_W:0]  app_stats_num_bytes_sent;
     
-    logic   [UDP_SRCS-1:0]                          srcs_udp_merger_tx_hdr_val;
-    logic   [UDP_SRCS-1:0][`IP_ADDR_W-1:0]          srcs_udp_merger_tx_src_ip;
-    logic   [UDP_SRCS-1:0][`IP_ADDR_W-1:0]          srcs_udp_merger_tx_dst_ip;
-    logic   [UDP_SRCS-1:0][UDP_HDR_W-1:0]           srcs_udp_merger_tx_udp_hdr;
-    logic   [UDP_SRCS-1:0][`PKT_TIMESTAMP_W-1:0]    srcs_udp_merger_tx_timestamp;
-    logic   [UDP_SRCS-1:0]                          udp_merger_srcs_tx_hdr_rdy;
+    logic   [UDP_SRCS-1:0]                        srcs_udp_merger_tx_hdr_val;  
+    logic   [UDP_SRCS-1:0][`IP_ADDR_W-1:0]        srcs_udp_merger_tx_src_ip;   
+    logic   [UDP_SRCS-1:0][`IP_ADDR_W-1:0]        srcs_udp_merger_tx_dst_ip;   
+    logic   [UDP_SRCS-1:0][UDP_HDR_W-1:0]         srcs_udp_merger_tx_udp_hdr;  
+    logic   [UDP_SRCS-1:0][TRACKER_STATS_W-1:0]   srcs_udp_merger_tx_timestamp;
+    logic   [UDP_SRCS-1:0]                        udp_merger_srcs_tx_hdr_rdy;  
 
-    logic   [UDP_SRCS-1:0]                          srcs_udp_merger_tx_data_val;
-    logic   [UDP_SRCS-1:0][`MAC_INTERFACE_W-1:0]    srcs_udp_merger_tx_data;
-    logic   [UDP_SRCS-1:0]                          srcs_udp_merger_tx_last;
-    logic   [UDP_SRCS-1:0][`MAC_PADBYTES_W-1:0]     srcs_udp_merger_tx_padbytes;
-    logic   [UDP_SRCS-1:0]                          udp_merger_srcs_tx_data_rdy;
+    logic   [UDP_SRCS-1:0]                        srcs_udp_merger_tx_data_val; 
+    logic   [UDP_SRCS-1:0][`MAC_INTERFACE_W-1:0]  srcs_udp_merger_tx_data;     
+    logic   [UDP_SRCS-1:0]                        srcs_udp_merger_tx_last;     
+    logic   [UDP_SRCS-1:0][`MAC_PADBYTES_W-1:0]   srcs_udp_merger_tx_padbytes; 
+    logic   [UDP_SRCS-1:0]                        udp_merger_srcs_tx_data_rdy; 
     
-    logic                           udp_merger_udp_stream_hdr_val;
-    logic   [`IP_ADDR_W-1:0]        udp_merger_udp_stream_src_ip_addr;
-    logic   [`IP_ADDR_W-1:0]        udp_merger_udp_stream_dst_ip_addr;
-    udp_pkt_hdr                     udp_merger_udp_stream_udp_hdr;
-    logic   [`PKT_TIMESTAMP_W-1:0]  udp_merger_udp_stream_timestamp;
-    logic                           udp_stream_udp_merger_hdr_rdy;
+    logic                          udp_merger_udp_stream_hdr_val;      
+    logic   [`IP_ADDR_W-1:0]       udp_merger_udp_stream_src_ip_addr;  
+    logic   [`IP_ADDR_W-1:0]       udp_merger_udp_stream_dst_ip_addr;  
+    udp_pkt_hdr                    udp_merger_udp_stream_udp_hdr;      
+    tracker_stats_struct           udp_merger_udp_stream_timestamp;    
+    logic                          udp_stream_udp_merger_hdr_rdy;      
     
-    logic                           udp_merger_udp_stream_data_val;
-    logic   [`MAC_INTERFACE_W-1:0]  udp_merger_udp_stream_data;
-    logic                           udp_merger_udp_stream_data_last;
-    logic   [`MAC_PADBYTES_W-1:0]   udp_merger_udp_stream_data_padbytes;
-    logic                           udp_stream_udp_merger_data_rdy;
+    logic                          udp_merger_udp_stream_data_val;     
+    logic   [`MAC_INTERFACE_W-1:0] udp_merger_udp_stream_data;         
+    logic                          udp_merger_udp_stream_data_last;    
+    logic   [`MAC_PADBYTES_W-1:0]  udp_merger_udp_stream_data_padbytes;
+    logic                          udp_stream_udp_merger_data_rdy;     
 
     /* 
      *
@@ -206,7 +208,7 @@ module no_noc_top (
     
         ,.eth_format_dst_eth_hdr        (eth_format_eth_filter_eth_hdr       )
         ,.eth_format_dst_data_size      (eth_format_eth_filter_data_size     )
-        ,.eth_format_dst_timestamp      (eth_format_eth_filter_timestamp     )
+        ,.eth_format_dst_timestamp      (eth_format_eth_filter_timestamp.timestamp)
         ,.eth_format_dst_hdr_val        (eth_format_eth_filter_hdr_val       )
         ,.dst_eth_format_hdr_rdy        (eth_filter_eth_format_hdr_rdy       )
     
@@ -216,6 +218,8 @@ module no_noc_top (
         ,.eth_format_dst_data_last      (eth_format_eth_filter_data_last     )
         ,.eth_format_dst_data_padbytes  (eth_format_eth_filter_data_padbytes )
     );
+
+    assign eth_format_eth_filter_timestamp.packet_id = '0;
 
     eth_filter rx_eth_filter (
          .clk   (clk    )
@@ -308,8 +312,8 @@ module no_noc_top (
                                             ip_filter_udp_formatter_rx_ip_hdr.dest_addr;
 
     udp_stream_format #(
-         .DATA_WIDTH   (`MAC_INTERFACE_W   )
-        ,.USER_WIDTH   (`PKT_TIMESTAMP_W   )
+         .DATA_WIDTH   (`MAC_INTERFACE_W     )
+        ,.USER_WIDTH   (TRACKER_STATS_W      )
     ) rx_udp_format (
          .clk   (clk    )
         ,.rst   (rst    )
@@ -584,7 +588,7 @@ module no_noc_top (
 
         ,.src_eth_hdrtostream_eth_hdr_val   (ip_to_ethstream_eth_stream_hdr_val         )
         ,.src_eth_hdrtostream_eth_hdr       (ip_to_ethstream_eth_stream_eth_hdr         )
-        ,.src_eth_hdrtostream_timestamp     (ip_to_ethstream_eth_stream_timestamp       )
+        ,.src_eth_hdrtostream_timestamp     (ip_to_ethstream_eth_stream_timestamp.timestamp)
         ,.src_eth_hdrtostream_payload_len   (ip_to_ethstream_eth_stream_data_len[`MTU_SIZE_W-1:0])
         ,.eth_hdrtostream_src_eth_hdr_rdy   (eth_stream_ip_to_ethstream_hdr_rdy         )
 

@@ -122,16 +122,23 @@ async def test_wrapper(dut):
     await sanity_test(tb)
 #    await bandwidth_log_test(tb)
 
-async def recv_event_wrapper(tb, done_event, recv_task, timeout_ns):
-    timeout = Timer(time=timeout_ns, units="ns")
-    trigger = timeout
+async def recv_event_wrapper(tb, done_event, timeout_ns):
+    delay = 0
+    frame_in_progress = Event()
+    recv_frame_task = cocotb.start_soon(tb.output_op.recv_frame(frame_in_progress=frame_in_progress, pause_len=delay))
 
-    while trigger == timeout:
-        if done_event.is_set():
-            return None
+    done_event_trigger = done_event.wait()
+    trigger = await First(done_event_trigger, recv_frame_task)
+
+    # okay figure out if we're supposed to be done or if we just received a frame
+    if trigger == done_event_trigger:
+        # are we in the middle of receiving a frame?
+        if frame_in_progress.is_set():
+            # wait for the frame to finish
+            trigger = await recv_frame_task
         else:
-            timeout = Timer(time=timeout_ns, units="ns")
-            trigger = await First(timeout, recv_task)
+            # we're done
+            trigger = None
 
     return trigger
 
@@ -143,11 +150,8 @@ async def recv_loop(tb, done_event, full_event, wait_on_reqs=True):
     while not done_event.is_set():
         tb.log.info(f"Waiting for request {requests_recv}")
         #delay = random_generator.randint(0, 10)
-        delay = 0
 
-        recv_frame_task = cocotb.start_soon(tb.output_op.recv_frame(pause_len=delay))
-
-        result = await recv_event_wrapper(tb, done_event, recv_frame_task, 100)
+        result = await recv_event_wrapper(tb, done_event, 100)
 
         if result == None:
             break
@@ -157,7 +161,7 @@ async def recv_loop(tb, done_event, full_event, wait_on_reqs=True):
         recv_pkt = pkt.copy()
         max_udp_pkt_bytes = bytearray(recv_pkt.build())
         pad_packet(tb, max_udp_pkt_bytes)
-        #check_udp_frame(result, max_udp_pkt_bytes)
+        check_udp_frame(result, max_udp_pkt_bytes)
         requests_recv += 1
 
     res = done_event.data
@@ -174,6 +178,7 @@ async def recv_loop(tb, done_event, full_event, wait_on_reqs=True):
         pkt_buf = await tb.output_op.recv_frame(pause_len=delay)
         recv_pkt = tb.pkts.popleft()
         max_udp_pkt_bytes = bytearray(recv_pkt.build())
+        tb.log.info(f"Got bytes {pkt_buf}")
         pad_packet(tb, max_udp_pkt_bytes)
         check_udp_frame(pkt_buf, max_udp_pkt_bytes)
         requests_recv += 1
@@ -262,14 +267,14 @@ async def latency_log_test(dut):
     await RisingEdge(dut.clk)
 
 #@cocotb.test()
-async def bandwidth_log_test(tb, wait_on_reqs=True):
+async def bandwidth_log_test(tb, wait_on_reqs=True, runtime=1000, buffer_size=64):
     tb.pkts = collections.deque()
     done_event = Event()
     full_event = Event()
 
 #    await ClockCycles(tb.clk, 5000)
     tb.log.info("Starting application echo")
-    send_task = cocotb.start_soon(send_loop(tb, 5000, 64, done_event,
+    send_task = cocotb.start_soon(send_loop(tb, runtime, buffer_size, done_event,
         full_event))
     recv_task = cocotb.start_soon(recv_loop(tb, done_event, full_event,
         wait_on_reqs=wait_on_reqs))
@@ -280,7 +285,7 @@ async def bandwidth_log_test(tb, wait_on_reqs=True):
     log_four_tuple = TCPFourTuple(our_ip = "198.0.0.5",
                                 our_port = 55000,
                                 their_ip = "198.0.0.7",
-                                their_port = 60001)
+                                their_port = 60000)
     log_reader = UDPAppLogRead(8, 2, tb, log_four_tuple)
 
     log_entries = await log_reader.read_log()

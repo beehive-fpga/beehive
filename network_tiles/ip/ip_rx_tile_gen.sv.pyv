@@ -118,20 +118,12 @@ print(router_wires)
         ,.dst_ctovr_rdy     (log_ctovr_data_noc0_rdy        )
     );
 
-    assign ctovr_router_ctrl_noc1_yummy = 1'b0;
-    assign vrtoc_router_ctrl_noc1_val = 1'b0;
-    assign vrtoc_router_ctrl_noc1_data = '0;
-
-    assign ctovr_router_ctrl_noc2_yummy = 1'b0;
-    assign vrtoc_router_ctrl_noc2_val = 1'b0;
-    assign vrtoc_router_ctrl_noc2_data = '0;
     
     beehive_credit_to_valrdy #(
         .NOC_DATA_W (`CTRL_NOC_DATA_W   )
     ) ctrl_noc1_beehive_credit_to_valrdy (
          .clk   (clk)
         ,.reset (rst)
-        
         ,.src_ctovr_data    (router_ctovr_ctrl_noc1_data    )
         ,.src_ctovr_val     (router_ctovr_ctrl_noc1_val     )
         ,.ctovr_src_yummy   (ctovr_router_ctrl_noc1_yummy   )

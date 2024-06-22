@@ -99,9 +99,10 @@ async def test_wrapper(dut):
     await sanity_test(tb)
 #    await bandwidth_log_test(tb)
 
-async def recv_event_wrapper(tb, done_event, recv_task, timeout_ns):
-    timeout = Timer(time=timeout_ns, units="ns")
-    trigger = timeout
+async def recv_event_wrapper(tb, done_event, timeout_ns):
+    delay = 0
+    frame_in_progress = Event()
+    recv_frame_task = cocotb.start_soon(tb.output_op.recv_frame(frame_in_progress=frame_in_progress, pause_len=delay))
 
 @cocotb.test()
 async def test_wrapper(dut):
@@ -292,11 +293,9 @@ async def bandwidth_log_test(tb, wait_on_reqs=True, runtime=1000, buffer_size=64
     tb.log.info(log_entries)
     intervals = log_reader.calculate_bws(log_entries, tb.CLOCK_CYCLE_TIME)
     tb.log.info(intervals)
-
     await RisingEdge(tb.clk)
     await RisingEdge(tb.clk)
     await RisingEdge(tb.clk)
-
 
 
 #@cocotb.test()

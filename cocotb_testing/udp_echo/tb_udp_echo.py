@@ -422,24 +422,6 @@ async def sanity_test(tb):
     echoed_right_pkt_bytes = await tb.output_op.recv_frame()
     check_udp_frame(echoed_right_pkt_bytes, test_right_packet.build())
     
-    await RisingEdge(dut.clk)
-
-    tb.log.info("Send a range of packet sizes")
-    for i in range(1, 128):
-        tb.log.info(f"Trying packet size {i}")
-        test_udp = create_udp_frame(i)
-        test_packet_bytes = bytearray(test_udp.build())
-        pad_packet(test_packet_bytes)
-
-        await tb.input_op.xmit_frame(test_packet_bytes, rand_delay=True)
-
-        echoed_pkt_bytes = await tb.output_op.recv_frame()
-
-        check_udp_frame(echoed_pkt_bytes, test_packet_bytes)
-
-        await RisingEdge(tb.clk)
-
-
     await RisingEdge(tb.clk)
 
     tb.log.info("Send a range of packet sizes")
@@ -456,6 +438,7 @@ async def sanity_test(tb):
         check_udp_frame(echoed_pkt_bytes, test_packet_bytes)
 
         await RisingEdge(tb.clk)
+
 
     await RisingEdge(tb.clk)
 

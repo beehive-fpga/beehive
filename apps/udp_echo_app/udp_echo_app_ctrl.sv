@@ -18,10 +18,6 @@ module udp_echo_app_ctrl (
     ,output logic                           app_stats_incr_bytes_sent
     ,output logic   [`NOC_DATA_BYTES_W:0]   app_stats_num_bytes_sent
 
-    ,output logic                           app_stats_do_log
-    ,output logic                           app_stats_incr_bytes_sent
-    ,output logic   [`NOC_DATA_BYTES_W:0]   app_stats_num_bytes_sent
-
     ,input          [`MSG_LENGTH_WIDTH-1:0] total_flits
     ,input  logic   [`UDP_LENGTH_W-1:0]     data_length
 );

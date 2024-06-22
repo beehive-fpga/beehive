@@ -21,15 +21,6 @@ package beehive_udp_msg;
         logic   [`PORT_NUM_W-1:0]           src_port;
         logic   [`PORT_NUM_W-1:0]           dst_port;
         logic   [`UDP_LENGTH_W-1:0]         data_length; 
-    } udp_info;
-    localparam UDP_INFO_W = $bits(udp_info);
-
-    typedef struct packed {
-        logic   [`IP_ADDR_W-1:0]            src_ip;
-        logic   [`IP_ADDR_W-1:0]            dst_ip;
-        logic   [`PORT_NUM_W-1:0]           src_port;
-        logic   [`PORT_NUM_W-1:0]           dst_port;
-        logic   [`UDP_LENGTH_W-1:0]         data_length; 
         logic   [UDP_RX_META_PADDING-1:0]   padding;
     } udp_rx_metadata_flit;
 

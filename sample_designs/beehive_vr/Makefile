@@ -12,7 +12,11 @@ FLIST_NAME = beehive_vr_test.flist
 TOP_CORE_PKG = beehive_vr_test
 
 VERILOG_SOURCES += $(PWD)/beehive_vr_top_gen.sv
-COMPILE_ARGS += "-f $(PWD)/$(FLIST_NAME)"
+COMPILE_ARGS += -f $(PWD)/$(FLIST_NAME)
+
+ifeq "$(SIM)" "verilator"
+	COMPILE_ARGS += -Wno-UNOPTFLAT -Wno-CASEINCOMPLETE -Wno-WIDTHEXPAND -Wno-WIDTHTRUNC -Wno-SELRANGE -Wno-MODDUP -Wno-IMPLICIT
+endif
 
 SIM_ARGS = -voptargs=+acc
 # SCRIPT_FILE = wave.do

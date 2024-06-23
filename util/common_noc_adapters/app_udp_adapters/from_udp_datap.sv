@@ -1,6 +1,7 @@
 `include "noc_defs.vh"
 module from_udp_datap 
 import beehive_udp_msg::*;
+import beehive_noc_msg::*;
 #(
      parameter NOC_DATA_W = -1
     ,parameter NOC_PADBYTES = NOC_DATA_W/8
@@ -23,7 +24,7 @@ import beehive_udp_msg::*;
     ,output logic                           datap_ctrl_last_data
 );
 
-    udp_noc_hdr_flit        hdr_flit_cast;
+    beehive_noc_hdr_flit    hdr_flit_cast;
     udp_rx_metadata_flit    meta_flit_cast;
     udp_info                udp_info_reg;
     udp_info                udp_info_next;
@@ -51,7 +52,7 @@ import beehive_udp_msg::*;
     end
 
     assign total_flits_next = ctrl_datap_store_hdr_data 
-                              ? hdr_flit_cast.core.msg_len
+                              ? hdr_flit_cast.core.core.msg_len
                               : total_flits_reg;
 
     assign flit_cnt_next = ctrl_datap_store_hdr_data

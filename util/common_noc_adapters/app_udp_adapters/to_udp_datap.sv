@@ -32,7 +32,7 @@ import beehive_noc_msg::*;
     localparam  NOC_DATA_BYTES = NOC_DATA_W/8;
     localparam  NOC_DATA_BYTES_W = $clog2(NOC_DATA_BYTES);
 
-    udp_noc_hdr_flit        out_hdr_flit;
+    beehive_noc_hdr_flit    out_hdr_flit;
     udp_tx_metadata_flit    out_meta_flit;
 
     udp_info info_reg;
@@ -90,19 +90,19 @@ import beehive_noc_msg::*;
     always_comb begin
         out_hdr_flit = '0;
 
-        out_hdr_flit.core.dst_x_coord = src_to_udp_dst_x;
-        out_hdr_flit.core.dst_y_coord = src_to_udp_dst_y;
-        out_hdr_flit.core.dst_fbits = src_to_udp_dst_fbits;
+        out_hdr_flit.core.core.dst_x_coord = src_to_udp_dst_x;
+        out_hdr_flit.core.core.dst_y_coord = src_to_udp_dst_y;
+        out_hdr_flit.core.core.dst_fbits = src_to_udp_dst_fbits;
 
-        out_hdr_flit.core.msg_len = total_flits_reg;
+        out_hdr_flit.core.core.msg_len = total_flits_reg;
 
-        out_hdr_flit.core.src_x_coord = SRC_X[`XY_WIDTH-1:0];
-        out_hdr_flit.core.src_y_coord = SRC_Y[`XY_WIDTH-1:0];
-        out_hdr_flit.core.src_fbits = PKT_IF_FBITS;
+        out_hdr_flit.core.core.src_x_coord = SRC_X[`XY_WIDTH-1:0];
+        out_hdr_flit.core.core.src_y_coord = SRC_Y[`XY_WIDTH-1:0];
+        out_hdr_flit.core.core.src_fbits = PKT_IF_FBITS;
+        out_hdr_flit.core.core.msg_type = UDP_TX_SEGMENT;
 
         out_hdr_flit.core.metadata_flits = 1;
 
-        out_hdr_flit.core.msg_type = UDP_TX_SEGMENT;
     end
 
     always_comb begin

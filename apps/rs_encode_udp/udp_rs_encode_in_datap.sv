@@ -33,7 +33,7 @@ module udp_rs_encode_in_datap (
     logic   [CLIENT_NUM_REQ_BLOCKS_W:0] num_req_blocks_reg;
     logic   [CLIENT_NUM_REQ_BLOCKS_W:0] num_req_blocks_next;
 
-    udp_noc_hdr_flit        hdr_flit_cast;
+    beehive_noc_hdr_flit    hdr_flit_cast;
     udp_rx_metadata_flit    meta_flit_cast;
     client_req_struct       req_cast;
     
@@ -88,7 +88,7 @@ module udp_rs_encode_in_datap (
     end
 
     assign num_flits_next = in_ctrl_in_datap_store_hdr
-                            ? hdr_flit_cast.core.msg_len
+                            ? hdr_flit_cast.core.core.msg_len
                             : num_flits_reg;
 
     assign num_req_blocks_next = in_ctrl_in_datap_store_req

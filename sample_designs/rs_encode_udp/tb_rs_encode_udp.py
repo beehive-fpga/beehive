@@ -106,7 +106,7 @@ async def rs_encode_bw_test(dut, tb):
     "/sample_designs/rs_encode_udp/test_input_32blk.txt")
     parity_filename = (os.environ["BEEHIVE_PROJECT_ROOT"] +
     "/sample_designs/rs_encode_udp/parity_output_32blk.txt")
-    await rs_encode_single_tile_bw_test(tb, input_filename, parity_filename)
+    await rs_encode_single_tile_bw_test(tb, input_filename, parity_filename, cycles=5000)
 
 
     # read all the logs

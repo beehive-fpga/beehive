@@ -122,10 +122,10 @@ async def bw_test_send_loop(tb, run_cycles, in_filename, done_event):
 
     return packet_times
 
-async def rs_encode_single_tile_bw_test(tb, input_filename, parity_filename):
+async def rs_encode_single_tile_bw_test(tb, input_filename, parity_filename, cycles=10000):
     done_event = Event()
 
-    send_task = cocotb.start_soon(bw_test_send_loop(tb, 10000, input_filename,
+    send_task = cocotb.start_soon(bw_test_send_loop(tb, cycles, input_filename,
         done_event))
     recv_task = cocotb.start_soon(bw_test_recv_loop(tb, input_filename,
         parity_filename, done_event))

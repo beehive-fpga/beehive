@@ -47,7 +47,7 @@ module udp_rs_encode_out_datap #(
 
     logic   [`MSG_LENGTH_WIDTH-1:0] num_data_flits;
 
-    udp_noc_hdr_flit                hdr_cast;
+    beehive_noc_hdr_flit            hdr_cast;
     udp_tx_metadata_flit            meta_cast;
 
     assign out_datap_out_ctrl_data_len = data_len_reg;
@@ -125,15 +125,16 @@ module udp_rs_encode_out_datap #(
         hdr_cast = '0;
 
         // we always send thru IP
-        hdr_cast.core.dst_x_coord = UDP_TX_TILE_X[`XY_WIDTH-1:0];
-        hdr_cast.core.dst_y_coord = UDP_TX_TILE_Y[`XY_WIDTH-1:0];
+        hdr_cast.core.core.dst_x_coord = UDP_TX_TILE_X[`XY_WIDTH-1:0];
+        hdr_cast.core.core.dst_y_coord = UDP_TX_TILE_Y[`XY_WIDTH-1:0];
 
         // there's one metadata flit and then some number of data flits
-        hdr_cast.core.msg_len = 1 + num_data_flits;
-        hdr_cast.core.src_x_coord = SRC_X[`XY_WIDTH-1:0];
-        hdr_cast.core.src_y_coord = SRC_Y[`XY_WIDTH-1:0];
+        hdr_cast.core.core.msg_len = 1 + num_data_flits;
+        hdr_cast.core.core.src_x_coord = SRC_X[`XY_WIDTH-1:0];
+        hdr_cast.core.core.src_y_coord = SRC_Y[`XY_WIDTH-1:0];
+        hdr_cast.core.core.msg_type = UDP_TX_SEGMENT;
+        
         hdr_cast.core.metadata_flits = 1;
-        hdr_cast.core.msg_type = UDP_TX_SEGMENT;
     end
 
     always_comb begin

@@ -7,7 +7,7 @@ package rs_encode_stats_pkg;
 
     localparam STATS_DEPTH_LOG2 = 8;
 
-    localparam RECORD_PERIOD = 125000000;
+    localparam RECORD_PERIOD = 1000;//125000000;
 
     typedef struct packed {
         logic   [TIMESTAMP_W-1:0]   timestamp;

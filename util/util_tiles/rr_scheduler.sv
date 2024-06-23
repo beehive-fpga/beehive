@@ -80,7 +80,7 @@ module rr_scheduler #(
     end
 
     assign len_next = store_len
-                    ? hdr_flit_cast.core.msg_len
+                    ? hdr_flit_cast.core.core.msg_len
                     : len_reg;
 
     assign flit_cnt_next = reset_flit_cnt
@@ -119,7 +119,7 @@ module rr_scheduler #(
                 if (src_rr_scheduler_val & dst_rr_scheduler_rdy) begin
                     // at the moment we don't have any zero length messages, but
                     // I suppose we might
-                    if (hdr_flit_cast.core.msg_len == 0) begin
+                    if (hdr_flit_cast.core.core.msg_len == 0) begin
                         incr_index = 1'b1;
                         state_next =  READY;
                     end
@@ -155,8 +155,8 @@ module rr_scheduler #(
     always_comb begin
         hdr_out = hdr_flit_cast;
 
-        hdr_out.core.dst_x_coord = table_scheduler_read_resp_data.dst_x;
-        hdr_out.core.dst_y_coord = table_scheduler_read_resp_data.dst_y;
+        hdr_out.core.core.dst_x_coord = table_scheduler_read_resp_data.dst_x;
+        hdr_out.core.core.dst_y_coord = table_scheduler_read_resp_data.dst_y;
     end
 
 endmodule

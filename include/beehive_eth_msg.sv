@@ -21,7 +21,7 @@ package beehive_eth_msg;
         logic   [ETH_RX_META_PADDING-1:0]   padding;
     } eth_rx_metadata_flit;
 
-    localparam ETH_RX_HDR_PADDING = `NOC_DATA_WIDTH - DATA_NOC_HDR_FLIT_W;
+    localparam ETH_RX_HDR_PADDING = `NOC_DATA_WIDTH - DATA_NOC_HDR_FLIT_W - `MTU_SIZE_W;
     typedef struct packed {
         data_noc_hdr_flit                   core;
         logic   [`MTU_SIZE_W-1:0]           frame_size;

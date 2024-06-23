@@ -129,6 +129,13 @@ print(f"""
 tile_std_ports = tile_config.getEndpointPorts("eth_rx_tile")
 print(tile_std_ports)
 %>
+		,.mac_engine_rx_val         ()
+		,.mac_engine_rx_data        ()
+		,.mac_engine_rx_startframe  ()
+		,.mac_engine_rx_frame_size  ()
+		,.mac_engine_rx_endframe    ()
+		,.mac_engine_rx_padbytes    ()
+		,.engine_mac_rx_rdy         ()
     );
     
     eth_rx_tile #(
@@ -149,6 +156,13 @@ print(f"""
 tile_std_ports = tile_config.getEndpointPorts("eth_rx_tile1")
 print(tile_std_ports)
 %>
+		,.mac_engine_rx_val         ()
+		,.mac_engine_rx_data        ()
+		,.mac_engine_rx_startframe  ()
+		,.mac_engine_rx_frame_size  ()
+		,.mac_engine_rx_endframe    ()
+		,.mac_engine_rx_padbytes    ()
+		,.engine_mac_rx_rdy         ()
     );
     
     ip_rx_tile #(

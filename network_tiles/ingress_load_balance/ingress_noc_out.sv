@@ -103,14 +103,15 @@ import beehive_eth_msg::*;
 
     always_comb begin
         hdr_flit_cast = '0;
-        hdr_flit_cast.core.dst_x_coord = src_noc_out_x;
-        hdr_flit_cast.core.dst_y_coord = src_noc_out_y;
-        hdr_flit_cast.core.dst_fbits = PKT_IF_FBITS;
-        hdr_flit_cast.core.msg_len = num_data_flits;
-        hdr_flit_cast.core.msg_type = ETH_RX_FRAME;
-        hdr_flit_cast.core.src_x_coord = SRC_X;
-        hdr_flit_cast.core.src_y_coord = SRC_Y;
-        hdr_flit_cast.core.src_fbits = PKT_IF_FBITS;
+        hdr_flit_cast.core.core.dst_x_coord = src_noc_out_x;
+        hdr_flit_cast.core.core.dst_y_coord = src_noc_out_y;
+        hdr_flit_cast.core.core.dst_fbits = PKT_IF_FBITS;
+        hdr_flit_cast.core.core.msg_len = num_data_flits;
+        hdr_flit_cast.core.core.msg_type = ETH_RX_FRAME;
+        hdr_flit_cast.core.core.src_x_coord = SRC_X;
+        hdr_flit_cast.core.core.src_y_coord = SRC_Y;
+        hdr_flit_cast.core.core.src_fbits = PKT_IF_FBITS;
+
         hdr_flit_cast.core.metadata_flits = '0;
         hdr_flit_cast.frame_size = src_noc_out_framesize;
     end

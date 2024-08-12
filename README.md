@@ -48,6 +48,17 @@ Run the test through cocotb by just running `make`. Depending on what simulator
 you're using, add the appropriate variables to generate a waveform or bring up
 the gui. For Questa, this is `make WAVES=1 GUI=1`
 
+
+## Build an FPGA image
+The FPGA flow has been tested for the Alveo U200. However, it only uses minor changes to the Corundum FPGA flow to bring in the correct files and set some parameters, so it could likely easily be ported to other boards supported by Corundum.
+
+By default, the FPGA flow is setup to generate the UDP echo example.
+
+1. `cd` to `corundum_fpga/fpga/mqnic/Alveo/fpga_100g/tb/fpga_core`
+2. Run `make gen_fpga_makefile`
+3. `cp` the generated `Makefile.beehive` to `corundum_fpga/fpga/mqnic/Alveo/fpga_100g/fpga_AU200`
+4. `cd` to `corundum_fpga/fpga/mqnic/Alveo/fpga_100g/fpga_AU200` and run `make`
+
 ## More Documentation
 This is just an ongoing work in progress. However, here's some documentation on how we generate bits of code and use FuseSoC:
 

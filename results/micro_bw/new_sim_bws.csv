@@ -1,9 +1,0 @@
-config,packet_size,bw_gbps
-beehive_sim,64,21.335771
-beehive_sim,128,36.5714
-beehive_sim,256,56.8759
-beehive_sim,512,78.7602
-beehive_sim,1024,97.5067
-beehive_sim,2048,110.7017
-beehive_sim,4096,118.7108
-beehive_sim,8192,123.1725

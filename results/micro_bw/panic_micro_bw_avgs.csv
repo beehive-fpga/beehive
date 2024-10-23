@@ -1,9 +1,0 @@
-config,packet_size,bw_gbps
-panic_sim,64,18.281250
-panic_sim,128,32.000000
-panic_sim,256,51.191964
-panic_sim,512,73.125
-panic_sim,1024,93.0625
-panic_sim,2048,107.77083
-panic_sim,4096,116.96875
-panic_sim,8192,122.21875

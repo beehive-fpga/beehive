@@ -1,5 +1,0 @@
-platform,dir,packet_size,num_requests,num_conns,time
-cpu_demi,send,64,10240000,1,11.167873221
-cpu_demi,send,128,10240000,1,11.211128417
-cpu_demi,send,192,10240000,1,11.211128417
-

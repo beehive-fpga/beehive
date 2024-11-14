@@ -34,14 +34,6 @@ class TCPAutomatonDriver(TCPDriver):
             new_tcp_state = TCPAutomaton(four_tuple, generator, clk)
             self.flow_dict[four_tuple] = new_tcp_state
 
-    def run_req_gens(self):
-        coroutines = []
-        for (req_gen, four_tuple) in self.req_gen_list:
-            coroutines.append(req_gen.run_app())
-
-        self.log.debug("Starting request generators")
-        return Combine(*coroutines)
-
 
     def run_req_gens(self):
         coroutines = []
@@ -246,6 +238,7 @@ class TCPAutomaton():
 
 
     def get_payload_packet(self):
+        print("Getting payload packet")
         # do we need to retransmit?
         if len(self.rt_queue) != 0:
             pkt_context = self.unacked_pkts[self.rt_queue.pop()]
@@ -390,9 +383,6 @@ class TCPAutomaton():
                         self.req_gen.recv_buf.append(payload[:append_payload_size])
                     self.send_ack = True
 
-                    if self.req_gen.check_if_done() == RequestGenReturn.DONE:
-                        self.log.info("Transitioning to done")
-                        self.state = TCPState.FIN_WAIT
             elif TCPSeqNum(pkt.seq) < self.our_ack:
                 self.log.info(f"We received a retransmitted packet\n"
                               f"Expected {hex(self.our_ack)}, got: {hex(pkt.seq)}")
@@ -400,6 +390,10 @@ class TCPAutomaton():
             else:
                 self.log.info(f"We received an out of order packet\n"
                               f"Expected {hex(self.our_ack)}, got: {hex(pkt.seq)}")
+
+            if self.req_gen.check_if_done() == RequestGenReturn.DONE:
+                self.log.info("Transitioning to done")
+                self.state = TCPState.FIN_WAIT
 
 
     def _get_base_TCP(self):

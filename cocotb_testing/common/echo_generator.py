@@ -36,6 +36,7 @@ class EchoGenerator(RequestGenerator):
             return RequestGenReturn.CORRECT
 
     async def get_payload(self):
+        print("Getting payload")
         tot_bytes = 0
         while True:
             # if we've sent all the requests, just don't return a payload
@@ -109,6 +110,7 @@ class EchoGenerator(RequestGenerator):
                         self.recv_measurements.append(TCPOpenBwLogEntry(entry_bytearray))
 
                         if self.check_if_done() == RequestGenReturn.DONE:
+                            print("DONE")
                             break
 
                     if len(self.req_lens) > 0:

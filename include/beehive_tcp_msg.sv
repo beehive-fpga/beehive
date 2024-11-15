@@ -25,16 +25,28 @@ package beehive_tcp_msg;
     localparam [`NOC_FBITS_WIDTH-1:0]   TCP_TX_APP_PTR_IF_FBITS = {1'b1, TCP_TX_APP_PTR_IF_FBITS_VALUE[`NOC_FBITS_WIDTH-2:0]};
 
     localparam MAX_PAYLOAD_PTR_W = 32;
+    localparam MAX_PAYLOAD_IDX_W = 8;
+    // subscribe(num bytes)
+    // resp(ptr)
+    // done(???)
+    //
     // this is a TCP specific NoC flit
     typedef struct packed {
         logic   [MAX_FLOWID_W-1:0]          flowid;
-        logic   [MAX_PAYLOAD_PTR_W:0]       length; 
+        logic   [MAX_PAYLOAD_PTR_W:0]       length; // TODO: ask katie what this is, should the width also go down 1?
+        logic   [MAX_PAYLOAD_PTR_W-1:0]     head_ptr;
+        logic   [MAX_PAYLOAD_PTR_W-1:0]     tail_ptr;
         // these need to be one bit longer to save the wrap-around bit
-        logic   [MAX_PAYLOAD_PTR_W:0]       head_ptr;
-        logic   [MAX_PAYLOAD_PTR_W:0]       tail_ptr;
+	logic   [MAX_PAYLOAD_IDX_W:0] head_idx;
+	logic   [MAX_PAYLOAD_IDX_W:0] tail_idx;
+	logic   [MAX_PAYLOAD_PTR_W-1:0] head_len;
+	logic   [MAX_PAYLOAD_PTR_W-1:0] tail_len;
+	logic   [MAX_PAYLOAD_PTR_W-1:0] head_cap;
+	logic   [MAX_PAYLOAD_PTR_W-1:0] tail_cap;
     } tcp_flit_inner;
     localparam TCP_FLIT_INNER_W = $bits(tcp_flit_inner);
     
+    // TODO: check to make sure this doesn't go below 0
     localparam TCP_HDR_FLIT_PAD_W = `NOC_DATA_WIDTH - BASE_FLIT_W - TCP_FLIT_INNER_W;
     localparam TCP_EXTRA_W = TCP_FLIT_INNER_W;
 

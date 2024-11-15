@@ -21,7 +21,8 @@ module tcp_rx_msg_noc_if_in_datap (
     tcp_noc_hdr_flit hdr_flit_next;
 
     assign app_rx_head_ptr_wr_req_addr = hdr_flit_reg.inner.flowid;
-    assign app_rx_head_ptr_wr_req_data = hdr_flit_reg.inner.head_ptr;
+    assign app_rx_head_ptr_wr_req_data = hdr_flit_reg.inner.head_ptr; // TODO: change to be head_idx, head_cap
+    // TODO: ask katie / figure out where app_rx_head_ptr_wr_req_data goes.
 
     assign noc_if_poller_msg_req_flowid = hdr_flit_reg.inner.flowid;
     assign noc_if_poller_msg_req_len = hdr_flit_reg.inner.length;

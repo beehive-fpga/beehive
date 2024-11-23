@@ -84,11 +84,11 @@ package beehive_noc_msg;
     localparam [`MSG_TYPE_WIDTH-1:0]    TCP_NEW_FLOW_NOTIF = `MSG_TYPE_WIDTH'd5;
     localparam [`MSG_TYPE_WIDTH-1:0]    TCP_RX_MSG_REQ = `MSG_TYPE_WIDTH'd6;
     localparam [`MSG_TYPE_WIDTH-1:0]    TCP_RX_MSG_RESP = `MSG_TYPE_WIDTH'd8;
-    localparam [`MSG_TYPE_WIDTH-1:0]    TCP_RX_ADJUST_PTR = `MSG_TYPE_WIDTH'd7;
+    localparam [`MSG_TYPE_WIDTH-1:0]    TCP_RX_ADJUST_IDX = `MSG_TYPE_WIDTH'd7;
 
     localparam [`MSG_TYPE_WIDTH-1:0]    TCP_TX_MSG_REQ = `MSG_TYPE_WIDTH'd9;
     localparam [`MSG_TYPE_WIDTH-1:0]    TCP_TX_MSG_RESP = `MSG_TYPE_WIDTH'd10;
-    localparam [`MSG_TYPE_WIDTH-1:0]    TCP_TX_ADJUST_PTR = `MSG_TYPE_WIDTH'd11;
+    localparam [`MSG_TYPE_WIDTH-1:0]    TCP_TX_ADJUST_IDX = `MSG_TYPE_WIDTH'd11;
     
     localparam [`MSG_TYPE_WIDTH-1:0]    IP_REWRITE_ADJUST_TABLE = `MSG_TYPE_WIDTH'd15;
 

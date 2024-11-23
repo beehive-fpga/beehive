@@ -15,10 +15,10 @@ module tcp_rx_msg_noc_if_in (
     ,output logic   [`MSG_SRC_FBITS_WIDTH-1:0]  noc_if_poller_msg_dst_fbits
     ,input  logic                               poller_noc_if_msg_req_rdy
 
-    ,output logic                               app_rx_head_ptr_wr_req_val
-    ,output logic   [FLOWID_W-1:0]              app_rx_head_ptr_wr_req_addr
-    ,output logic   [RX_PAYLOAD_PTR_W:0]        app_rx_head_ptr_wr_req_data
-    ,input  logic                               rx_head_ptr_app_wr_req_rdy
+    ,output logic                               app_rx_head_buf_wr_req_val
+    ,output logic   [FLOWID_W-1:0]              app_rx_head_buf_wr_req_addr
+    ,output logic   [TCP_ADJUST_IDX_W-1:0]      app_rx_head_buf_wr_req_data_old
+    ,input  logic                               rx_head_buf_app_wr_req_rdy
 );
 
     tcp_rx_msg_noc_if_in_ctrl ctrl (
@@ -32,8 +32,8 @@ module tcp_rx_msg_noc_if_in (
         ,.noc_if_poller_msg_req_val     (noc_if_poller_msg_req_val      )
         ,.poller_noc_if_msg_req_rdy     (poller_noc_if_msg_req_rdy      )
                                                                         
-        ,.app_rx_head_ptr_wr_req_val    (app_rx_head_ptr_wr_req_val     )
-        ,.rx_head_ptr_app_wr_req_rdy    (rx_head_ptr_app_wr_req_rdy     )
+        ,.app_rx_head_buf_wr_req_val    (app_rx_head_buf_wr_req_val     )
+        ,.rx_head_buf_app_wr_req_rdy    (rx_head_buf_app_wr_req_rdy     )
                                                                         
         ,.ctrl_datap_store_hdr_flit     (ctrl_datap_store_hdr_flit      )
     );
@@ -51,7 +51,7 @@ module tcp_rx_msg_noc_if_in (
         ,.noc_if_poller_msg_dst_fbits   (noc_if_poller_msg_dst_fbits    )
                                                                         
         ,.app_rx_head_ptr_wr_req_addr   (app_rx_head_ptr_wr_req_addr    )
-        ,.app_rx_head_ptr_wr_req_data   (app_rx_head_ptr_wr_req_data    )
+        ,.app_rx_head_buf_wr_req_data_old   (app_rx_head_buf_wr_req_data_old    )
                                                                         
         ,.ctrl_datap_store_hdr_flit     (ctrl_datap_store_hdr_flit      )
     );

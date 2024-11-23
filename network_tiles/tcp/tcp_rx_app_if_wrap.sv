@@ -25,10 +25,10 @@ module tcp_rx_app_if_wrap
     ,output logic   [`NOC_DATA_WIDTH-1:0]   tcp_rx_ptr_if_noc_data
     ,input  logic                           noc_tcp_rx_ptr_if_rdy
     
-    ,output logic                           app_rx_head_ptr_wr_req_val
-    ,output logic   [FLOWID_W-1:0]          app_rx_head_ptr_wr_req_addr
-    ,output logic   [RX_PAYLOAD_PTR_W:0]    app_rx_head_ptr_wr_req_data
-    ,input  logic                           rx_head_ptr_app_wr_req_rdy
+    ,output logic                           app_rx_head_buf_wr_req_val
+    ,output logic   [FLOWID_W-1:0]          app_rx_head_buf_wr_req_addr
+    ,output logic   [TCP_ADJUST_IDX_W-1:0]  app_rx_head_buf_wr_req_data_old
+    ,input  logic                           rx_head_buf_app_wr_req_rdy
 
     ,output logic                           app_rx_head_ptr_rd_req_val
     ,output logic   [FLOWID_W-1:0]          app_rx_head_ptr_rd_req_addr
@@ -113,10 +113,10 @@ module tcp_rx_app_if_wrap
         ,.poller_msg_noc_if_dst_fbits   (poller_msg_noc_if_dst_fbits    )
         ,.noc_if_poller_msg_meta_rdy    (noc_if_poller_msg_meta_rdy     )
                                                                         
-        ,.app_rx_head_ptr_wr_req_val    (app_rx_head_ptr_wr_req_val     )
-        ,.app_rx_head_ptr_wr_req_addr   (app_rx_head_ptr_wr_req_addr    )
-        ,.app_rx_head_ptr_wr_req_data   (app_rx_head_ptr_wr_req_data    )
-        ,.rx_head_ptr_app_wr_req_rdy    (rx_head_ptr_app_wr_req_rdy     )
+        ,.app_rx_head_buf_wr_req_val    (app_rx_head_buf_wr_req_val     )
+        ,.app_rx_head_buf_wr_req_addr   (app_rx_head_buf_wr_req_addr    )
+        ,.app_rx_head_buf_wr_req_data_old   (app_rx_head_buf_wr_req_data_old    )
+        ,.rx_head_buf_app_wr_req_rdy    (rx_head_buf_app_wr_req_rdy     )
     );
 
     tcp_msg_poller #(

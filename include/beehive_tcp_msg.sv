@@ -30,19 +30,38 @@ package beehive_tcp_msg;
     // resp(ptr)
     // done(???)
     //
+
+    typedef struct packed {
+        logic   [MAX_PAYLOAD_PTR_W:0]       length;
+        logic   [TCP_MSG_RESP_W-MAX_PAYLOAD_PTR_W-1:0] padding;
+    } tcp_msg_req;
+    localparam TCP_MSG_REQ_W = $bits(tcp_msg_req);
+    typedef struct packed {
+        logic   [MAX_PAYLOAD_PTR_W-1:0]     bufptr;
+        // these need to be one bit longer to save the wrap-around bit
+        logic   [MAX_PAYLOAD_IDX_W:0] idx;
+        logic   [MAX_PAYLOAD_PTR_W:0] len;
+        logic   [MAX_PAYLOAD_PTR_W:0] cap;
+    } tcp_msg_resp;
+    localparam TCP_MSG_RESP_W = $bits(tcp_msg_resp);
+
+    typedef struct packed {
+        logic   [MAX_PAYLOAD_PTR_W-1:0]     bufptr; // probably unneeded.
+        // these need to be one bit longer to save the wrap-around bit
+        logic   [MAX_PAYLOAD_IDX_W:0] idx; // this is the only field that should be changed from the msg resp to the adjust idx.
+        logic   [MAX_PAYLOAD_PTR_W:0] len;
+        logic   [MAX_PAYLOAD_PTR_W:0] cap;
+    } tcp_adjust_idx;
+    localparam TCP_ADJUST_IDX_W = $bits(tcp_adjust_idx);
+
     // this is a TCP specific NoC flit
     typedef struct packed {
         logic   [MAX_FLOWID_W-1:0]          flowid;
-        logic   [MAX_PAYLOAD_PTR_W:0]       length; // TODO: ask katie what this is, should the width also go down 1?
-        logic   [MAX_PAYLOAD_PTR_W-1:0]     head_ptr;
-        logic   [MAX_PAYLOAD_PTR_W-1:0]     tail_ptr;
-        // these need to be one bit longer to save the wrap-around bit
-	logic   [MAX_PAYLOAD_IDX_W:0] head_idx;
-	logic   [MAX_PAYLOAD_IDX_W:0] tail_idx;
-	logic   [MAX_PAYLOAD_PTR_W-1:0] head_len;
-	logic   [MAX_PAYLOAD_PTR_W-1:0] tail_len;
-	logic   [MAX_PAYLOAD_PTR_W-1:0] head_cap;
-	logic   [MAX_PAYLOAD_PTR_W-1:0] tail_cap;
+        union packed {
+            logic   [TCP_MSG_REQ_W-1:0]    tcp_msg_req;
+            logic   [TCP_MSG_RESP_W-1:0]   tcp_msg_resp;
+            logic   [TCP_ADJUST_IDX_W-1:0] tcp_adjust_idx;
+        } msg_specific;
     } tcp_flit_inner;
     localparam TCP_FLIT_INNER_W = $bits(tcp_flit_inner);
     
@@ -55,5 +74,13 @@ package beehive_tcp_msg;
         tcp_flit_inner                      inner;
         logic   [TCP_HDR_FLIT_PAD_W-1:0]    padding;
     } tcp_noc_hdr_flit;
+
+    typedef struct packed {
+        bufptr;
+        len;
+        capacity;
+    } tcp_buf_info;
+
+    localparam TCP_BUF_INFO_W = $bits(tcp_buf_info);
 
 endpackage

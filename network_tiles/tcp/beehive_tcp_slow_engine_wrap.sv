@@ -74,10 +74,10 @@ import packet_struct_pkg::*;
     ,output logic   [TX_PAYLOAD_PTR_W:0]        head_ptr_app_tx_rd_resp_data
     ,input  logic                               app_head_ptr_tx_rd_resp_rdy
     
-    ,input  logic                               app_rx_head_ptr_wr_req_val
-    ,input  logic   [FLOWID_W-1:0]              app_rx_head_ptr_wr_req_addr
-    ,input  logic   [RX_PAYLOAD_PTR_W:0]        app_rx_head_ptr_wr_req_data
-    ,output logic                               rx_head_ptr_app_wr_req_rdy
+    ,input  logic                               app_rx_head_buf_wr_req_val
+    ,input  logic   [FLOWID_W-1:0]              app_rx_head_buf_wr_req_addr
+    ,input  logic   [TCP_ADJUST_IDX_W-1:0]      app_rx_head_buf_wr_req_data_old
+    ,output logic                               rx_head_buf_app_wr_req_rdy
 
     ,input  logic                               app_rx_head_ptr_rd_req_val
     ,input  logic   [FLOWID_W-1:0]              app_rx_head_ptr_rd_req_addr
@@ -182,10 +182,10 @@ import packet_struct_pkg::*;
         ,.app_new_flow_entry                (app_new_flow_lookup                )
         ,.app_new_flow_notif_rdy            (app_new_flow_notif_rdy             )
         
-        ,.app_rx_head_ptr_wr_req_val        (app_rx_head_ptr_wr_req_val         )
-        ,.app_rx_head_ptr_wr_req_addr       (app_rx_head_ptr_wr_req_addr        )
-        ,.app_rx_head_ptr_wr_req_data       (app_rx_head_ptr_wr_req_data        )
-        ,.rx_head_ptr_app_wr_req_rdy        (rx_head_ptr_app_wr_req_rdy         )
+        ,.app_rx_head_buf_wr_req_val        (app_rx_head_buf_wr_req_val         )
+        ,.app_rx_head_buf_wr_req_addr       (app_rx_head_buf_wr_req_addr        )
+        ,.app_rx_head_buf_wr_req_data_old   (app_rx_head_buf_wr_req_data_old        )
+        ,.rx_head_buf_app_wr_req_rdy        (rx_head_buf_app_wr_req_rdy         )
                                                                                 
         ,.app_rx_head_ptr_rd_req_val        (app_rx_head_ptr_rd_req_val         )
         ,.app_rx_head_ptr_rd_req_addr       (app_rx_head_ptr_rd_req_addr        )

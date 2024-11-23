@@ -10,8 +10,8 @@ module tcp_rx_msg_noc_if_in_ctrl (
     ,output logic                           noc_if_poller_msg_req_val
     ,input  logic                           poller_noc_if_msg_req_rdy
 
-    ,output logic                           app_rx_head_ptr_wr_req_val
-    ,input  logic                           rx_head_ptr_app_wr_req_rdy
+    ,output logic                           app_rx_head_buf_wr_req_val
+    ,input  logic                           rx_head_buf_app_wr_req_rdy
 
     ,output logic                           ctrl_datap_store_hdr_flit
 );
@@ -44,7 +44,7 @@ module tcp_rx_msg_noc_if_in_ctrl (
         
         noc_if_poller_msg_req_val = 1'b0;
 
-        app_rx_head_ptr_wr_req_val = 1'b0;
+        app_rx_head_buf_wr_req_val = 1'b0;
 
         ctrl_datap_store_hdr_flit = 1'b0;
 
@@ -75,9 +75,9 @@ module tcp_rx_msg_noc_if_in_ctrl (
                 end
             end
             RX_ADJUST_PTR: begin
-                app_rx_head_ptr_wr_req_val = 1'b1;
+                app_rx_head_buf_wr_req_val = 1'b1;
 
-                if (rx_head_ptr_app_wr_req_rdy) begin
+                if (rx_head_buf_app_wr_req_rdy) begin
                     state_next = READY;
                 end
                 else begin

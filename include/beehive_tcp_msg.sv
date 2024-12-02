@@ -32,32 +32,48 @@ package beehive_tcp_msg;
     //
 
     typedef struct packed {
-        logic   [MAX_PAYLOAD_PTR_W:0]       length;
-        logic   [TCP_MSG_RESP_W-MAX_PAYLOAD_PTR_W-1:0] padding;
-    } tcp_msg_req;
-    localparam TCP_MSG_REQ_W = $bits(tcp_msg_req);
-    typedef struct packed {
         logic   [MAX_PAYLOAD_PTR_W-1:0]     bufptr;
         // these need to be one bit longer to save the wrap-around bit
         logic   [MAX_PAYLOAD_IDX_W:0] idx;
         logic   [MAX_PAYLOAD_PTR_W:0] len;
         logic   [MAX_PAYLOAD_PTR_W:0] cap;
+    } tcp_buf_info;
+    localparam TCP_BUF_INFO_W = $bits(tcp_buf_info);
+
+    typedef struct packed {
+        tcp_buf_info old_buf_info;
+        logic [MAX_PAYLOAD_PTR_W:0] bytes_consumed;
+    } tcp_buf_update;
+    localparam TCP_BUF_UPDATE_W = $bits(tcp_buf_update);
+
+    typedef struct packed {
+        logic   [MAX_PAYLOAD_PTR_W:0]       length;
+        logic   [TCP_ADJUST_IDX_W-MAX_PAYLOAD_PTR_W-1:0] padding;
+    } tcp_msg_req;
+    localparam TCP_MSG_REQ_W = $bits(tcp_msg_req);
+
+    typedef struct packed {
+        tcp_buf_info buf_info;
+        logic [TCP_ADJUST_IDX_W-TCP_BUF_INFO_W-1:0] padding;
     } tcp_msg_resp;
     localparam TCP_MSG_RESP_W = $bits(tcp_msg_resp);
 
     typedef struct packed {
-        logic   [MAX_PAYLOAD_PTR_W-1:0]     bufptr; // probably unneeded.
-        // these need to be one bit longer to save the wrap-around bit
-        logic   [MAX_PAYLOAD_IDX_W:0] idx; // this is the only field that should be changed from the msg resp to the adjust idx.
-        logic   [MAX_PAYLOAD_PTR_W:0] len;
-        logic   [MAX_PAYLOAD_PTR_W:0] cap;
+        tcp_buf_update update_info;
     } tcp_adjust_idx;
     localparam TCP_ADJUST_IDX_W = $bits(tcp_adjust_idx);
+
+    // problem: what does the mechanism to update a ptr look like? ideally it would be incr(amt), but that requires a rd req to first read it and then update.
+    // maybe incr(amt, old_data)? then the tcp_slow module adds amt to old.ptr, if it's > len, it will know to incr idx. and for now assert that it should always be == len.
+    // that's the most flexible interface bc if we just had idx_update_req then it wouldn't support compaction, if we just did ptr_update_to then it wouldn't really be what it's doing
+
+    // TODO: update tcp.sv interface to have ptr reads and writes be the right way
 
     // this is a TCP specific NoC flit
     typedef struct packed {
         logic   [MAX_FLOWID_W-1:0]          flowid;
         union packed {
+            // TODO: probably change these into the struct type... not logic
             logic   [TCP_MSG_REQ_W-1:0]    tcp_msg_req;
             logic   [TCP_MSG_RESP_W-1:0]   tcp_msg_resp;
             logic   [TCP_ADJUST_IDX_W-1:0] tcp_adjust_idx;
@@ -74,13 +90,5 @@ package beehive_tcp_msg;
         tcp_flit_inner                      inner;
         logic   [TCP_HDR_FLIT_PAD_W-1:0]    padding;
     } tcp_noc_hdr_flit;
-
-    typedef struct packed {
-        bufptr;
-        len;
-        capacity;
-    } tcp_buf_info;
-
-    localparam TCP_BUF_INFO_W = $bits(tcp_buf_info);
 
 endpackage

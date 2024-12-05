@@ -25,36 +25,43 @@ package beehive_tcp_msg;
     localparam [`NOC_FBITS_WIDTH-1:0]   TCP_TX_APP_PTR_IF_FBITS = {1'b1, TCP_TX_APP_PTR_IF_FBITS_VALUE[`NOC_FBITS_WIDTH-2:0]};
 
     localparam MAX_PAYLOAD_PTR_W = 32;
-    localparam MAX_PAYLOAD_IDX_W = 8;
-    // subscribe(num bytes)
-    // resp(ptr)
-    // done(???)
-    //
+    localparam MAX_PAYLOAD_IDX_W = 8; // i think 256 buffers per flow is more than enough...
 
+// TODO: what to do about these ptr type lengths being longer than the real ones used? do i need to declare 2 types now, one for the one in the pkt and one for the one here?
+// TODO: convert sram write req stuff (e.g. store buf commit ptr rd req) all to idx instead. but what type/bit width?
     typedef struct packed {
-        logic   [MAX_PAYLOAD_PTR_W-1:0]     bufptr;
+        logic   [MAX_PAYLOAD_PTR_W-1:0] ptr;
         // these need to be one bit longer to save the wrap-around bit
-        logic   [MAX_PAYLOAD_IDX_W:0] idx;
         logic   [MAX_PAYLOAD_PTR_W:0] len;
         logic   [MAX_PAYLOAD_PTR_W:0] cap;
-    } tcp_buf_info;
-    localparam TCP_BUF_INFO_W = $bits(tcp_buf_info);
+    } tcp_buf;
+    localparam TCP_BUF_W = $bits(tcp_buf);
 
     typedef struct packed {
-        tcp_buf_info old_buf_info;
-        logic [MAX_PAYLOAD_PTR_W:0] bytes_consumed;
+        logic   [MAX_PAYLOAD_IDX_W:0] idx;
+    } tcp_buf_idx;
+
+    typedef struct packed {
+        tcp_buf buf_info;
+    } tcp_buf_with_idx;
+    localparam TCP_BUF_WITH_IDX_W = $bits(tcp_buf_with_idx);
+
+    typedef struct packed {
+        logic [MAX_PAYLOAD_PTR_W:0] leftover_bytes_consumed; // assumed to be 0 at the moment (e.g. you use the entire buffer we give you)
+        logic [MAX_PAYLOAD_PTR_W:0] bufs_consumed; // assumed to be 1 at the moment (e.g. you use the entire buffer we give you)
+        tcp_buf_with_idx prev_buf;
     } tcp_buf_update;
     localparam TCP_BUF_UPDATE_W = $bits(tcp_buf_update);
 
     typedef struct packed {
-        logic   [MAX_PAYLOAD_PTR_W:0]       length;
+        logic   [MAX_PAYLOAD_PTR_W:0]       __length; // unused at the moment, we just return 1 buf unilaterally (bc we can't return more than 1 yet.)
         logic   [TCP_ADJUST_IDX_W-MAX_PAYLOAD_PTR_W-1:0] padding;
     } tcp_msg_req;
     localparam TCP_MSG_REQ_W = $bits(tcp_msg_req);
 
     typedef struct packed {
-        tcp_buf_info buf_info;
-        logic [TCP_ADJUST_IDX_W-TCP_BUF_INFO_W-1:0] padding;
+        tcp_buf_with_idx buf;
+        logic [TCP_ADJUST_IDX_W-TCP_BUF_WITH_IDX_W-1:0] padding;
     } tcp_msg_resp;
     localparam TCP_MSG_RESP_W = $bits(tcp_msg_resp);
 

@@ -36,11 +36,11 @@ class EchoGenerator(RequestGenerator):
             return RequestGenReturn.CORRECT
 
     async def get_payload(self):
-        print("Getting payload")
         tot_bytes = 0
         while True:
             # if we've sent all the requests, just don't return a payload
             if self.sent_req == self.total_num_req:
+                self.logger.info("All payloads enqueued")
                 break
 
             payload = bytearray([(i % 32) + 65 for i in range(0, self.req_len)])

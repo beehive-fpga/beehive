@@ -238,7 +238,6 @@ class TCPAutomaton():
 
 
     def get_payload_packet(self):
-        print("Getting payload packet")
         # do we need to retransmit?
         if len(self.rt_queue) != 0:
             pkt_context = self.unacked_pkts[self.rt_queue.pop()]

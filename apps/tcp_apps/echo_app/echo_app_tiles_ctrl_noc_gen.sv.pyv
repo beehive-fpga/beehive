@@ -167,6 +167,22 @@ print(router_wires)
 		,.dst_vrtoc_yummy   (rx_router_vrtoc_data_noc0_yummy    )
     );
     
+    beehive_credit_to_valrdy #(
+        .NOC_DATA_W (`CTRL_NOC1_DATA_W  )
+    ) tile_ctrl_noc1_beehive_credit_to_valrdy (
+         .clk   (clk)
+        ,.reset (rst)
+        //credit based interface 
+        ,.src_ctovr_data    (router_ctovr_ctrl_noc1_data    )
+        ,.src_ctovr_val     (router_ctovr_ctrl_noc1_val     )
+        ,.ctovr_src_yummy   (ctovr_router_ctrl_noc1_yummy   )
+
+        //val/rdy interface
+        ,.ctovr_dst_data    ()
+        ,.ctovr_dst_val     ()
+        ,.dst_ctovr_rdy     ()
+    );
+    
     // merge NoC traffic for sending message requests to TCP, sending read
     // requests to memory buffers 
     beehive_noc_prio_merger #(

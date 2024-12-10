@@ -16,9 +16,9 @@ module echo_app_rx_msg_if #(
     ,input  logic   [`NOC_DATA_WIDTH-1:0]   noc_ctovr_rx_app_data
     ,output logic                           rx_app_noc_ctovr_rdy    
     
-    ,output logic                           rx_buf_noc0_vrtoc_val
-    ,output logic   [`NOC_DATA_WIDTH-1:0]   rx_buf_noc0_vrtoc_data    
-    ,input  logic                           noc0_vrtoc_rx_buf_rdy
+    ,output logic                           rx_buf_req_noc_val
+    ,output logic   [`NOC_DATA_WIDTH-1:0]   rx_buf_req_noc_data    
+    ,input  logic                           req_rx_buf_noc_rdy
 
     ,input  logic                           noc0_ctovr_rx_buf_val
     ,input  logic   [`NOC_DATA_WIDTH-1:0]   noc0_ctovr_rx_buf_data
@@ -133,9 +133,9 @@ module echo_app_rx_msg_if #(
          .clk   (clk    )
         ,.rst   (rst    )
         
-        ,.rd_buf_noc0_val           (rx_buf_noc0_vrtoc_val              )
-        ,.rd_buf_noc0_data          (rx_buf_noc0_vrtoc_data             )
-        ,.noc0_rd_buf_rdy           (noc0_vrtoc_rx_buf_rdy              )
+        ,.rd_buf_noc0_val           (rx_buf_req_noc_val                 )
+        ,.rd_buf_noc0_data          (rx_buf_req_noc_data                )
+        ,.noc0_rd_buf_rdy           (req_rx_buf_noc_rdy                 )
        
         ,.noc0_rd_buf_val           (noc0_ctovr_rx_buf_val              )
         ,.noc0_rd_buf_data          (noc0_ctovr_rx_buf_data             )

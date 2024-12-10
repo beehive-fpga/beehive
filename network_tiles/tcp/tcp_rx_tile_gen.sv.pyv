@@ -395,7 +395,6 @@ print(router_wires)
         ,.dst_merger_vr_noc_rdy     (vrtoc_merger_data_noc0_rdy             )
     );
 
-    // split between the app interface requests and the buffer copy module response
     beehive_noc_fbits_splitter #(
          .NOC_DATA_W        (`NOC_DATA_WIDTH    )
         ,.MSG_PAYLOAD_LEN   (`PAYLOAD_LEN       )

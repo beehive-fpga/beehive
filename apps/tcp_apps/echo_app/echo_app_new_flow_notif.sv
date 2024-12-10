@@ -42,7 +42,7 @@ module echo_app_new_flow_notif (
     assign hdr_flit_cast = noc0_ctovr_rx_notif_data;
 
     assign flowid_next = store_flowid
-                        ? hdr_flit_cast.flowid
+                        ? hdr_flit_cast.inner.flowid
                         : flowid_reg;
 
     assign rx_notif_active_q_wr_data = flowid_reg;

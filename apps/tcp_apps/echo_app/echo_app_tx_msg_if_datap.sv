@@ -78,8 +78,8 @@ module echo_app_tx_msg_if_datap #(
     always_comb begin
         notif_next = notif_reg;
         if (ctrl_datap_store_notif) begin
-            notif_next.ptr = notif_hdr_flit_cast.tail_ptr;
-            notif_next.len = notif_hdr_flit_cast.length; 
+            notif_next.ptr = notif_hdr_flit_cast.inner.tail_ptr;
+            notif_next.len = notif_hdr_flit_cast.inner.length; 
         end
         else begin
             notif_next = notif_reg;
@@ -115,9 +115,9 @@ module echo_app_tx_msg_if_datap #(
         hdr_flit_cast.core.src_y_coord = SRC_Y;
         hdr_flit_cast.core.src_fbits = TX_CTRL_IF_FBITS;
 
-        hdr_flit_cast.flowid = msg_reg.flowid;
-        hdr_flit_cast.length = msg_reg.msg_len;
-        hdr_flit_cast.tail_ptr = notif_reg.ptr + msg_reg.msg_len;
+        hdr_flit_cast.inner.flowid = msg_reg.flowid;
+        hdr_flit_cast.inner.length = msg_reg.msg_len;
+        hdr_flit_cast.inner.tail_ptr = notif_reg.ptr + msg_reg.msg_len;
     end
                                 
 endmodule

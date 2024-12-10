@@ -1,0 +1,29 @@
+package beehive_topology;
+    `include "packet_defs.vh"
+    `include "noc_defs.vh"
+    
+    localparam SERVER_IP = `IP_ADDR_W'hc6_00_00_09;
+    localparam APP_PORT = `PORT_NUM_W'd65432;
+
+    localparam LATENCY_STATS_PORT = `PORT_NUM_W'd60000;
+    localparam TCP_APP_STATS_PORT = `PORT_NUM_W'd60002;
+
+<%
+import sys
+import os
+sys.path.append(os.environ["BEEHIVE_PROJECT_ROOT"] + "/tile_generator/")
+from tile_generator import BeehiveConfig
+from tile_generator import TileDirs
+import logging
+logging.basicConfig(level=logging.INFO)
+design_path = os.environ["BEEHIVE_DESIGN_ROOT"]
+logging.info(f"Using tile config at {design_path}")
+tile_config = BeehiveConfig(design_path + "/tile_config.xml")
+
+for tile in tile_config.endpoint_dict.values():
+    param_format_string = f"""
+    localparam [`XY_WIDTH-1:0]  {tile.endpoint_name.upper()}_X = {tile.endpoint_x};
+    localparam [`XY_WIDTH-1:0]  {tile.endpoint_name.upper()}_Y = {tile.endpoint_y};"""
+    print(param_format_string)
+%>
+endpackage

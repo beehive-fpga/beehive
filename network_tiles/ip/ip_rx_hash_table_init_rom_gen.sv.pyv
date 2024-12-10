@@ -40,10 +40,11 @@ import hash_pkg::*;
          if (table_rd) begin
              case (table_rd_addr)
  <%
- for i in range(0, 1<<4):
-    tile_x = 0
-    tile_y = 0
-    (tile_x, tile_y) = tile_config.getEndpointCoords(udp_rx_names[i % len(udp_rx_names)])
+ if len(udp_rx_names) != 0:
+    for i in range(0, 1<<4):
+       tile_x = 0
+       tile_y = 0
+       (tile_x, tile_y) = tile_config.getEndpointCoords(udp_rx_names[i % len(udp_rx_names)])
 
  # double curly braces produces a single curly brace
     dest_string = f"{{`NOC_X_WIDTH'd{tile_x}, `NOC_Y_WIDTH'd{tile_y}}}"

@@ -4,6 +4,8 @@ module eth_latency_stats #(
     ,parameter SRC_Y = -1
     ,parameter NOC1_DATA_W=-1
     ,parameter NOC2_DATA_W=-1
+    ,parameter UDP_DST_X = -1
+    ,parameter UDP_DST_Y = -1
 )(
      input clk
     ,input rst
@@ -80,6 +82,8 @@ endgenerate
         ,.ADDR_W                (ETH_STATS_DEPTH_LOG2       )
         ,.RESP_DATA_STRUCT_W    (ETH_LATENCY_STATS_STRUCT_W )
         ,.CLIENT_ADDR_W         (ETH_CLIENT_ADDR_W          )
+        ,.UDP_DST_X             (UDP_DST_X                  )
+        ,.UDP_DST_Y             (UDP_DST_Y                  )
     ) reader (
          .clk   (clk    )
         ,.rst   (rst    )

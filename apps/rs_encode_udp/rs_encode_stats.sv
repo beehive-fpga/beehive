@@ -53,6 +53,8 @@ module rs_encode_stats #(
         ,.ADDR_W                (RS_LOG_ADDR_W              )
         ,.RESP_DATA_STRUCT_W    (RS_ENC_STATS_STRUCT_W      )
         ,.CLIENT_ADDR_W         (CLIENT_ADDR_W              )
+        ,.UDP_DST_X             (UDP_TX_TILE_X              )
+        ,.UDP_DST_Y             (UDP_TX_TILE_Y              )
     ) reader (
          .clk   (clk    )
         ,.rst   (rst    )

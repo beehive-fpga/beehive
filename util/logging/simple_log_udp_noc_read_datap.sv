@@ -5,6 +5,8 @@ module simple_log_udp_noc_read_datap #(
     ,parameter ADDR_W = -1
     ,parameter RESP_DATA_STRUCT_W = -1
     ,parameter CLIENT_ADDR_W = -1
+    ,parameter UDP_DST_X = -1
+    ,parameter UDP_DST_Y = -1
 )(
      input clk
     ,input rst
@@ -130,8 +132,8 @@ module simple_log_udp_noc_read_datap #(
 
     always_comb begin
         resp_hdr_flit_cast = '0;
-        resp_hdr_flit_cast.core.core.dst_x_coord = UDP_TX_TILE_X[`XY_WIDTH-1:0];
-        resp_hdr_flit_cast.core.core.dst_y_coord = UDP_TX_TILE_Y[`XY_WIDTH-1:0];
+        resp_hdr_flit_cast.core.core.dst_x_coord = UDP_DST_X[`XY_WIDTH-1:0];
+        resp_hdr_flit_cast.core.core.dst_y_coord = UDP_DST_Y[`XY_WIDTH-1:0];
 
         // 1 metadata flit, one response flit
         resp_hdr_flit_cast.core.core.msg_len = 2;

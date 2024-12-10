@@ -5,6 +5,8 @@ module simple_log_udp_noc_read #(
     ,parameter ADDR_W = -1
     ,parameter RESP_DATA_STRUCT_W = -1
     ,parameter CLIENT_ADDR_W = -1
+    ,parameter UDP_DST_X = -1
+    ,parameter UDP_DST_Y = -1
 )(
      input clk
     ,input rst
@@ -40,6 +42,8 @@ module simple_log_udp_noc_read #(
         ,.ADDR_W                (ADDR_W             )
         ,.RESP_DATA_STRUCT_W    (RESP_DATA_STRUCT_W )
         ,.CLIENT_ADDR_W         (CLIENT_ADDR_W      )
+        ,.UDP_DST_X             (UDP_DST_X          )
+        ,.UDP_DST_Y             (UDP_DST_Y          )
     ) datap (
          .clk   (clk    )
         ,.rst   (rst    )

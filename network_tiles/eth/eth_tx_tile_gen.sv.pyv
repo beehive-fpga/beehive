@@ -20,6 +20,8 @@ import tracker_pkg::*;
 #(
      parameter SRC_X = -1
     ,parameter SRC_Y = -1
+    ,parameter UDP_STATS_DST_X = -1
+    ,parameter UDP_STATS_DST_Y = -1
 )(
      input clk
     ,input rst
@@ -315,6 +317,8 @@ print(router_wires)
         ,.SRC_Y (SRC_Y  )
         ,.NOC1_DATA_W   (`NOC_DATA_WIDTH    )
         ,.NOC2_DATA_W   (`NOC_DATA_WIDTH    )
+        ,.UDP_DST_X     (UDP_STATS_DST_X    )
+        ,.UDP_DST_Y     (UDP_STATS_DST_Y    )
     ) stats (
          .clk   (clk    )
         ,.rst   (rst    )

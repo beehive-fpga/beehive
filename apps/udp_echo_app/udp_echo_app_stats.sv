@@ -51,6 +51,8 @@ module udp_echo_app_stats #(
         ,.ADDR_W                (STATS_DEPTH_LOG2       )
         ,.RESP_DATA_STRUCT_W    (UDP_APP_STATS_STRUCT_W )
         ,.CLIENT_ADDR_W         (CLIENT_ADDR_W          )
+        ,.UDP_DST_X             (UDP_TX_TILE_X          )
+        ,.UDP_DST_Y             (UDP_TX_TILE_Y          )
     ) reader (
          .clk   (clk    )
         ,.rst   (rst    )

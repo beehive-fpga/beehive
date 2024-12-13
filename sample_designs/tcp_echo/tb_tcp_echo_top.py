@@ -63,7 +63,7 @@ class TB():
         self.done_event = Event()
 
         self.req_gen_list = setup_conn_list(1, self.MAC_W, 8192, 8192, 2,
-                self.done_event, self.CLOCK_CYCLE_TIME, 10)
+                self.done_event, self.CLOCK_CYCLE_TIME, 50)
 
         self.TCP_driver = TCPAutomatonDriver(dut.clk, self.req_gen_list)
         if open_log_file:
@@ -242,6 +242,8 @@ async def run_send_loop(dut, tb):
             tb.logfile.flush()
             pkts_sent += 1
             tb.log.info(f"Pkts sent {pkts_sent}")
+            # Add some recovery time
+            await ClockCycles(dut.clk, 20)
 
         # Otherwise, wait until something happens
         else:

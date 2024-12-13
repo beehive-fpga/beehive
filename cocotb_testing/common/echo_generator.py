@@ -43,6 +43,11 @@ class EchoGenerator(RequestGenerator):
                 self.logger.info("All payloads enqueued")
                 break
 
+            # if we have too many request outstanding, don't return a request
+            #if (self.sent_req - self.finished_req) >= 5:
+            #    await Timer(EchoGenerator.SEND_PERIOD, units="ns")
+            #    continue
+
             payload = bytearray([(i % 32) + 65 for i in range(0, self.req_len)])
             last_req = self.sent_req == (self.total_num_req-1)
             self.logger.debug(f"last req: {last_req}")
@@ -58,7 +63,7 @@ class EchoGenerator(RequestGenerator):
             req.extend(payload)
 
             status = self.send_buf.append(req)
-            self.logger.info(f"App payload: {status}")
+            self.logger.info(f"App payload: {status} for {len(req)} bytes")
 
             if status == DataBufStatus.OK:
                 self.sent_req += 1

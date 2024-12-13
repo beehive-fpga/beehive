@@ -152,12 +152,11 @@ class TCPAutomaton():
         self.four_tuple = four_tuple
 
         self.unacked_pkts = {}
-        self.rt_queue = []
+        self.rt_queue = {}
         self.dup_ack_count = 0
         self.req_gen = req_gen
 
         self.clk = clk
-        self.TIMEOUT = 1000000
         self.send_ack = False
 
         self.log = SimLog(f"cocotb.conn_{self.four_tuple.our_port}.tb")
@@ -213,15 +212,6 @@ class TCPAutomaton():
             self.log.info("We're in an invalid state")
             raise RuntimeError()
 
-    async def start_timer(self, timer):
-        timed_out = await timer.arm_timer(self.TIMEOUT, self.clk)
-        if (timed_out):
-            seq_nums = list(self.unacked_pkts)
-            seq_nums.sort()
-            self.log.debug("We timed out. Retransmitting starting with pkt num "
-                    f"{hex(seq_nums[0])}")
-
-            self.rt_queue.append(seq_nums[0])
 
     def get_syn_packet(self):
         syn_pkt = self._get_base_TCP()
@@ -240,10 +230,17 @@ class TCPAutomaton():
     def get_payload_packet(self):
         # do we need to retransmit?
         if len(self.rt_queue) != 0:
-            pkt_context = self.unacked_pkts[self.rt_queue.pop()]
-            timer_task = cocotb.start_soon(self.start_timer(pkt_context.timer))
+            # find smallest packet 
+            seq_nums = list(self.rt_queue)
+            seq_nums.sort()
+            pkt_context = self.rt_queue[seq_nums[0]]
+            timer_task = cocotb.start_soon(pkt_context.start_timer())
+            del self.rt_queue[seq_nums[0]]
             # update our ACK
             pkt_context.pkt["TCP"].ack = self.our_ack
+
+            # stick it back in the unacked list
+            self.unacked_pkts[TCPSeqNum(pkt_context.pkt.seq)] = pkt_context
             return pkt_context.pkt, timer_task
 
         payload_size = self.req_gen.send_buf.peek_send_size()
@@ -278,10 +275,11 @@ class TCPAutomaton():
             # update our state
             self.our_seq = self.our_seq + TCPSeqNum(len(payload))
             pkt = pkt/Raw(payload)
-            timer = TimerDisarm()
-            self.unacked_pkts[TCPSeqNum(pkt.seq)] = UnackedPktContext(pkt, timer)
+            timer = TimerDisarm(self.clk)
+            pkt_context = UnackedPktContext(pkt, timer)
+            self.unacked_pkts[TCPSeqNum(pkt.seq)] = pkt_context
             # start a timer whenever we transmit a new packet
-            timer_task = cocotb.start_soon(self.start_timer(timer))
+            timer_task = cocotb.start_soon(pkt_context.start_timer())
 
         self.send_ack = False
         return pkt, timer_task
@@ -306,24 +304,24 @@ class TCPAutomaton():
             #self.log.debug(f"pkt.payload: {pkt.payload}")
             if len(pkt.payload) == 0:
                 self.log.debug("We've gotten a zero-len ACK")
-            # alright...here comes the nasty crap
-            # Process our send stream
-            # are we out of order and need to retransmit?:
-            if (TCPSeqNum(pkt.ack) == self.their_ack) and (len(self.unacked_pkts) != 0):
-                self.their_rx_win = pkt.window
-                self.dup_ack_count += 1
-                self.log.info(f"{self.four_tuple.our_port}: We've been dup-acked for packet seq number {self.their_ack} "
-                        f"ack_count: {self.dup_ack_count}")
-                # okay we need to try to recover, reset where we send from
-                if (self.dup_ack_count == DUP_ACK_THRESH):
-                    self.log.warning(f"Retransmitting packet {self.their_ack}")
-                    self.rt_queue.append(TCPSeqNum(pkt.ack))
-                # we don't need to recover yet, but don't update anything
+                # alright...here comes the nasty crap
+                # Process our send stream
+                # are we out of order and need to retransmit?:
+                if (TCPSeqNum(pkt.ack) == self.their_ack) and (len(self.unacked_pkts) != 0):
+                    self.their_rx_win = pkt.window
+                    self.dup_ack_count += 1
+                    self.log.info(f"{self.four_tuple.our_port}: We've been dup-acked for packet seq number {self.their_ack} "
+                            f"ack_count: {self.dup_ack_count}")
+                    # okay we need to try to recover, reset where we send from
+                    if (self.dup_ack_count == DUP_ACK_THRESH):
+                        self.log.warning(f"Retransmitting packet {self.their_ack}")
+                        self.rt_queue[TCPSeqNum(pkt.ack)] = self.unacked_pkts[TCPSeqNum(pkt.ack)]
+                    # we don't need to recover yet, but don't update anything
             elif TCPSeqNum(pkt.ack) > self.their_ack:
                 self.their_rx_win = pkt.window
                 # check that it's within the window
                 if TCPSeqNum(pkt.ack) > self.our_seq:
-                    self.log.warn("ACKed for data we haven't sent")
+                    self.log.warning("ACKed for data we haven't sent")
 
                 self.dup_ack_count = 0
                 # okay how much data has been acked
@@ -359,6 +357,16 @@ class TCPAutomaton():
                         del(self.unacked_pkts[seq_num])
                         #self.log.debug(f"unacked pkts: {len(self.unacked_pkts)}")
                 #self.log.debug(f"{self.unacked_pkts}")
+
+                # Also remove from the RT queue if we marked it for retransmit
+                rt_seq_nums = list(self.rt_queue)
+                rt_seq_nums.sort()
+                for rt_seq_num in rt_seq_nums:
+                    pkt_context = self.rt_queue[rt_seq_num]
+                    payload_len = len(pkt_context.pkt["Raw"].load)
+                    pkt_end = rt_seq_num + TCPSeqNum(payload_len-1)
+                    if pkt_end < TCPSeqNum(pkt.ack):
+                        del(self.rt_queue[rt_seq_num])
 
                 # update what has been acked for us
                 self.their_ack = TCPSeqNum(pkt.ack)
@@ -408,8 +416,19 @@ class TCPAutomaton():
 
 class UnackedPktContext():
     def __init__(self, pkt, timer):
+        self.TIMEOUT = 1000000
         self.pkt = pkt
         self.timer = timer
+   
+    async def start_timer(self):
+        timed_out = await self.timer.arm_timer(self.TIMEOUT)
+        if (timed_out):
+            seq_nums = list(self.unacked_pkts)
+            seq_nums.sort()
+            self.log.debug("We timed out. Retransmitting starting with pkt num "
+                    f"{self.pkt['TCP'].seq}")
+
+            self.rt_queue.append(seq_nums[0])
 
     def __repr__(self):
         return (f"pkt: {self.pkt.show(dump=True)}\n"

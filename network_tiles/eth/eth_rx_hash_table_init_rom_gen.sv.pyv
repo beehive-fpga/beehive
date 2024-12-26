@@ -23,6 +23,8 @@ if len(ip_rx_names) > (1 << 4):
     raise RuntimeError("Too many destinations for the ROM size")
 %>
 
+`include "noc_defs.vh"
+
 module eth_rx_hash_table_init_rom 
 import hash_pkg::*;
 #(

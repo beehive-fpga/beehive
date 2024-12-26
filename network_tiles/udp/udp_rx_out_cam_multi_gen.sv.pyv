@@ -1,3 +1,4 @@
+`include "soc_defs.vh"
 module udp_rx_out_cam_multi #(
      parameter SRC_X = -1
     ,parameter SRC_Y = -1

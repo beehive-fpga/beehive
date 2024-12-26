@@ -1,3 +1,5 @@
+`include "noc_defs.vh"
+
 module extra_hdr_noc_ctrl_to_data 
     import beehive_noc_msg::*;
     import beehive_ctrl_noc_msg::*;

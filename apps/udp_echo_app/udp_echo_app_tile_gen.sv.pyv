@@ -13,7 +13,9 @@ logging.info(f"Using tile config at {design_path}")
 tile_config = BeehiveConfig(design_path + "/tile_config.xml")
 noc_if_generator = NocInterfaceGen()
 %>
-module udp_echo_app_tile #(
+module udp_echo_app_tile
+import beehive_udp_app_logger_msg::*;
+#(
      parameter SRC_X = -1
     ,parameter SRC_Y = -1
 )(

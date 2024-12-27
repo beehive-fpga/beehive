@@ -89,6 +89,14 @@ print(router_wires)
     logic                               rd_tracker_out_vrtoc_val;
     logic   [`CTRL_NOC_DATA_W-1:0]      rd_tracker_out_vrtoc_data;
     logic                               vrtoc_rd_tracker_out_rdy;
+
+    logic                           router_ctovr_ctrl_noc1_val;
+    logic   [`CTRL_NOC_DATA_W-1:0]  router_ctovr_ctrl_noc1_data;
+    logic                           ctovr_router_ctrl_noc1_yummy;
+
+    logic                           vrtoc_router_ctrl_noc1_val;
+    logic   [`CTRL_NOC_DATA_W-1:0]  vrtoc_router_ctrl_noc1_data;
+    logic                           router_vrtoc_ctrl_noc1_yummy;
     
     noc_router_block #(
          .SRC_X (SRC_X  )

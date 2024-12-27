@@ -1,5 +1,11 @@
 `include "soc_defs.vh"
-module udp_rx_out_cam_multi #(
+module udp_rx_out_cam_multi
+import beehive_noc_msg::*;
+import beehive_topology::*;
+import udp_rx_tile_pkg::*;
+import beehive_eth_latency_logger_msg::*;
+import beehive_udp_app_logger_msg::*;
+#(
      parameter SRC_X = -1
     ,parameter SRC_Y = -1
 )(

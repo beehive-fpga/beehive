@@ -45,15 +45,6 @@ module simple_log_udp_noc_read_ctrl (
         end
     end
 
-    always_ff @(posedge clk) begin
-        if (rst) begin
-            state_reg <= READY;
-        end
-        else begin
-            state_reg <= state_next;
-        end
-    end
-
     always_comb begin
         reader_in_ctovr_rdy = 1'b0;
         reader_out_vrtoc_val = 1'b0;

@@ -1,5 +1,7 @@
 `include "udp_echo_app_stats_defs.svh"
-module udp_echo_app_stats #(
+module udp_echo_app_stats
+import beehive_topology::*;
+#(
      parameter SRC_X = -1
     ,parameter SRC_Y = -1
     ,parameter NOC1_DATA_W=-1

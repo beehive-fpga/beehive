@@ -1,5 +1,6 @@
 module tracker_read_datap 
     import tracker_pkg::*;
+    import beehive_noc_msg::*;
     import beehive_ctrl_noc_msg::*;
 #(
      parameter SRC_X = -1

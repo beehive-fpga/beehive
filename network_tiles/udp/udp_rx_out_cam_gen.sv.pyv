@@ -1,5 +1,7 @@
 `include "udp_rx_tile_defs.svh"
-module udp_rx_out_cam (
+module udp_rx_out_cam
+import beehive_eth_latency_logger_msg::*;
+(
      input clk
     ,input rst
 

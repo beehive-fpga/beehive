@@ -1,4 +1,5 @@
 `include "udp_tx_tile_defs.svh"
+`include "soc_defs.vh"
 module udp_tx_noc_out_copy 
 import tracker_pkg::*;
 #(

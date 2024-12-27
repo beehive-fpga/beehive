@@ -1,4 +1,5 @@
 `include "udp_tx_tile_defs.svh"
+`include "soc_defs.vh"
 module udp_tx_noc_out #(
      parameter SRC_X = -1
     ,parameter SRC_Y = -1

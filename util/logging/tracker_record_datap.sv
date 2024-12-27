@@ -1,3 +1,4 @@
+`include "noc_defs.vh"
 module tracker_record_datap 
     import beehive_noc_msg::*;
     import tracker_pkg::*;

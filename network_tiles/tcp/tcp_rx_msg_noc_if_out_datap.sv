@@ -92,3 +92,11 @@ module tcp_rx_msg_noc_if_out_datap #(
     end
 
 endmodule
+
+{
+input data_ready,
+output [10:0]  data,
+output data_valid,
+}
+
+assign data_valid = data_ready && asdfae;

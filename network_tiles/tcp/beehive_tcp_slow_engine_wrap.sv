@@ -111,7 +111,15 @@ import packet_struct_pkg::*;
     ,input  logic                               app_sched_update_val
     ,input  sched_cmd_struct                    app_sched_update_cmd
     ,output logic                               sched_app_update_rdy
-    
+
+    ,input                                  rx_store_buf_rx_buf_store_rd_req_val
+    ,input          [FLOWID_W-1:0]          rx_store_buf_rx_buf_store_rd_req_flowid
+    ,input          [RX_PAYLOAD_IDX_W-1:0]  rx_store_buf_rx_buf_store_rd_req_idx
+    ,output logic                           rx_buf_store_rx_store_buf_rd_req_rdy
+
+    ,output logic                           rx_buf_store_rx_store_buf_rd_resp_val
+    ,output         tcp_buf                 rx_buf_store_rx_store_buf_rd_resp_data
+    ,input                                  rx_store_buf_rx_buf_store_rd_resp_rdy
 );
     logic                       tmp_buf_engine_rx_hdr_val;
     logic                       engine_tmp_buf_rx_rdy;
@@ -230,6 +238,14 @@ import packet_struct_pkg::*;
         ,.app_sched_update_cmd              (app_sched_update_cmd               )
         ,.sched_app_update_rdy              (sched_app_update_rdy               )
         
+        ,.rx_store_buf_rx_buf_store_rd_req_val(rx_store_buf_rx_buf_store_rd_req_val)
+        ,.rx_store_buf_rx_buf_store_rd_req_flowid(rx_store_buf_rx_buf_store_rd_req_flowid)
+        ,.rx_store_buf_rx_buf_store_rd_req_idx(rx_store_buf_rx_buf_store_rd_req_idx)
+        ,.rx_buf_store_rx_store_buf_rd_req_rdy(rx_buf_store_rx_store_buf_rd_req_rdy)
+
+        ,.rx_buf_store_rx_store_buf_rd_resp_val(rx_buf_store_rx_store_buf_rd_resp_val)
+        ,.rx_buf_store_rx_store_buf_rd_resp_data(rx_buf_store_rx_store_buf_rd_resp_data)
+        ,.rx_store_buf_rx_buf_store_rd_resp_rdy(rx_store_buf_rx_buf_store_rd_resp_rdy)  
     );
 
     // drop if the tmp buf is backpressuring

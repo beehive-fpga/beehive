@@ -106,6 +106,15 @@ module tcp_rx_tile #(
     ,input  logic                                   rx_commit_ptr_app_rd_resp_val
     ,input  logic   [`RX_PAYLOAD_PTR_W:0]           rx_commit_ptr_app_rd_resp_data
     ,output logic                                   app_rx_commit_ptr_rd_resp_rdy
+
+    ,output                                 store_buf_buf_store_rd_req_val
+    ,output         [FLOWID_W-1:0]          store_buf_buf_store_rd_req_flowid
+    ,output         [RX_PAYLOAD_IDX_W-1:0]  store_buf_buf_store_rd_req_idx
+    ,input logic                            buf_store_store_buf_rd_req_rdy
+
+    ,input logic                            buf_store_store_buf_rd_resp_val
+    ,input          tcp_buf                 buf_store_store_buf_rd_resp_data
+    ,output                                 store_buf_buf_store_rd_resp_rdy
 );
     
     logic                           noc0_vrtoc_tile_rx_router_val;
@@ -456,6 +465,15 @@ module tcp_rx_tile #(
         ,.store_buf_commit_idx_wr_req_flowid        (store_buf_commit_idx_wr_req_flowid         )
         ,.store_buf_commit_idx_wr_req_data          (store_buf_commit_idx_wr_req_data           )
         ,.commit_idx_store_buf_wr_req_rdy           (commit_idx_store_buf_wr_req_rdy            )
+
+        ,.store_buf_buf_store_rd_req_val(store_buf_buf_store_rd_req_val)
+        ,.store_buf_buf_store_rd_req_flowid(store_buf_buf_store_rd_req_flowid)
+        ,.store_buf_buf_store_rd_req_idx(store_buf_buf_store_rd_req_idx)
+        ,.buf_store_store_buf_rd_req_rdy(buf_store_store_buf_rd_req_rdy)
+
+        ,.buf_store_store_buf_rd_resp_val(buf_store_store_buf_rd_resp_val)
+        ,.buf_store_store_buf_rd_resp_data(buf_store_store_buf_rd_resp_data)
+        ,.store_buf_buf_store_rd_resp_rdy(store_buf_buf_store_rd_resp_rdy)
     );
 
 

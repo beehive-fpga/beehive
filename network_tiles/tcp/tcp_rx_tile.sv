@@ -68,18 +68,18 @@ module tcp_rx_tile #(
     ,output logic   [`RX_TMP_BUF_ADDR_W-1:0]        store_buf_tmp_buf_free_slab_rx_req_addr
     ,input  logic                                   tmp_buf_free_slab_store_buf_rx_req_rdy
 
-    ,output logic                                   store_buf_commit_ptr_rd_req_val
-    ,output logic   [`FLOW_ID_W-1:0]                store_buf_commit_ptr_rd_req_flowid
-    ,input  logic                                   commit_ptr_store_buf_rd_req_rdy
+    ,output logic                                   store_buf_commit_idx_rd_req_val
+    ,output logic   [`FLOW_ID_W-1:0]                store_buf_commit_idx_rd_req_flowid
+    ,input  logic                                   commit_idx_store_buf_rd_req_rdy
                                                                             
-    ,input  logic                                   commit_ptr_store_buf_rd_resp_val
-    ,input  logic   [`RX_PAYLOAD_PTR_W:0]           commit_ptr_store_buf_rd_resp_data
-    ,output logic                                   store_buf_commit_ptr_rd_resp_rdy
+    ,input  logic                                   commit_idx_store_buf_rd_resp_val
+    ,input  tcp_buf_idx                             commit_idx_store_buf_rd_resp_data
+    ,output logic                                   store_buf_commit_idx_rd_resp_rdy
     
-    ,output logic                                   store_buf_commit_ptr_wr_req_val
-    ,output logic   [`FLOW_ID_W-1:0]                store_buf_commit_ptr_wr_req_flowid
-    ,output logic   [`RX_PAYLOAD_PTR_W:0]           store_buf_commit_ptr_wr_req_data
-    ,input  logic                                   commit_ptr_store_buf_wr_req_rdy
+    ,output logic                                   store_buf_commit_idx_wr_req_val
+    ,output logic   [`FLOW_ID_W-1:0]                store_buf_commit_idx_wr_req_flowid
+    ,output tcp_buf_idx                             store_buf_commit_idx_wr_req_data
+    ,input  logic                                   commit_idx_store_buf_wr_req_rdy
     
     ,input  logic                                   app_new_flow_notif_val
     ,input  logic   [`FLOW_ID_W-1:0]                app_new_flow_flowid
@@ -444,18 +444,18 @@ module tcp_rx_tile #(
         ,.store_buf_tmp_buf_free_slab_rx_req_addr   (store_buf_tmp_buf_free_slab_rx_req_addr    )
         ,.tmp_buf_free_slab_store_buf_rx_req_rdy    (tmp_buf_free_slab_store_buf_rx_req_rdy     )
                                                                                                 
-        ,.store_buf_commit_ptr_rd_req_val           (store_buf_commit_ptr_rd_req_val            )
-        ,.store_buf_commit_ptr_rd_req_flowid        (store_buf_commit_ptr_rd_req_flowid         )
-        ,.commit_ptr_store_buf_rd_req_rdy           (commit_ptr_store_buf_rd_req_rdy            )
+        ,.store_buf_commit_idx_rd_req_val           (store_buf_commit_idx_rd_req_val            )
+        ,.store_buf_commit_idx_rd_req_flowid        (store_buf_commit_idx_rd_req_flowid         )
+        ,.commit_idx_store_buf_rd_req_rdy           (commit_idx_store_buf_rd_req_rdy            )
                                                                                                 
-        ,.commit_ptr_store_buf_rd_resp_val          (commit_ptr_store_buf_rd_resp_val           )
-        ,.commit_ptr_store_buf_rd_resp_data         (commit_ptr_store_buf_rd_resp_data          )
-        ,.store_buf_commit_ptr_rd_resp_rdy          (store_buf_commit_ptr_rd_resp_rdy           )
+        ,.commit_idx_store_buf_rd_resp_val          (commit_idx_store_buf_rd_resp_val           )
+        ,.commit_idx_store_buf_rd_resp_data         (commit_idx_store_buf_rd_resp_data          )
+        ,.store_buf_commit_idx_rd_resp_rdy          (store_buf_commit_idx_rd_resp_rdy           )
                                                                                                 
-        ,.store_buf_commit_ptr_wr_req_val           (store_buf_commit_ptr_wr_req_val            )
-        ,.store_buf_commit_ptr_wr_req_flowid        (store_buf_commit_ptr_wr_req_flowid         )
-        ,.store_buf_commit_ptr_wr_req_data          (store_buf_commit_ptr_wr_req_data           )
-        ,.commit_ptr_store_buf_wr_req_rdy           (commit_ptr_store_buf_wr_req_rdy            )
+        ,.store_buf_commit_idx_wr_req_val           (store_buf_commit_idx_wr_req_val            )
+        ,.store_buf_commit_idx_wr_req_flowid        (store_buf_commit_idx_wr_req_flowid         )
+        ,.store_buf_commit_idx_wr_req_data          (store_buf_commit_idx_wr_req_data           )
+        ,.commit_idx_store_buf_wr_req_rdy           (commit_idx_store_buf_wr_req_rdy            )
     );
 
 

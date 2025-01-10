@@ -95,18 +95,18 @@ import packet_struct_pkg::*;
     ,output logic   [RX_PAYLOAD_PTR_W:0]        rx_commit_ptr_app_rd_resp_data
     ,input  logic                               app_rx_commit_ptr_rd_resp_rdy
     
-    ,input  logic                               store_buf_commit_ptr_wr_req_val
-    ,input  logic   [FLOWID_W-1:0]              store_buf_commit_ptr_wr_req_addr
-    ,input  logic   [RX_PAYLOAD_PTR_W:0]        store_buf_commit_ptr_wr_req_data
-    ,output logic                               commit_ptr_store_buf_wr_req_rdy
+    ,input  logic                               store_buf_commit_idx_wr_req_val
+    ,input  logic   [FLOWID_W-1:0]              store_buf_commit_idx_wr_req_addr
+    ,input  tcp_buf_idx                         store_buf_commit_idx_wr_req_data
+    ,output logic                               commit_idx_store_buf_wr_req_rdy
 
-    ,input  logic                               store_buf_commit_ptr_rd_req_val
-    ,input  logic   [FLOWID_W-1:0]              store_buf_commit_ptr_rd_req_addr
-    ,output logic                               commit_ptr_store_buf_rd_req_rdy
+    ,input  logic                               store_buf_commit_idx_rd_req_val
+    ,input  logic   [FLOWID_W-1:0]              store_buf_commit_idx_rd_req_addr
+    ,output logic                               commit_idx_store_buf_rd_req_rdy
 
-    ,output logic                               commit_ptr_store_buf_rd_resp_val
-    ,output logic   [RX_PAYLOAD_PTR_W:0]        commit_ptr_store_buf_rd_resp_data
-    ,input  logic                               store_buf_commit_ptr_rd_resp_rdy
+    ,output logic                               commit_idx_store_buf_rd_resp_val
+    ,output tcp_buf_idx                         commit_idx_store_buf_rd_resp_data
+    ,input  logic                               store_buf_commit_idx_rd_resp_rdy
     
     ,input  logic                               app_sched_update_val
     ,input  sched_cmd_struct                    app_sched_update_cmd
@@ -161,18 +161,18 @@ import packet_struct_pkg::*;
         ,.tcp_rx_dst_payload_entry          (tcp_rx_store_buf_payload_entry     )
         ,.dst_tcp_rx_hdr_rdy                (store_buf_tcp_rx_rdy               )
     
-        ,.store_buf_commit_ptr_wr_req_val   (store_buf_commit_ptr_wr_req_val    )
-        ,.store_buf_commit_ptr_wr_req_addr  (store_buf_commit_ptr_wr_req_addr   )
-        ,.store_buf_commit_ptr_wr_req_data  (store_buf_commit_ptr_wr_req_data   )
-        ,.commit_ptr_store_buf_wr_req_rdy   (commit_ptr_store_buf_wr_req_rdy    )
+        ,.store_buf_commit_idx_wr_req_val   (store_buf_commit_idx_wr_req_val    )
+        ,.store_buf_commit_idx_wr_req_addr  (store_buf_commit_idx_wr_req_addr   )
+        ,.store_buf_commit_idx_wr_req_data  (store_buf_commit_idx_wr_req_data   )
+        ,.commit_idx_store_buf_wr_req_rdy   (commit_idx_store_buf_wr_req_rdy    )
                                                                                 
-        ,.store_buf_commit_ptr_rd_req_val   (store_buf_commit_ptr_rd_req_val    )
-        ,.store_buf_commit_ptr_rd_req_addr  (store_buf_commit_ptr_rd_req_addr   )
-        ,.commit_ptr_store_buf_rd_req_rdy   (commit_ptr_store_buf_rd_req_rdy    )
+        ,.store_buf_commit_idx_rd_req_val   (store_buf_commit_idx_rd_req_val    )
+        ,.store_buf_commit_idx_rd_req_addr  (store_buf_commit_idx_rd_req_addr   )
+        ,.commit_idx_store_buf_rd_req_rdy   (commit_idx_store_buf_rd_req_rdy    )
                                                                                 
-        ,.commit_ptr_store_buf_rd_resp_val  (commit_ptr_store_buf_rd_resp_val   )
-        ,.commit_ptr_store_buf_rd_resp_data (commit_ptr_store_buf_rd_resp_data  )
-        ,.store_buf_commit_ptr_rd_resp_rdy  (store_buf_commit_ptr_rd_resp_rdy   )
+        ,.commit_idx_store_buf_rd_resp_val  (commit_idx_store_buf_rd_resp_val   )
+        ,.commit_idx_store_buf_rd_resp_data (commit_idx_store_buf_rd_resp_data  )
+        ,.store_buf_commit_idx_rd_resp_rdy  (store_buf_commit_idx_rd_resp_rdy   )
     
         /********************************
          * App interface

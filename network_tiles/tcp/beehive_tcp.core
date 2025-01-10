@@ -13,7 +13,6 @@ filesets:
             - include/beehive_tcp_engine_defs.svh: {is_include_file: true}
             - include/tcp_msg_poller_defs.svh: {is_include_file: true}
             - beehive_rx_pipe_wrap.sv
-            - beehive_tcp_engine_wrap.sv
             - tcp_app_notif.sv
             - tcp_app_notif_ctrl.sv
             - tcp_app_notif_datap.sv

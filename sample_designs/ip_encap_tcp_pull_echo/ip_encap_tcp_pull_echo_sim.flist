@@ -79,9 +79,7 @@ $BEEHIVE_PROJECT_ROOT/tcp/include/tcp_rx_tile_pkg.sv
 $BEEHIVE_PROJECT_ROOT/tcp/include/tcp_tx_tile_pkg.sv
 
 $BEEHIVE_PROJECT_ROOT/tcp/beehive_rx_pipe_wrap.sv
-$BEEHIVE_PROJECT_ROOT/tcp/beehive_tcp_engine_wrap.sv
 $BEEHIVE_PROJECT_ROOT/tcp/tcp_tile_wrap.sv
-
 $BEEHIVE_PROJECT_ROOT/tcp/tcp_app_notif.sv
 $BEEHIVE_PROJECT_ROOT/tcp/tcp_app_notif_cam.sv
 $BEEHIVE_PROJECT_ROOT/tcp/tcp_app_notif_ctrl.sv

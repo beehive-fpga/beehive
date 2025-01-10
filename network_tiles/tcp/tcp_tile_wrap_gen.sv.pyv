@@ -84,18 +84,18 @@ import tcp_misc_pkg::*;
     logic   [RX_TMP_BUF_ADDR_W-1:0]         store_buf_tmp_buf_free_slab_rx_req_addr;
     logic                                   tmp_buf_free_slab_store_buf_rx_req_rdy;
 
-    logic                                   store_buf_commit_ptr_wr_req_val;
-    logic   [FLOWID_W-1:0]                  store_buf_commit_ptr_wr_req_flowid;
-    logic   [RX_PAYLOAD_PTR_W:0]            store_buf_commit_ptr_wr_req_data;
-    logic                                   commit_ptr_store_buf_wr_req_rdy;
+    logic                                   store_buf_commit_idx_wr_req_val;
+    logic   [FLOWID_W-1:0]                  store_buf_commit_idx_wr_req_flowid;
+    tcp_buf_idx                             store_buf_commit_idx_wr_req_data;
+    logic                                   commit_idx_store_buf_wr_req_rdy;
     
-    logic                                   store_buf_commit_ptr_rd_req_val;
-    logic   [FLOWID_W-1:0]                  store_buf_commit_ptr_rd_req_addr;
-    logic                                   commit_ptr_store_buf_rd_req_rdy;
+    logic                                   store_buf_commit_idx_rd_req_val;
+    logic   [FLOWID_W-1:0]                  store_buf_commit_idx_rd_req_addr;
+    logic                                   commit_idx_store_buf_rd_req_rdy;
 
-    logic                                   commit_ptr_store_buf_rd_resp_val;
-    logic   [RX_PAYLOAD_PTR_W:0]            commit_ptr_store_buf_rd_resp_data;
-    logic                                   store_buf_commit_ptr_rd_resp_rdy;
+    logic                                   commit_idx_store_buf_rd_resp_val;
+    tcp_buf_idx                             commit_idx_store_buf_rd_resp_data;
+    logic                                   store_buf_commit_idx_rd_resp_rdy;
     
     logic                               app_new_flow_notif_val;
     logic   [FLOWID_W-1:0]              app_new_flow_flowid;
@@ -195,18 +195,18 @@ import tcp_misc_pkg::*;
         ,.store_buf_tmp_buf_free_slab_rx_req_addr   (store_buf_tmp_buf_free_slab_rx_req_addr    )
         ,.tmp_buf_free_slab_store_buf_rx_req_rdy    (tmp_buf_free_slab_store_buf_rx_req_rdy     )
                                                                                                 
-        ,.store_buf_commit_ptr_rd_req_val           (store_buf_commit_ptr_rd_req_val            )
-        ,.store_buf_commit_ptr_rd_req_flowid        (store_buf_commit_ptr_rd_req_addr           )
-        ,.commit_ptr_store_buf_rd_req_rdy           (commit_ptr_store_buf_rd_req_rdy            )
+        ,.store_buf_commit_idx_rd_req_val           (store_buf_commit_idx_rd_req_val            )
+        ,.store_buf_commit_idx_rd_req_flowid        (store_buf_commit_idx_rd_req_addr           )
+        ,.commit_idx_store_buf_rd_req_rdy           (commit_idx_store_buf_rd_req_rdy            )
                                                                                                 
-        ,.commit_ptr_store_buf_rd_resp_val          (commit_ptr_store_buf_rd_resp_val           )
-        ,.commit_ptr_store_buf_rd_resp_data         (commit_ptr_store_buf_rd_resp_data          )
-        ,.store_buf_commit_ptr_rd_resp_rdy          (store_buf_commit_ptr_rd_resp_rdy           )
+        ,.commit_idx_store_buf_rd_resp_val          (commit_idx_store_buf_rd_resp_val           )
+        ,.commit_idx_store_buf_rd_resp_data         (commit_idx_store_buf_rd_resp_data          )
+        ,.store_buf_commit_idx_rd_resp_rdy          (store_buf_commit_idx_rd_resp_rdy           )
                                                                                                 
-        ,.store_buf_commit_ptr_wr_req_val           (store_buf_commit_ptr_wr_req_val            )
-        ,.store_buf_commit_ptr_wr_req_flowid        (store_buf_commit_ptr_wr_req_flowid         )
-        ,.store_buf_commit_ptr_wr_req_data          (store_buf_commit_ptr_wr_req_data           )
-        ,.commit_ptr_store_buf_wr_req_rdy           (commit_ptr_store_buf_wr_req_rdy            )
+        ,.store_buf_commit_idx_wr_req_val           (store_buf_commit_idx_wr_req_val            )
+        ,.store_buf_commit_idx_wr_req_flowid        (store_buf_commit_idx_wr_req_flowid         )
+        ,.store_buf_commit_idx_wr_req_data          (store_buf_commit_idx_wr_req_data           )
+        ,.commit_idx_store_buf_wr_req_rdy           (commit_idx_store_buf_wr_req_rdy            )
 
         ,.app_new_flow_notif_val                    (app_new_flow_notif_val                     )
         ,.app_new_flow_lookup                       (app_new_flow_lookup                        )
@@ -321,26 +321,26 @@ import tcp_misc_pkg::*;
         ,.rx_head_ptr_app_rd_resp_data          (rx_head_ptr_app_rd_resp_data               )
         ,.app_rx_head_ptr_rd_resp_rdy           (app_rx_head_ptr_rd_resp_rdy                )
                                                                                             
-        ,.app_rx_commit_ptr_rd_req_val          (app_rx_commit_ptr_rd_req_val               )
-        ,.app_rx_commit_ptr_rd_req_addr         (app_rx_commit_ptr_rd_req_addr              )
-        ,.rx_commit_ptr_app_rd_req_rdy          (rx_commit_ptr_app_rd_req_rdy               )
+        ,.app_rx_commit_idx_rd_req_val          (app_rx_commit_idx_rd_req_val               )
+        ,.app_rx_commit_idx_rd_req_addr         (app_rx_commit_idx_rd_req_addr              )
+        ,.rx_commit_idx_app_rd_req_rdy          (rx_commit_idx_app_rd_req_rdy               )
                                                                                             
-        ,.rx_commit_ptr_app_rd_resp_val         (rx_commit_ptr_app_rd_resp_val              )
-        ,.rx_commit_ptr_app_rd_resp_data        (rx_commit_ptr_app_rd_resp_data             )
-        ,.app_rx_commit_ptr_rd_resp_rdy         (app_rx_commit_ptr_rd_resp_rdy              )
+        ,.rx_commit_idx_app_rd_resp_val         (rx_commit_idx_app_rd_resp_val              )
+        ,.rx_commit_idx_app_rd_resp_data        (rx_commit_idx_app_rd_resp_data             )
+        ,.app_rx_commit_idx_rd_resp_rdy         (app_rx_commit_idx_rd_resp_rdy              )
     
-        ,.store_buf_commit_ptr_wr_req_val       (store_buf_commit_ptr_wr_req_val            )
-        ,.store_buf_commit_ptr_wr_req_addr      (store_buf_commit_ptr_wr_req_flowid         )
-        ,.store_buf_commit_ptr_wr_req_data      (store_buf_commit_ptr_wr_req_data           )
-        ,.commit_ptr_store_buf_wr_req_rdy       (commit_ptr_store_buf_wr_req_rdy            )
+        ,.store_buf_commit_idx_wr_req_val       (store_buf_commit_idx_wr_req_val            )
+        ,.store_buf_commit_idx_wr_req_addr      (store_buf_commit_idx_wr_req_flowid         )
+        ,.store_buf_commit_idx_wr_req_data      (store_buf_commit_idx_wr_req_data           )
+        ,.commit_idx_store_buf_wr_req_rdy       (commit_idx_store_buf_wr_req_rdy            )
                                                                                             
-        ,.store_buf_commit_ptr_rd_req_val       (store_buf_commit_ptr_rd_req_val            )
-        ,.store_buf_commit_ptr_rd_req_addr      (store_buf_commit_ptr_rd_req_addr           )
-        ,.commit_ptr_store_buf_rd_req_rdy       (commit_ptr_store_buf_rd_req_rdy            )
+        ,.store_buf_commit_idx_rd_req_val       (store_buf_commit_idx_rd_req_val            )
+        ,.store_buf_commit_idx_rd_req_addr      (store_buf_commit_idx_rd_req_addr           )
+        ,.commit_idx_store_buf_rd_req_rdy       (commit_idx_store_buf_rd_req_rdy            )
                                                                                             
-        ,.commit_ptr_store_buf_rd_resp_val      (commit_ptr_store_buf_rd_resp_val           )
-        ,.commit_ptr_store_buf_rd_resp_data     (commit_ptr_store_buf_rd_resp_data          )
-        ,.store_buf_commit_ptr_rd_resp_rdy      (store_buf_commit_ptr_rd_resp_rdy           )
+        ,.commit_idx_store_buf_rd_resp_val      (commit_idx_store_buf_rd_resp_val           )
+        ,.commit_idx_store_buf_rd_resp_data     (commit_idx_store_buf_rd_resp_data          )
+        ,.store_buf_commit_idx_rd_resp_rdy      (store_buf_commit_idx_rd_resp_rdy           )
 
         ,.app_sched_update_val                  (app_sched_update_val                       )
         ,.app_sched_update_cmd                  (app_sched_update_cmd                       )

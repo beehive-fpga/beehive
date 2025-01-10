@@ -33,7 +33,7 @@ module tcp_msg_ptr_poller_datap #(
 
     ,output logic                           data_ctrl_msg_satis
     ,input  logic                           ctrl_data_store_req_data
-    ,input  logic                           ctrl_data_store_ptrs
+    ,input  logic                           ctrl_data_store_ptrs // TODO: display when this is set to 1 and flowid is good?
     ,input  logic                           ctrl_data_store_flowid
 );
     logic   [FLOWID_W-1:0]      flowid_reg;

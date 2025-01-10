@@ -25,7 +25,8 @@ package beehive_tcp_msg;
     localparam [`NOC_FBITS_WIDTH-1:0]   TCP_TX_APP_PTR_IF_FBITS = {1'b1, TCP_TX_APP_PTR_IF_FBITS_VALUE[`NOC_FBITS_WIDTH-2:0]};
 
     localparam MAX_PAYLOAD_PTR_W = 32;
-    localparam MAX_PAYLOAD_IDX_W = 8; // i think 256 buffers per flow is more than enough...
+    localparam MAX_NUM_BUFS = 8; // i think 8 buffers per flow is enough... who knows?. this is per flow.
+    localparam MAX_PAYLOAD_IDX_W = $clog2(MAX_NUM_BUFS);
 
 // TODO: what to do about these ptr type lengths being longer than the real ones used? do i need to declare 2 types now, one for the one in the pkt and one for the one here?
 // TODO: convert sram write req stuff (e.g. store buf commit ptr rd req) all to idx instead. but what type/bit width?
@@ -43,12 +44,13 @@ package beehive_tcp_msg;
 
     typedef struct packed {
         tcp_buf buf_info;
+        tcp_buf_idx idx;
     } tcp_buf_with_idx;
     localparam TCP_BUF_WITH_IDX_W = $bits(tcp_buf_with_idx);
 
     typedef struct packed {
         logic [MAX_PAYLOAD_PTR_W:0] leftover_bytes_consumed; // assumed to be 0 at the moment (e.g. you use the entire buffer we give you)
-        logic [MAX_PAYLOAD_PTR_W:0] bufs_consumed; // assumed to be 1 at the moment (e.g. you use the entire buffer we give you)
+        logic [MAX_PAYLOAD_IDX_W:0] bufs_consumed; // assumed to be 1 at the moment (e.g. you use the entire buffer we give you)
         tcp_buf_with_idx prev_buf;
     } tcp_buf_update;
     localparam TCP_BUF_UPDATE_W = $bits(tcp_buf_update);

@@ -145,5 +145,4 @@ import tcp_misc_pkg::*;
         ,.app_end_ptr_rd_resp_rdy   (app_head_ptr_tx_rd_resp_rdy    )
     );
 
-
 endmodule

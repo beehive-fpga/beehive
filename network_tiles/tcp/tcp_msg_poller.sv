@@ -172,6 +172,8 @@ module tcp_msg_poller #(
         ,.meta_active_bitvec                        (meta_active_bitvec                     )
     );
 
+    // TODO: chnage i/o here and of tcp_msg_poller
+
     tcp_msg_ptr_poller #(
          .CHK_SPACE_EMPTY   (CHK_SPACE_EMPTY)
         ,.POLLER_PTR_W      (POLLER_PTR_W   )

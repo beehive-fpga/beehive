@@ -74,26 +74,31 @@ import packet_struct_pkg::*;
     ,output logic   [TX_PAYLOAD_PTR_W:0]        head_ptr_app_tx_rd_resp_data
     ,input  logic                               app_head_ptr_tx_rd_resp_rdy
     
-    ,input  logic                               app_rx_head_buf_wr_req_val
-    ,input  logic   [FLOWID_W-1:0]              app_rx_head_buf_wr_req_addr
-    ,input  logic   [TCP_ADJUST_IDX_W-1:0]      app_rx_head_buf_wr_req_data_old
-    ,output logic                               rx_head_buf_app_wr_req_rdy
+    ,input  logic                               app_rx_head_idx_wr_req_val
+    ,input  logic   [FLOWID_W-1:0]              app_rx_head_idx_wr_req_addr
+    ,input  tcp_buf_idx                         app_rx_head_idx_wr_req_data
+    ,output logic                               rx_head_idx_app_wr_req_rdy
 
-    ,input  logic                               app_rx_head_ptr_rd_req_val
-    ,input  logic   [FLOWID_W-1:0]              app_rx_head_ptr_rd_req_addr
-    ,output logic                               rx_head_ptr_app_rd_req_rdy
+    ,input  logic                               app_rx_head_idx_rd_req_val
+    ,input  logic   [FLOWID_W-1:0]              app_rx_head_idx_rd_req_addr
+    ,output logic                               rx_head_idx_app_rd_req_rdy
     
-    ,output logic                               rx_head_ptr_app_rd_resp_val
-    ,output logic   [RX_PAYLOAD_PTR_W:0]        rx_head_ptr_app_rd_resp_data
-    ,input  logic                               app_rx_head_ptr_rd_resp_rdy
+    ,output logic                               rx_head_idx_app_rd_resp_val
+    ,output tcp_buf_idx                         rx_head_idx_app_rd_resp_data
+    ,input  logic                               app_rx_head_idx_rd_resp_rdy
 
-    ,input  logic                               app_rx_commit_ptr_rd_req_val
-    ,input  logic   [FLOWID_W-1:0]              app_rx_commit_ptr_rd_req_addr
-    ,output logic                               rx_commit_ptr_app_rd_req_rdy
+    ,input  logic                               app_rx_commit_idx_rd_req_val
+    ,input  logic   [FLOWID_W-1:0]              app_rx_commit_idx_rd_req_addr
+    ,output logic                               rx_commit_idx_app_rd_req_rdy
 
-    ,output logic                               rx_commit_ptr_app_rd_resp_val
-    ,output logic   [RX_PAYLOAD_PTR_W:0]        rx_commit_ptr_app_rd_resp_data
-    ,input  logic                               app_rx_commit_ptr_rd_resp_rdy
+    ,output logic                               rx_commit_idx_app_rd_resp_val
+    ,output tcp_buf_idx                         rx_commit_idx_app_rd_resp_data
+    ,input  logic                               app_rx_commit_idx_rd_resp_rdy
+
+    ,input  logic                               app_rx_free_req_val
+    ,input  logic   [RX_PAYLOAD_PTR_W-1:0]      app_rx_free_req_addr
+    ,input  logic   [MALLOC_LEN_W-1:0]          app_rx_free_req_len
+    ,output logic                               rx_free_app_req_rdy
     
     ,input  logic                               store_buf_commit_idx_wr_req_val
     ,input  logic   [FLOWID_W-1:0]              store_buf_commit_idx_wr_req_addr
@@ -190,27 +195,32 @@ import packet_struct_pkg::*;
         ,.app_new_flow_entry                (app_new_flow_lookup                )
         ,.app_new_flow_notif_rdy            (app_new_flow_notif_rdy             )
         
-        ,.app_rx_head_buf_wr_req_val        (app_rx_head_buf_wr_req_val         )
-        ,.app_rx_head_buf_wr_req_addr       (app_rx_head_buf_wr_req_addr        )
-        ,.app_rx_head_buf_wr_req_data_old   (app_rx_head_buf_wr_req_data_old        )
-        ,.rx_head_buf_app_wr_req_rdy        (rx_head_buf_app_wr_req_rdy         )
+        ,.app_rx_head_idx_wr_req_val        (app_rx_head_idx_wr_req_val         )
+        ,.app_rx_head_idx_wr_req_addr       (app_rx_head_idx_wr_req_addr        )
+        ,.app_rx_head_idx_wr_req_data       (app_rx_head_idx_wr_req_data        )
+        ,.rx_head_idx_app_wr_req_rdy        (rx_head_idx_app_wr_req_rdy         )
+
+        ,.app_rx_head_idx_rd_req_val        (app_rx_head_idx_rd_req_val         )
+        ,.app_rx_head_idx_rd_req_addr       (app_rx_head_idx_rd_req_addr        )
+        ,.rx_head_idx_app_rd_req_rdy        (rx_head_idx_app_rd_req_rdy         )
                                                                                 
-        ,.app_rx_head_ptr_rd_req_val        (app_rx_head_ptr_rd_req_val         )
-        ,.app_rx_head_ptr_rd_req_addr       (app_rx_head_ptr_rd_req_addr        )
-        ,.rx_head_ptr_app_rd_req_rdy        (rx_head_ptr_app_rd_req_rdy         )
-                                                                                
-        ,.rx_head_ptr_app_rd_resp_val       (rx_head_ptr_app_rd_resp_val        )
-        ,.rx_head_ptr_app_rd_resp_data      (rx_head_ptr_app_rd_resp_data       )
-        ,.app_rx_head_ptr_rd_resp_rdy       (app_rx_head_ptr_rd_resp_rdy        )
+        ,.rx_head_idx_app_rd_resp_val       (rx_head_idx_app_rd_resp_val        )
+        ,.rx_head_idx_app_rd_resp_data      (rx_head_idx_app_rd_resp_data       )
+        ,.app_rx_head_idx_rd_resp_rdy       (app_rx_head_idx_rd_resp_rdy        )
         
-        ,.app_rx_commit_ptr_rd_req_val      (app_rx_commit_ptr_rd_req_val       )
-        ,.app_rx_commit_ptr_rd_req_addr     (app_rx_commit_ptr_rd_req_addr      )
-        ,.rx_commit_ptr_app_rd_req_rdy      (rx_commit_ptr_app_rd_req_rdy       )
+        ,.app_rx_commit_idx_rd_req_val      (app_rx_commit_idx_rd_req_val       )
+        ,.app_rx_commit_idx_rd_req_addr     (app_rx_commit_idx_rd_req_addr      )
+        ,.rx_commit_idx_app_rd_req_rdy      (rx_commit_idx_app_rd_req_rdy       )
                                                                                 
-        ,.rx_commit_ptr_app_rd_resp_val     (rx_commit_ptr_app_rd_resp_val      )
-        ,.rx_commit_ptr_app_rd_resp_data    (rx_commit_ptr_app_rd_resp_data     )
-        ,.app_rx_commit_ptr_rd_resp_rdy     (app_rx_commit_ptr_rd_resp_rdy      )
+        ,.rx_commit_idx_app_rd_resp_val     (rx_commit_idx_app_rd_resp_val      )
+        ,.rx_commit_idx_app_rd_resp_data    (rx_commit_idx_app_rd_resp_data     )
+        ,.app_rx_commit_idx_rd_resp_rdy     (app_rx_commit_idx_rd_resp_rdy      )
         
+        ,.app_rx_free_req_val               (app_rx_free_req_val                )
+        ,.app_rx_free_req_addr              (app_rx_free_req_addr               )
+        ,.app_rx_free_req_len               (app_rx_free_req_len                )
+        ,.rx_free_app_req_rdy               (rx_free_app_req_rdy                )
+
         ,.app_tx_head_ptr_rd_req_val        (app_head_ptr_tx_rd_req_val         )
         ,.app_tx_head_ptr_rd_req_addr       (app_head_ptr_tx_rd_req_flowid      )
         ,.tx_head_ptr_app_rd_req_rdy        (head_ptr_app_tx_rd_req_rdy         )

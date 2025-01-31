@@ -12,8 +12,7 @@ module tcp_rx_msg_noc_if_out #(
     
     ,input  logic                           poller_msg_noc_if_meta_val
     ,input  logic   [FLOWID_W-1:0]          poller_msg_noc_if_flowid
-    ,input  logic   [RX_PAYLOAD_PTR_W:0]    poller_msg_noc_if_head_ptr
-    ,input  logic   [RX_PAYLOAD_PTR_W-1:0]  poller_msg_noc_if_len
+    ,input  tcp_buf_with_idx                poller_msg_noc_if_head_buf
     ,input  logic   [`XY_WIDTH-1:0]         poller_msg_noc_if_dst_x
     ,input  logic   [`XY_WIDTH-1:0]         poller_msg_noc_if_dst_y
     ,input  logic   [`NOC_FBITS_WIDTH-1:0]  poller_msg_noc_if_dst_fbits
@@ -45,8 +44,7 @@ module tcp_rx_msg_noc_if_out #(
         ,.tcp_rx_ptr_if_noc_data        (tcp_rx_ptr_if_noc_data         )
                                                                         
         ,.poller_msg_noc_if_flowid      (poller_msg_noc_if_flowid       )
-        ,.poller_msg_noc_if_head_ptr    (poller_msg_noc_if_head_ptr     )
-        ,.poller_msg_noc_if_len         (poller_msg_noc_if_len          )
+        ,.poller_msg_noc_if_head_buf    (poller_msg_noc_if_head_buf     )
         ,.poller_msg_noc_if_dst_x       (poller_msg_noc_if_dst_x        )
         ,.poller_msg_noc_if_dst_y       (poller_msg_noc_if_dst_y        )
         ,.poller_msg_noc_if_dst_fbits   (poller_msg_noc_if_dst_fbits    )

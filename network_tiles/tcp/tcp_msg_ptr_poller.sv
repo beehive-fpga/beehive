@@ -2,7 +2,7 @@
 module tcp_msg_ptr_poller #(
      parameter CHK_SPACE_EMPTY = 0
     ,parameter POLLER_IDX_W = 0
-    ,parameter POLLER_PTR_W = 0
+    // ,parameter POLLER_PTR_W = 0
 )(
      input clk
     ,input rst
@@ -28,7 +28,9 @@ module tcp_msg_ptr_poller #(
     
     ,output logic                           poller_msg_dst_meta_val
     ,output logic   [FLOWID_W-1:0]          poller_msg_dst_flowid
-    ,output tcp_buf_with_idx                poller_msg_dst_base_buf
+    ,output logic   [POLLER_IDX_W:0]        poller_msg_dst_base_ptr // OLD- for tx only
+    ,output logic   [POLLER_IDX_W-1:0]      poller_msg_dst_len // OLD- for tx only
+    ,output tcp_buf_with_idx                poller_msg_dst_base_buf // NEW- for rx
     ,output logic   [`XY_WIDTH-1:0]         poller_msg_dst_dst_x
     ,output logic   [`XY_WIDTH-1:0]         poller_msg_dst_dst_y
     ,output logic   [`NOC_FBITS_WIDTH-1:0]  poller_msg_dst_dst_fbits
@@ -66,7 +68,9 @@ module tcp_msg_ptr_poller #(
     logic                           ctrl_data_store_flowid;
     logic                           ctrl_data_store_buf;
 
-    tcp_msg_ptr_poller_ctrl ctrl (
+    tcp_msg_ptr_poller_ctrl #(
+         .CHK_SPACE_EMPTY   (CHK_SPACE_EMPTY)
+    ) ctrl (
          .clk   (clk    )
         ,.rst   (rst    )
     
@@ -114,7 +118,7 @@ module tcp_msg_ptr_poller #(
 
     tcp_msg_ptr_poller_datap #(
          .CHK_SPACE_EMPTY   (CHK_SPACE_EMPTY)
-        ,.POLLER_PTR_W      (POLLER_PTR_W   )
+        // ,.POLLER_PTR_W      (POLLER_PTR_W   )
         ,.POLLER_IDX_W      (POLLER_IDX_W   )
     ) datap (
          .clk   (clk    )
@@ -129,8 +133,9 @@ module tcp_msg_ptr_poller #(
         ,.msg_req_mem_poll_data_rd_resp_data    (msg_req_mem_poll_data_rd_resp_data     )
                                                                                         
         ,.poller_msg_dst_flowid                 (poller_msg_dst_flowid                  )
-        ,.poller_msg_dst_base_idx               (poller_msg_dst_base_idx                )
-        ,.poller_msg_dst_len                    (poller_msg_dst_len                     )
+        ,.poller_msg_dst_base_ptr               (poller_msg_dst_base_ptr                )//old
+        ,.poller_msg_dst_len                    (poller_msg_dst_len                     )//old
+        ,.poller_msg_dst_base_buf               (poller_msg_dst_base_buf                )//new
         ,.poller_msg_dst_dst_x                  (poller_msg_dst_dst_x                   )
         ,.poller_msg_dst_dst_y                  (poller_msg_dst_dst_y                   )
         ,.poller_msg_dst_dst_fbits              (poller_msg_dst_dst_fbits               )

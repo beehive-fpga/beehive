@@ -9,8 +9,7 @@ module tcp_rx_msg_noc_if_out_datap #(
     ,output logic   [`NOC_DATA_WIDTH-1:0]   tcp_rx_ptr_if_noc_data
     
     ,input  logic   [FLOWID_W-1:0]          poller_msg_noc_if_flowid
-    ,input  logic   [RX_PAYLOAD_PTR_W:0]    poller_msg_noc_if_head_ptr
-    ,input  logic   [RX_PAYLOAD_PTR_W-1:0]  poller_msg_noc_if_len
+    ,input  tcp_buf_with_idx                poller_msg_noc_if_head_buf
     ,input  logic   [`XY_WIDTH-1:0]         poller_msg_noc_if_dst_x
     ,input  logic   [`XY_WIDTH-1:0]         poller_msg_noc_if_dst_y
     ,input  logic   [`NOC_FBITS_WIDTH-1:0]  poller_msg_noc_if_dst_fbits
@@ -19,15 +18,13 @@ module tcp_rx_msg_noc_if_out_datap #(
 );
 
     logic   [FLOWID_W-1:0]          flowid_reg;
-    logic   [RX_PAYLOAD_PTR_W-1:0]  len_reg;
-    logic   [RX_PAYLOAD_PTR_W:0]    head_ptr_reg;
+    tcp_buf_with_idx                head_buf_reg;
     logic   [`XY_WIDTH-1:0]         dst_x_reg;
     logic   [`XY_WIDTH-1:0]         dst_y_reg;
     logic   [`NOC_FBITS_WIDTH-1:0]  dst_fbits_reg;
     
     logic   [FLOWID_W-1:0]          flowid_next;
-    logic   [RX_PAYLOAD_PTR_W-1:0]  len_next;
-    logic   [RX_PAYLOAD_PTR_W:0]    head_ptr_next;
+    tcp_buf_with_idx                head_buf_next;
     logic   [`XY_WIDTH-1:0]         dst_x_next;
     logic   [`XY_WIDTH-1:0]         dst_y_next;
     logic   [`NOC_FBITS_WIDTH-1:0]  dst_fbits_next;
@@ -39,16 +36,14 @@ module tcp_rx_msg_noc_if_out_datap #(
     always_ff @(posedge clk) begin
         if (rst) begin
             flowid_reg <= '0;
-            len_reg <= '0;
-            head_ptr_reg <= '0;
+            head_buf_reg <= '0;
             dst_x_reg <= '0;
             dst_y_reg <= '0;
             dst_fbits_reg <= '0;
         end
         else begin
             flowid_reg <= flowid_next;
-            len_reg <= len_next;
-            head_ptr_reg <= head_ptr_next;
+            head_buf_reg <= head_buf_next;
             dst_x_reg <= dst_x_next;
             dst_y_reg <= dst_y_next;
             dst_fbits_reg <= dst_fbits_next;
@@ -58,16 +53,14 @@ module tcp_rx_msg_noc_if_out_datap #(
     always_comb begin
         if (ctrl_datap_store_inputs) begin
             flowid_next = poller_msg_noc_if_flowid;
-            head_ptr_next = poller_msg_noc_if_head_ptr;
-            len_next = poller_msg_noc_if_len;
+            head_buf_next = poller_msg_noc_if_head_buf;
             dst_x_next = poller_msg_noc_if_dst_x;
             dst_y_next = poller_msg_noc_if_dst_y;
             dst_fbits_next = poller_msg_noc_if_dst_fbits;
         end
         else begin
             flowid_next = flowid_reg;
-            head_ptr_next = head_ptr_reg;
-            len_next = len_reg;
+            head_buf_next = head_buf_reg;
             dst_x_next = dst_x_reg;
             dst_y_next = dst_y_reg;
             dst_fbits_next = dst_fbits_reg;
@@ -87,8 +80,7 @@ module tcp_rx_msg_noc_if_out_datap #(
         hdr_flit_cast.core.src_fbits = TCP_RX_APP_PTR_IF_FBITS;
         
         hdr_flit_cast.inner.flowid = flowid_reg;
-        hdr_flit_cast.inner.head_ptr = head_ptr_reg;
-        hdr_flit_cast.inner.length = len_reg;
+        hdr_flit_cast.inner.msg_specific.tcp_msg_resp.buf = head_buf_reg;
     end
 
 endmodule

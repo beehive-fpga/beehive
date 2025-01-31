@@ -1,4 +1,6 @@
-module tcp_msg_ptr_poller_ctrl (
+module tcp_msg_ptr_poller_ctrl #(
+     parameter CHK_SPACE_EMPTY = 0
+)(
      input clk
     ,input rst
 
@@ -82,7 +84,7 @@ module tcp_msg_ptr_poller_ctrl (
         poll_ctrl_msg_req_mem_rd_resp_rdy = 1'b0;
 
         ctrl_data_store_req_data = 1'b0;
-        ctrl_data_store_idxs = 1'b0; // TODO rename to idxs
+        ctrl_data_store_idxs = 1'b0;
         ctrl_data_store_flowid = 1'b0;
         ctrl_data_store_buf = 1'b0;
 
@@ -127,7 +129,7 @@ module tcp_msg_ptr_poller_ctrl (
             end
             CALC: begin
                 if (data_ctrl_msg_satis) begin
-                    state_next = BUF_STORE_REQ;
+                    state_next = CHK_SPACE_EMPTY ? SEND_NOTIF : BUF_STORE_REQ;
                 end
                 else begin
                     state_next = REQUEUE_FLOW;

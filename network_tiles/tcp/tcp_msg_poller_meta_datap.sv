@@ -47,7 +47,7 @@ module tcp_msg_poller_meta_datap #(
     always_comb begin
         wr_data_next = wr_data_reg;
         if (ctrl_data_store_inputs) begin
-            wr_data_next.length = src_poller_msg_req_len;
+            wr_data_next.tx_length = src_poller_msg_req_len;
             wr_data_next.dst_x = src_poller_msg_dst_x;
             wr_data_next.dst_y = src_poller_msg_dst_y;
             wr_data_next.dst_fbits = src_poller_msg_dst_fbits;

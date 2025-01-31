@@ -106,6 +106,7 @@ import tcp_misc_pkg::*;
 
     tcp_msg_poller #(
          .CHK_SPACE_EMPTY   (1)
+        ,.POLLER_IDX_W      (TX_PAYLOAD_PTR_W   )
         ,.POLLER_PTR_W      (TX_PAYLOAD_PTR_W   )
     ) tx_msg_poller (
          .clk   (clk    )

@@ -2,6 +2,7 @@
 module tcp_msg_poller #(
      parameter CHK_SPACE_EMPTY = 0
     ,parameter POLLER_PTR_W = 0
+    ,parameter POLLER_IDX_W = 0
 )(
      input clk
     ,input rst
@@ -16,28 +17,38 @@ module tcp_msg_poller #(
 
     ,output logic                           poller_msg_dst_meta_val
     ,output logic   [FLOWID_W-1:0]          poller_msg_dst_flowid
-    ,output logic   [POLLER_PTR_W:0]        poller_msg_dst_base_ptr
-    ,output logic   [POLLER_PTR_W-1:0]      poller_msg_dst_len
+    ,output logic   [POLLER_IDX_W:0]        poller_msg_dst_base_ptr // OLD- for tx
+    ,output logic   [POLLER_IDX_W-1:0]      poller_msg_dst_len // OLD- for tx
+    ,output tcp_buf_with_idx                poller_msg_dst_base_buf // NEW- for rx
     ,output logic   [`XY_WIDTH-1:0]         poller_msg_dst_dst_x
     ,output logic   [`XY_WIDTH-1:0]         poller_msg_dst_dst_y
     ,output logic   [`NOC_FBITS_WIDTH-1:0]  poller_msg_dst_dst_fbits
     ,input  logic                           dst_poller_msg_meta_rdy
 
-    ,output logic                           app_base_ptr_rd_req_val
-    ,output logic   [FLOWID_W-1:0]          app_base_ptr_rd_req_addr
-    ,input  logic                           base_ptr_app_rd_req_rdy
+    ,output logic                           app_base_idx_rd_req_val
+    ,output logic   [FLOWID_W-1:0]          app_base_idx_rd_req_addr
+    ,input  logic                           base_idx_app_rd_req_rdy
     
-    ,input  logic                           base_ptr_app_rd_resp_val
-    ,input  logic   [POLLER_PTR_W:0]        base_ptr_app_rd_resp_data
-    ,output logic                           app_base_ptr_rd_resp_rdy
+    ,input  logic                           base_idx_app_rd_resp_val
+    ,input  logic   [POLLER_IDX_W:0]        base_idx_app_rd_resp_data
+    ,output logic                           app_base_idx_rd_resp_rdy
 
-    ,output logic                           app_end_ptr_rd_req_val
-    ,output logic   [FLOWID_W-1:0]          app_end_ptr_rd_req_addr
-    ,input  logic                           end_ptr_app_rd_req_rdy
+    ,output logic                           app_end_idx_rd_req_val
+    ,output logic   [FLOWID_W-1:0]          app_end_idx_rd_req_addr
+    ,input  logic                           end_idx_app_rd_req_rdy
+    
+    ,input  logic                           end_idx_app_rd_resp_val
+    ,input  logic   [POLLER_IDX_W:0]        end_idx_app_rd_resp_data
+    ,output logic                           app_end_idx_rd_resp_rdy
 
-    ,input  logic                           end_ptr_app_rd_resp_val
-    ,input  logic   [POLLER_PTR_W:0]        end_ptr_app_rd_resp_data
-    ,output logic                           app_end_ptr_rd_resp_rdy
+    ,output logic                           app_base_buf_rd_req_val
+    ,output logic   [FLOWID_W-1:0]          app_base_buf_rd_req_flowid
+    ,output logic   [POLLER_IDX_W-1:0]      app_base_buf_rd_req_idx
+    ,input  logic                           base_buf_app_rd_req_rdy
+
+    ,input  logic                           base_buf_app_rd_resp_val
+    ,input          tcp_buf                 base_buf_app_rd_resp_data
+    ,output logic                           app_base_buf_rd_resp_rdy
 );
     logic                       meta_ctrl_msg_req_q_wr_req_val;
     logic   [FLOWID_W-1:0]      meta_data_msg_req_q_wr_req_data;
@@ -176,7 +187,7 @@ module tcp_msg_poller #(
 
     tcp_msg_ptr_poller #(
          .CHK_SPACE_EMPTY   (CHK_SPACE_EMPTY)
-        ,.POLLER_PTR_W      (POLLER_PTR_W   )
+        ,.POLLER_IDX_W      (POLLER_IDX_W   )
     ) ptr_poller (
          .clk   (clk    )
         ,.rst   (rst    )
@@ -204,6 +215,7 @@ module tcp_msg_poller #(
         ,.poller_msg_dst_flowid                 (poller_msg_dst_flowid                  )
         ,.poller_msg_dst_base_ptr               (poller_msg_dst_base_ptr                )
         ,.poller_msg_dst_len                    (poller_msg_dst_len                     )
+        ,.poller_msg_dst_base_buf               (poller_msg_dst_base_buf                )
         ,.poller_msg_dst_dst_x                  (poller_msg_dst_dst_x                   )
         ,.poller_msg_dst_dst_y                  (poller_msg_dst_dst_y                   )
         ,.poller_msg_dst_dst_fbits              (poller_msg_dst_dst_fbits               )

@@ -7,7 +7,7 @@ module tcp_msg_poller_meta #(
     
     ,input  logic                           src_poller_msg_req_val
     ,input  logic   [FLOWID_W-1:0]          src_poller_msg_req_flowid
-    ,input  logic   [POLLER_PTR_W-1:0]      src_poller_msg_req_len
+    ,input  logic   [POLLER_PTR_W-1:0]      src_poller_msg_req_len // number of bytes requested in the app msg
     ,input  logic   [`MSG_SRC_X_WIDTH-1:0]  src_poller_msg_dst_x
     ,input  logic   [`MSG_SRC_Y_WIDTH-1:0]  src_poller_msg_dst_y
     ,input  logic   [`NOC_FBITS_WIDTH-1:0]  src_poller_msg_dst_fbits

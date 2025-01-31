@@ -48,12 +48,12 @@ package beehive_tcp_msg;
     } tcp_buf_with_idx;
     localparam TCP_BUF_WITH_IDX_W = $bits(tcp_buf_with_idx);
 
-    typedef struct packed {
-        logic [MAX_PAYLOAD_PTR_W:0] leftover_bytes_consumed; // assumed to be 0 at the moment (e.g. you use the entire buffer we give you)
-        logic [MAX_PAYLOAD_IDX_W:0] bufs_consumed; // assumed to be 1 at the moment (e.g. you use the entire buffer we give you)
-        tcp_buf_with_idx prev_buf;
-    } tcp_buf_update;
-    localparam TCP_BUF_UPDATE_W = $bits(tcp_buf_update);
+    // typedef struct packed {
+    //     logic [MAX_PAYLOAD_PTR_W:0] leftover_bytes_consumed; // assumed to be 0 at the moment (e.g. you use the entire buffer we give you)
+    //     logic [MAX_PAYLOAD_IDX_W:0] bufs_consumed; // assumed to be 1 at the moment (e.g. you use the entire buffer we give you)
+    //     tcp_buf_with_idx prev_buf;
+    // } tcp_buf_update;
+    // localparam TCP_BUF_UPDATE_W = $bits(tcp_buf_update);
 
     typedef struct packed {
         logic   [MAX_PAYLOAD_PTR_W:0]       __length; // unused at the moment, we just return 1 buf unilaterally (bc we can't return more than 1 yet.)
@@ -63,12 +63,13 @@ package beehive_tcp_msg;
 
     typedef struct packed {
         tcp_buf_with_idx buf;
-        logic [TCP_ADJUST_IDX_W-TCP_BUF_WITH_IDX_W-1:0] padding;
+        // logic [TCP_ADJUST_IDX_W-TCP_BUF_WITH_IDX_W-1:0] padding;
     } tcp_msg_resp;
     localparam TCP_MSG_RESP_W = $bits(tcp_msg_resp);
 
     typedef struct packed {
-        tcp_buf_update update_info;
+        // tcp_buf_update update_info;
+        tcp_buf_with_idx old_buf;
     } tcp_adjust_idx;
     localparam TCP_ADJUST_IDX_W = $bits(tcp_adjust_idx);
 
@@ -83,9 +84,9 @@ package beehive_tcp_msg;
         logic   [MAX_FLOWID_W-1:0]          flowid;
         union packed {
             // TODO: probably change these into the struct type... not logic
-            logic   [TCP_MSG_REQ_W-1:0]    tcp_msg_req;
-            logic   [TCP_MSG_RESP_W-1:0]   tcp_msg_resp;
-            logic   [TCP_ADJUST_IDX_W-1:0] tcp_adjust_idx;
+            tcp_msg_req tcp_msg_req;
+            tcp_msg_resp tcp_msg_resp;
+            tcp_adjust_idx tcp_adjust_idx;
         } msg_specific;
     } tcp_flit_inner;
     localparam TCP_FLIT_INNER_W = $bits(tcp_flit_inner);

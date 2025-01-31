@@ -1,7 +1,7 @@
 `include "tcp_msg_poller_defs.svh"
 module tcp_msg_ptr_poller_datap #(
      parameter CHK_SPACE_EMPTY = 0
-    ,parameter POLLER_PTR_W = 0
+    // ,parameter POLLER_PTR_W = 0
     ,parameter POLLER_IDX_W = 0
 )(
      input clk
@@ -16,7 +16,9 @@ module tcp_msg_ptr_poller_datap #(
     ,input          msg_req_mem_struct      msg_req_mem_poll_data_rd_resp_data
     
     ,output logic   [FLOWID_W-1:0]          poller_msg_dst_flowid
-    ,output tcp_buf_with_idx                poller_msg_dst_base_buf
+    ,output logic   [POLLER_PTR_W:0]        poller_msg_dst_base_ptr // OLD: for tx only
+    ,output logic   [POLLER_PTR_W-1:0]      poller_msg_dst_len // OLD: for tx only
+    ,output tcp_buf_with_idx                poller_msg_dst_base_buf // NEW: for rx
     ,output logic   [`XY_WIDTH-1:0]         poller_msg_dst_dst_x
     ,output logic   [`XY_WIDTH-1:0]         poller_msg_dst_dst_y
     ,output logic   [`NOC_FBITS_WIDTH-1:0]  poller_msg_dst_dst_fbits
@@ -65,9 +67,10 @@ module tcp_msg_ptr_poller_datap #(
     assign poll_data_msg_req_mem_rd_req_addr = flowid_next;
 
     assign poller_msg_dst_flowid = flowid_reg;
-    assign poller_msg_dst_base_buf.buf_info = base_buf_reg;
-    assign poller_msg_dst_base_buf.idx.idx = base_idx_reg;
-    // assign poller_msg_dst_len = msg_req_data_reg.length;
+    assign poller_msg_dst_base_ptr = base_idx_reg;//old
+    assign poller_msg_dst_len = msg_req_data_reg.tx_length;//old
+    assign poller_msg_dst_base_buf.buf_info = base_buf_reg;//new
+    assign poller_msg_dst_base_buf.idx.idx = base_idx_reg;//new
     assign poller_msg_dst_dst_x = msg_req_data_reg.dst_x;
     assign poller_msg_dst_dst_y = msg_req_data_reg.dst_y;
     assign poller_msg_dst_dst_fbits = msg_req_data_reg.dst_fbits;
@@ -99,12 +102,12 @@ module tcp_msg_ptr_poller_datap #(
     generate
         if (CHK_SPACE_EMPTY) begin
             assign buf_space_used = base_idx_reg - end_idx_reg;
-            assign buf_space_empty = {1'b1, {(POLLER_idx_W){1'b0}}} - buf_space_used;
-            assign data_ctrl_msg_satis = buf_space_empty >= msg_req_data_reg.length;
+            assign buf_space_empty = {1'b1, {(POLLER_IDX_W){1'b0}}} - buf_space_used;
+            assign data_ctrl_msg_satis = buf_space_empty >= msg_req_data_reg.tx_length; // TODO: change to 1 when TX is done.
         end
-        else begin
+        else begin // RX
             assign buf_space_used = end_idx_reg - base_idx_reg;
-            assign data_ctrl_msg_satis = buf_space_used >= msg_req_data_reg.length;
+            assign data_ctrl_msg_satis = buf_space_used >= 1;//msg_req_data_reg.length;
         end
     endgenerate
 

@@ -53,7 +53,7 @@ module tcp_rx_app_if_wrap
 
     ,output logic                           app_rx_head_buf_rd_req_val
     ,output logic   [FLOWID_W-1:0]          app_rx_head_buf_rd_req_flowid
-    ,output logic   [POLLER_IDX_W-1:0]      app_rx_head_buf_rd_req_idx
+    ,output logic   [RX_PAYLOAD_IDX_W-1:0]  app_rx_head_buf_rd_req_idx
     ,input  logic                           rx_head_buf_app_rd_req_rdy
 
     ,input  logic                           rx_head_buf_app_rd_resp_val

@@ -80,15 +80,7 @@ module tcp_rx_msg_noc_if_out_datap #(
         hdr_flit_cast.core.src_fbits = TCP_RX_APP_PTR_IF_FBITS;
         
         hdr_flit_cast.inner.flowid = flowid_reg;
-        hdr_flit_cast.inner.msg_specific.tcp_msg_resp.buf = head_buf_reg;
+        hdr_flit_cast.inner.msg_specific.tcp_msg_resp.resp_buf = head_buf_reg;
     end
 
 endmodule
-
-{
-input data_ready,
-output [10:0]  data,
-output data_valid,
-}
-
-assign data_valid = data_ready && asdfae;

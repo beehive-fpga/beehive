@@ -119,7 +119,7 @@ import packet_struct_pkg::*;
 
     ,input  logic                               app_rx_head_buf_rd_req_val
     ,input  logic   [FLOWID_W-1:0]              app_rx_head_buf_rd_req_flowid
-    ,input  logic   [POLLER_IDX_W-1:0]          app_rx_head_buf_rd_req_idx
+    ,input  logic   [RX_PAYLOAD_IDX_W-1:0]      app_rx_head_buf_rd_req_idx
     ,output logic                               rx_head_buf_app_rd_req_rdy
 
     ,output logic                               rx_head_buf_app_rd_resp_val

@@ -117,6 +117,15 @@ import packet_struct_pkg::*;
     ,input  sched_cmd_struct                    app_sched_update_cmd
     ,output logic                               sched_app_update_rdy
 
+    ,input  logic                               app_rx_head_buf_rd_req_val
+    ,input  logic   [FLOWID_W-1:0]              app_rx_head_buf_rd_req_flowid
+    ,input  logic   [POLLER_IDX_W-1:0]          app_rx_head_buf_rd_req_idx
+    ,output logic                               rx_head_buf_app_rd_req_rdy
+
+    ,output logic                               rx_head_buf_app_rd_resp_val
+    ,output         tcp_buf                     rx_head_buf_app_rd_resp_data
+    ,input  logic                               app_rx_head_buf_rd_resp_rdy
+
     ,input                                  rx_store_buf_rx_buf_store_rd_req_val
     ,input          [FLOWID_W-1:0]          rx_store_buf_rx_buf_store_rd_req_flowid
     ,input          [RX_PAYLOAD_IDX_W-1:0]  rx_store_buf_rx_buf_store_rd_req_idx
@@ -247,6 +256,15 @@ import packet_struct_pkg::*;
         ,.app_sched_update_val              (app_sched_update_val               )
         ,.app_sched_update_cmd              (app_sched_update_cmd               )
         ,.sched_app_update_rdy              (sched_app_update_rdy               )
+
+        ,.app_rx_head_buf_rd_req_val        (app_rx_head_buf_rd_req_val         )
+        ,.app_rx_head_buf_rd_req_flowid     (app_rx_head_buf_rd_req_flowid      )
+        ,.app_rx_head_buf_rd_req_idx        (app_rx_head_buf_rd_req_idx         )
+        ,.rx_head_buf_app_rd_req_rdy        (rx_head_buf_app_rd_req_rdy         )
+
+        ,.rx_head_buf_app_rd_resp_val       (rx_head_buf_app_rd_resp_val        )
+        ,.rx_head_buf_app_rd_resp_data      (rx_head_buf_app_rd_resp_data       )
+        ,.app_rx_head_buf_rd_resp_rdy       (app_rx_head_buf_rd_resp_rdy        )
         
         ,.rx_store_buf_rx_buf_store_rd_req_val(rx_store_buf_rx_buf_store_rd_req_val)
         ,.rx_store_buf_rx_buf_store_rd_req_flowid(rx_store_buf_rx_buf_store_rd_req_flowid)

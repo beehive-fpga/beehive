@@ -1,7 +1,7 @@
 `include "tcp_msg_poller_defs.svh"
 module tcp_msg_ptr_poller_datap #(
      parameter CHK_SPACE_EMPTY = 0
-    // ,parameter POLLER_PTR_W = 0
+    ,parameter POLLER_PTR_W = 0
     ,parameter POLLER_IDX_W = 0
 )(
      input clk

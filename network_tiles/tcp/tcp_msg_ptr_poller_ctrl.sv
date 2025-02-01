@@ -52,8 +52,8 @@ module tcp_msg_ptr_poller_ctrl #(
         CALC = 3'd3,
         REQUEUE_FLOW = 3'd4,
         SEND_NOTIF = 3'd5,
-        BUF_STORE_REQ = 3'd6;
-        BUF_STORE_RESP = 3'd7;
+        BUF_STORE_REQ = 3'd6,
+        BUF_STORE_RESP = 3'd7,
         UND = 'X
     } state_e;
     
@@ -81,6 +81,8 @@ module tcp_msg_ptr_poller_ctrl #(
 
         app_base_idx_rd_resp_rdy = 1'b0;
         app_end_idx_rd_resp_rdy = 1'b0;
+        app_base_buf_rd_req_val = 1'b0;
+        app_base_buf_rd_resp_rdy = 1'b0;
         poll_ctrl_msg_req_mem_rd_resp_rdy = 1'b0;
 
         ctrl_data_store_req_data = 1'b0;
@@ -145,16 +147,16 @@ module tcp_msg_ptr_poller_ctrl #(
                 end
             end
             BUF_STORE_REQ: begin 
-                rx_store_buf_rx_buf_store_rd_req_val = 1'b1;
+                app_base_buf_rd_req_val = 1'b1;
                 // the idx is stored in datapath during this state.
-                if (rx_buf_store_rx_store_buf_rd_req_rdy) begin
+                if (base_buf_app_rd_req_rdy) begin
                     state_next = BUF_STORE_RESP;
                 end
             end
             BUF_STORE_RESP: begin
-                rx_store_buf_rx_buf_store_rd_resp_rdy = 1'b1;
+                base_buf_app_rd_resp_val = 1'b1;
 
-                if (rx_buf_store_rx_store_buf_rd_resp_val) begin
+                if (app_base_buf_rd_resp_rdy) begin
                     ctrl_data_store_buf = 1'b1;
                     state_next = SEND_NOTIF;
                 end
@@ -181,6 +183,8 @@ module tcp_msg_ptr_poller_ctrl #(
 
                 app_base_idx_rd_resp_rdy = 'X;
                 app_end_idx_rd_resp_rdy = 'X;
+                app_base_buf_rd_req_val = 'X;
+                app_base_buf_rd_resp_rdy = 'X;
                 poll_ctrl_msg_req_mem_rd_resp_rdy = 'X;
 
                 ctrl_data_store_req_data = 'X;

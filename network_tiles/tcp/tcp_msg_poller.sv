@@ -187,6 +187,7 @@ module tcp_msg_poller #(
 
     tcp_msg_ptr_poller #(
          .CHK_SPACE_EMPTY   (CHK_SPACE_EMPTY)
+        ,.POLLER_PTR_W      (POLLER_PTR_W   )
         ,.POLLER_IDX_W      (POLLER_IDX_W   )
     ) ptr_poller (
          .clk   (clk    )
@@ -221,20 +222,29 @@ module tcp_msg_poller #(
         ,.poller_msg_dst_dst_fbits              (poller_msg_dst_dst_fbits               )
         ,.dst_poller_msg_meta_rdy               (dst_poller_msg_meta_rdy                )
                                                                                         
-        ,.app_base_ptr_rd_req_val               (app_base_ptr_rd_req_val                )
-        ,.app_base_ptr_rd_req_addr              (app_base_ptr_rd_req_addr               )
-        ,.base_ptr_app_rd_req_rdy               (base_ptr_app_rd_req_rdy                )
+        ,.app_base_idx_rd_req_val               (app_base_idx_rd_req_val                )
+        ,.app_base_idx_rd_req_addr              (app_base_idx_rd_req_addr               )
+        ,.base_idx_app_rd_req_rdy               (base_idx_app_rd_req_rdy                )
                                                                                         
-        ,.base_ptr_app_rd_resp_val              (base_ptr_app_rd_resp_val               )
-        ,.base_ptr_app_rd_resp_data             (base_ptr_app_rd_resp_data              )
-        ,.app_base_ptr_rd_resp_rdy              (app_base_ptr_rd_resp_rdy               )
+        ,.base_idx_app_rd_resp_val              (base_idx_app_rd_resp_val               )
+        ,.base_idx_app_rd_resp_data             (base_idx_app_rd_resp_data              )
+        ,.app_base_idx_rd_resp_rdy              (app_base_idx_rd_resp_rdy               )
                                                                                         
-        ,.app_end_ptr_rd_req_val                (app_end_ptr_rd_req_val                 )
-        ,.app_end_ptr_rd_req_addr               (app_end_ptr_rd_req_addr                )
-        ,.end_ptr_app_rd_req_rdy                (end_ptr_app_rd_req_rdy                 )
+        ,.app_end_idx_rd_req_val                (app_end_idx_rd_req_val                 )
+        ,.app_end_idx_rd_req_addr               (app_end_idx_rd_req_addr                )
+        ,.end_idx_app_rd_req_rdy                (end_idx_app_rd_req_rdy                 )
         
-        ,.end_ptr_app_rd_resp_val               (end_ptr_app_rd_resp_val                )
-        ,.end_ptr_app_rd_resp_data              (end_ptr_app_rd_resp_data               )
-        ,.app_end_ptr_rd_resp_rdy               (app_end_ptr_rd_resp_rdy                )
+        ,.end_idx_app_rd_resp_val               (end_idx_app_rd_resp_val                )
+        ,.end_idx_app_rd_resp_data              (end_idx_app_rd_resp_data               )
+        ,.app_end_idx_rd_resp_rdy               (app_end_idx_rd_resp_rdy                )
+
+        ,.app_base_buf_rd_req_val               (app_base_buf_rd_req_val                )
+        ,.app_base_buf_rd_req_flowid            (app_base_buf_rd_req_flowid             )
+        ,.app_base_buf_rd_req_idx               (app_base_buf_rd_req_idx                )
+        ,.base_buf_app_rd_req_rdy               (base_buf_app_rd_req_rdy                )
+
+        ,.base_buf_app_rd_resp_val              (base_buf_app_rd_resp_val               )
+        ,.base_buf_app_rd_resp_data             (base_buf_app_rd_resp_data              )
+        ,.app_base_buf_rd_resp_rdy              (app_base_buf_rd_resp_rdy               )
     );
 endmodule

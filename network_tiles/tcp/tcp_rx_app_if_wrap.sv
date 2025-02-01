@@ -50,6 +50,15 @@ module tcp_rx_app_if_wrap
     ,output logic   [RX_PAYLOAD_PTR_W-1:0]  app_rx_free_req_addr
     ,output logic   [MALLOC_LEN_W-1:0]      app_rx_free_req_len
     ,input  logic                           rx_free_app_req_rdy
+
+    ,output logic                           app_rx_head_buf_rd_req_val
+    ,output logic   [FLOWID_W-1:0]          app_rx_head_buf_rd_req_flowid
+    ,output logic   [POLLER_IDX_W-1:0]      app_rx_head_buf_rd_req_idx
+    ,input  logic                           rx_head_buf_app_rd_req_rdy
+
+    ,input  logic                           rx_head_buf_app_rd_resp_val
+    ,input          tcp_buf                 rx_head_buf_app_rd_resp_data
+    ,output logic                           app_rx_head_buf_rd_resp_rdy
 );
     
     logic                           noc_if_poller_msg_req_val;
@@ -129,7 +138,7 @@ module tcp_rx_app_if_wrap
 
     tcp_msg_poller #(
          .CHK_SPACE_EMPTY   (0)
-        ,.POLLER_PTR_W      (RX_PAYLOAD_PTR_W   ) // TODO adjust TX
+        ,.POLLER_PTR_W      (RX_PAYLOAD_PTR_W   )
         ,.POLLER_IDX_W      (RX_PAYLOAD_IDX_W   )
     ) msg_poller (
          .clk   (clk    )
@@ -168,6 +177,15 @@ module tcp_rx_app_if_wrap
         ,.end_idx_app_rd_resp_val   (rx_commit_idx_app_rd_resp_val  )
         ,.end_idx_app_rd_resp_data  (rx_commit_idx_app_rd_resp_data )
         ,.app_end_idx_rd_resp_rdy   (app_rx_commit_idx_rd_resp_rdy  )
+
+        ,.app_base_buf_rd_req_val   (app_rx_head_buf_rd_req_val     ) // TODO for tx
+        ,.app_base_buf_rd_req_flowid(app_rx_head_buf_rd_req_flowid  )
+        ,.app_base_buf_rd_req_idx   (app_rx_head_buf_rd_req_idx     )
+        ,.base_buf_app_rd_req_rdy   (rx_head_buf_app_rd_req_rdy     )
+
+        ,.base_buf_app_rd_resp_val  (rx_head_buf_app_rd_resp_val    )
+        ,.base_buf_app_rd_resp_data (rx_head_buf_app_rd_resp_data   )
+        ,.app_base_buf_rd_resp_rdy  (app_rx_head_buf_rd_resp_rdy    )
     );
 
 endmodule

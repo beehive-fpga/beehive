@@ -2,7 +2,7 @@
 module tcp_msg_ptr_poller #(
      parameter CHK_SPACE_EMPTY = 0
     ,parameter POLLER_IDX_W = 0
-    // ,parameter POLLER_PTR_W = 0
+    ,parameter POLLER_PTR_W = 0
 )(
      input clk
     ,input rst
@@ -118,7 +118,7 @@ module tcp_msg_ptr_poller #(
 
     tcp_msg_ptr_poller_datap #(
          .CHK_SPACE_EMPTY   (CHK_SPACE_EMPTY)
-        // ,.POLLER_PTR_W      (POLLER_PTR_W   )
+        ,.POLLER_PTR_W      (POLLER_PTR_W   )
         ,.POLLER_IDX_W      (POLLER_IDX_W   )
     ) datap (
          .clk   (clk    )

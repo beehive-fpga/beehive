@@ -60,7 +60,7 @@ module tcp_rx_msg_noc_if_in_ctrl (
                 tcp_rx_ptr_if_noc_rdy  = 1'b1;
                 ctrl_datap_store_hdr_flit = 1'b1;
                 if (noc_tcp_rx_ptr_if_val) begin
-                    if (hdr_flit_cast.core.core.msg_type == TCP_RX_MSG_REQ) begin
+                    if (hdr_flit_cast.core.core.msg_type == TCP_RX_MSG_REQ2) begin
                         state_next = RX_REQ_MSG;
                     end
                     else begin

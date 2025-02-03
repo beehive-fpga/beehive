@@ -100,8 +100,9 @@ import beehive_tcp_msg::*;
     always_comb begin
         notif_next = notif_reg;
         if (ctrl_datap_store_notif) begin
-            notif_next.ptr = notif_hdr_flit_cast.inner.head_ptr;
-            notif_next.len = flow_cntxt_reg.bufsize;
+            // notif_next.ptr = notif_hdr_flit_cast.inner.head_ptr;
+            // notif_next.len = flow_cntxt_reg.bufsize;
+            notif_next.stored_buf = notif_hdr_flit_cast.inner.msg_specific.tcp_msg_resp.resp_buf;
         end
     end
     
@@ -117,14 +118,16 @@ import beehive_tcp_msg::*;
 
         req_hdr_flit.inner.flowid = recv_q_data_reg;
 
-        req_hdr_flit.inner.length = flow_cntxt_reg.bufsize;
+        // req_hdr_flit.inner.length = flow_cntxt_reg.bufsize;
         
         if (ctrl_datap_out_mux_sel == PTR_UPDATE) begin
-            req_hdr_flit.core.msg_type = TCP_RX_ADJUST_PTR;
-            req_hdr_flit.inner.head_ptr = notif_reg.ptr + flow_cntxt_reg.bufsize;
+            req_hdr_flit.core.msg_type = TCP_RX_ADJUST_IDX;
+            // req_hdr_flit.inner.head_ptr = notif_reg.ptr + flow_cntxt_reg.bufsize;
+            req_hdr_flit.inner.msg_specific.tcp_adjust_idx.old_buf = notif_reg.stored_buf; // TODO: add notif_reg.buf
         end
         else begin
-            req_hdr_flit.core.msg_type = TCP_RX_MSG_REQ;
+            req_hdr_flit.core.msg_type = TCP_RX_MSG_REQ2;
+            req_hdr_flit.inner.msg_specific.tcp_msg_req.__length = 1;
         end
     end
 endmodule

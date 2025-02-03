@@ -23,8 +23,9 @@ package open_loop_pkg;
     localparam APP_CNTXT_W = $bits(app_cntxt_struct);
     
     typedef struct packed {
-        logic   [PAYLOAD_PTR_W:0]  ptr;
-        logic   [PAYLOAD_PTR_W:0]  len;
+        // logic   [PAYLOAD_PTR_W:0]  ptr;
+        // logic   [PAYLOAD_PTR_W:0]  len;
+        tcp_buf_with_idx stored_buf;
     } notif_struct;
 
     localparam APP_NOTIF_IF_FBITS = TCP_RX_APP_NOTIF_FBITS;

@@ -182,7 +182,7 @@ import beehive_tcp_msg::*;
         req_hdr_flit.inner.flowid = flowid_reg;
 
         req_hdr_flit.inner.length = SETUP_HDR_BYTES;
-        
+        // TODO: same thing here
         if (ctrl_datap_buf_mux_sel == setup_open_loop_pkg::PTR_UPDATE) begin
             req_hdr_flit.core.msg_type = TCP_RX_ADJUST_PTR;
             req_hdr_flit.inner.head_ptr = notif_reg.ptr + SETUP_HDR_BYTES;

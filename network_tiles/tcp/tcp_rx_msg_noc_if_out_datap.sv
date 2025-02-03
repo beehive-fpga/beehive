@@ -74,7 +74,7 @@ module tcp_rx_msg_noc_if_out_datap #(
         hdr_flit_cast.core.dst_y_coord = dst_y_reg;
         hdr_flit_cast.core.dst_fbits = dst_fbits_reg;
         hdr_flit_cast.core.msg_len = '0;
-        hdr_flit_cast.core.msg_type = TCP_RX_MSG_RESP;
+        hdr_flit_cast.core.msg_type = TCP_RX_MSG_RESP2;
         hdr_flit_cast.core.src_x_coord = SRC_X[`MSG_SRC_X_WIDTH-1:0];
         hdr_flit_cast.core.src_y_coord = SRC_Y[`MSG_SRC_Y_WIDTH-1:0];
         hdr_flit_cast.core.src_fbits = TCP_RX_APP_PTR_IF_FBITS;

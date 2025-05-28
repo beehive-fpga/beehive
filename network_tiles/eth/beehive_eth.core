@@ -22,6 +22,7 @@ filesets:
             - uwcse:beehive:openpiton_beehive_noc
             - uwcse:beehive:msgs
             - uwcse:beehive:pyhp_generator
+            - uwcse:beehive:tracker
             - uwcse:beehive:eth_stats
             - uwcse:beehive:data_converters
             - uwcse:beehive:router_block

@@ -128,6 +128,7 @@ class RequestGenerator:
         self.rng = Random(random_seed)
 
         self.buf_max_size = buf_max_size
+        logger.debug(f"RequestGenerator buffer max size: {self.buf_max_size}")
         self.recv_buf = DataBuf(self.buf_max_size)
         self.send_buf = SendDataBuf(self.buf_max_size)
 

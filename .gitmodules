@@ -28,3 +28,6 @@
 [submodule "apps/rs_encode_udp/reed_solomon_encoder"]
 	path = apps/rs_encode_udp/reed_solomon_encoder
 	url = git@github.com:beehive-fpga/reed_solomon_encoder.git
+[submodule "util/scripts/fusesoc_file_gen"]
+	path = util/scripts/fusesoc_file_gen
+	url = git@github.com:beehive-fpga/fusesoc_file_gen.git

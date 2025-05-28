@@ -130,6 +130,7 @@ async def test_wrapper(dut):
 
     await reset(dut)
 
+    cocotb.log.info("Starting trace test")
     await trace_test(tb)
 
     await RisingEdge(dut.clk)

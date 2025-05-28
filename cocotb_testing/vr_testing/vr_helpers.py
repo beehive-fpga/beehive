@@ -293,6 +293,8 @@ def get_setup_payload(hdr_log_depth=0, data_log_depth=0, rep_index=0, first_log_
 
 async def run_setup(tb, base_udp_pkt, send_coro, recv_coro, machine_config,
         rep_tuple):
+    
+    tb.log.info("Running setup")
     # transmit a setup packet
     pkt = base_udp_pkt.copy()
     # get base layer
@@ -306,10 +308,10 @@ async def run_setup(tb, base_udp_pkt, send_coro, recv_coro, machine_config,
     # hack to get the fields filled in
     test_bytes = bytearray(pkt.build())
     final_pkt = base_type(test_bytes)
-    print(f"sending setup packet {final_pkt.show(dump=True)}")
+    tb.log.info(f"sending setup packet {final_pkt.show(dump=True)}")
 
     await send_coro(tb, final_pkt)
-    print("sent setup packet")
+    tb.log.info("sent setup packet")
     # wait for setup response
     # craft ref packet
     ref_pkt = base_udp_pkt.copy()
@@ -332,6 +334,7 @@ async def run_setup(tb, base_udp_pkt, send_coro, recv_coro, machine_config,
 
     tb.recv_pkts[ref_pkt["UDP"].sport].append(ref_pkt)
 
+    tb.log.info("waiting for setup response")
     await recv_coro(tb)
 
 def should_send_pkt(pkt, dst_port):

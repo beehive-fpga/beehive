@@ -120,7 +120,7 @@ print(f"""
          .SRC_X ({x_param}  )
         ,.SRC_Y ({y_param}  )
         ,.IN_NOC(1)
-        ,.USE_INT_LB(1)     
+        ,.USE_INT_LB(0)     
     ) eth_rx_{end_x}_{end_y} (""")
 %>
          .clk   (clk)
@@ -140,7 +140,7 @@ print(f"""
          .SRC_X ({x_param}  )
         ,.SRC_Y ({y_param}  )
         ,.IN_NOC(1)
-        ,.USE_INT_LB(1)     
+        ,.USE_INT_LB(0)     
     ) eth_rx_{end_x}_{end_y} (""")
 %>
          .clk   (clk)
@@ -159,7 +159,7 @@ y_param = tile_config.getEndpointYParam("ip_rx_tile")
 print(f"""
          .SRC_X ({x_param}  )
         ,.SRC_Y ({y_param}  )
-        ,.USE_INT_LB    (1)
+        ,.USE_INT_LB    (0)
     ) ip_rx_{end_x}_{end_y} (""")
 %>
 		 .clk   (clk)
@@ -178,7 +178,7 @@ y_param = tile_config.getEndpointYParam("ip_rx_tile1")
 print(f"""
          .SRC_X ({x_param}  )
         ,.SRC_Y ({y_param}  )
-        ,.USE_INT_LB    (1)
+        ,.USE_INT_LB    (0)
     ) ip_rx_{end_x}_{end_y} (""")
 %>
 		 .clk   (clk)
@@ -305,7 +305,7 @@ y_param = tile_config.getEndpointYParam("udp_tx_tile")
 print(f"""
          .SRC_X ({x_param}  )
         ,.SRC_Y ({y_param}  )
-        ,.USE_INT_LB    (1)
+        ,.USE_INT_LB    (0)
     ) udp_tx_{end_x}_{end_y} (""")
 %>
 		 .clk   (clk)
@@ -324,7 +324,7 @@ y_param = tile_config.getEndpointYParam("udp_tx_tile1")
 print(f"""
          .SRC_X ({x_param}  )
         ,.SRC_Y ({y_param}  )
-        ,.USE_INT_LB    (1)
+        ,.USE_INT_LB    (0)
     ) udp_tx_{end_x}_{end_y} (""")
 %>
 		 .clk   (clk)
@@ -343,7 +343,7 @@ y_param = tile_config.getEndpointYParam("ip_tx_tile")
 print(f"""
          .SRC_X ({x_param}  )
         ,.SRC_Y ({y_param}  )
-        ,.USE_INT_LB    (1)
+        ,.USE_INT_LB    (0)
     ) ip_tx_{end_x}_{end_y} (""")
 %>
 		 .clk   (clk)
@@ -362,7 +362,7 @@ y_param = tile_config.getEndpointYParam("ip_tx_tile1")
 print(f"""
          .SRC_X ({x_param}  )
         ,.SRC_Y ({y_param}  )
-        ,.USE_INT_LB    (1)
+        ,.USE_INT_LB    (0)
     ) ip_tx_{end_x}_{end_y} (""")
 %>
 		 .clk   (clk)

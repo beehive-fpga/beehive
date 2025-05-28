@@ -196,7 +196,7 @@ async def reset(dut):
 async def run_tcp_open_test(dut):
     test_dir = ClientDir.SEND;
     # Set some initial values
-    tb = TB(dut, 1, test_dir, 20, 8192, False, open_log_file=True)
+    tb = TB(dut, 1, test_dir, 10, 64, False, open_log_file=True)
     dut.mac_engine_rx_val.setimmediatevalue(0)
     dut.mac_engine_rx_startframe.setimmediatevalue(0)
     dut.mac_engine_rx_data.setimmediatevalue(BinaryValue(value=0, n_bits=tb.MAC_W))

@@ -9,7 +9,7 @@ TOPLEVEL_LANG ?= verilog
 # hand it a dummy file, but just give it the top level for now I guess
 
 FLIST_NAME = beehive_vr_test.flist
-TOP_CORE_PKG = beehive_vr_test
+TOP_CORE_NAME = uwcse:beehive:beehive_vr_test
 
 VERILOG_SOURCES += $(PWD)/beehive_vr_top_gen.sv
 COMPILE_ARGS += -f $(PWD)/$(FLIST_NAME)
@@ -32,13 +32,7 @@ MODULE = tb_beehive_vr
 include $(shell cocotb-config --makefiles)/Makefile.sim
 
 export BEEHIVE_DESIGN_ROOT=$(PWD)
-
-.PHONY: gen_filelist
-gen_filelist:
-	fusesoc --config=$(PWD)/fusesoc.conf run --setup --target=sim --no-export uwcse:beehive:$(TOP_CORE_PKG)
-	python3 $(BEEHIVE_PROJECT_ROOT)/util/scripts/generate_filelist.py --target=flist \
-		--edam_file=build/uwcse_beehive_$(TOP_CORE_PKG)_0.1/sim-modelsim/uwcse_beehive_$(TOP_CORE_PKG)_0.1.eda.yml \
-		--output_file=$(FLIST_NAME)
+include $(BEEHIVE_PROJECT_ROOT)/util/scripts/fusesoc_file_gen/Makefile
 
 .PHONY: init_fusesoc
 init_fusesoc:

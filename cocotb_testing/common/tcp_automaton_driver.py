@@ -25,6 +25,7 @@ class TCPAutomatonDriver(TCPDriver):
         self.flow_dict = {}
         self.conn_index = 0
         self.log = SimLog("cocotb.tb")
+        self.log.setLevel(logging.DEBUG)
         self.flows_done = 0
         self.finished_flows = 0
 
@@ -299,25 +300,27 @@ class TCPAutomaton():
                 else:
                     self.log.info("Expected SYN-ACK")
                     self.send_buf.reset_for_retransmit()
-        elif (self.state == TCPState.EST):
+        elif (self.state == TCPState.EST) or (self.state == TCPState.FIN_WAIT):
             #self.log.debug(f"pkt: {pkt.show(dump=True)}")
             #self.log.debug(f"pkt.payload: {pkt.payload}")
-            if len(pkt.payload) == 0:
-                self.log.debug("We've gotten a zero-len ACK")
+            # did we get a duplicate ACK (RFC 5681)?
+            if len(pkt.payload) == 0 and (TCPSeqNum(pkt.ack) == self.their_ack) and (len(self.unacked_pkts) == 0):
+                self.log.debug("We've gotten a duplicate ACK")
                 # alright...here comes the nasty crap
                 # Process our send stream
                 # are we out of order and need to retransmit?:
-                if (TCPSeqNum(pkt.ack) == self.their_ack) and (len(self.unacked_pkts) != 0):
-                    self.their_rx_win = pkt.window
-                    self.dup_ack_count += 1
-                    self.log.info(f"{self.four_tuple.our_port}: We've been dup-acked for packet seq number {self.their_ack} "
-                            f"ack_count: {self.dup_ack_count}")
-                    # okay we need to try to recover, reset where we send from
-                    if (self.dup_ack_count == DUP_ACK_THRESH):
-                        self.log.warning(f"Retransmitting packet {self.their_ack}")
-                        self.rt_queue[TCPSeqNum(pkt.ack)] = self.unacked_pkts[TCPSeqNum(pkt.ack)]
-                    # we don't need to recover yet, but don't update anything
-            elif TCPSeqNum(pkt.ack) > self.their_ack:
+                self.their_rx_win = pkt.window
+                self.dup_ack_count += 1
+                self.log.info(f"{self.four_tuple.our_port}: We've been dup-acked for packet seq number {self.their_ack} "
+                        f"ack_count: {self.dup_ack_count}")
+                # okay we need to try to recover, reset where we send from
+                if (self.dup_ack_count == DUP_ACK_THRESH):
+                    self.log.warning(f"Retransmitting packet {self.their_ack}")
+                    self.rt_queue[TCPSeqNum(pkt.ack)] = self.unacked_pkts[TCPSeqNum(pkt.ack)]
+                # we don't need to recover yet, but don't update anything
+
+            # Process the ACK
+            if TCPSeqNum(pkt.ack) > self.their_ack:
                 self.their_rx_win = pkt.window
                 # check that it's within the window
                 if TCPSeqNum(pkt.ack) > self.our_seq:

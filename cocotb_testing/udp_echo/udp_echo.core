@@ -24,6 +24,11 @@ targets:
     default:
         filesets: [rtl]
         generate: [pyhp_generate]
+    sim:
+        default_tool: modelsim
+        filesets: [rtl]
+        generate: [pyhp_generate]
+        toplevel: [udp_echo_top]
     fpga:
         default_tool: vivado
         filesets: [rtl]

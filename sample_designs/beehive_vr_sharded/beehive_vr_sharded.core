@@ -34,5 +34,5 @@ generate:
     pyhp_generate:
         generator: pyhp_gen
         parameters:
-            process_me : [[beehive_vr_sharded_top_gen.sv.pyv,
-            beehive_vr_sharded_top_gen.sv]]
+            process_me : [[beehive_vr_sharded_top_gen_4shard.sv.pyv,
+            beehive_vr_sharded_top_gen_4shard.sv]]

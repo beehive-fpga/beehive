@@ -293,6 +293,7 @@ async def bandwidth_log_test(tb, wait_on_reqs=True, runtime=1000, buffer_size=64
     tb.log.info(log_entries)
     intervals = log_reader.calculate_bws(log_entries, tb.CLOCK_CYCLE_TIME)
     tb.log.info(intervals)
+    
     await RisingEdge(tb.clk)
     await RisingEdge(tb.clk)
     await RisingEdge(tb.clk)

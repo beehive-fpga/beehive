@@ -7,14 +7,15 @@ TOPLEVEL_LANG ?= verilog
 # hand it a dummy file, but just give it the top level for now I guess
 
 FLIST_NAME = beehive_vr_sharded.flist
-TOP_CORE_PKG = beehive_vr_sharded
+TOP_CORE_NAME = uwcse:beehive:beehive_vr_sharded
 
-VERILOG_SOURCES += $(PWD)/beehive_vr_sharded_top_gen.sv
+VERILOG_SOURCES += $(PWD)/beehive_vr_sharded_top_gen_4shard.sv
 COMPILE_ARGS += -f $(PWD)/$(FLIST_NAME)
 
 ifeq "$(SIM)" "verilator"
 	COMPILE_ARGS += -Wno-UNOPTFLAT -Wno-CASEINCOMPLETE -Wno-WIDTHEXPAND -Wno-WIDTHTRUNC -Wno-SELRANGE -Wno-MODDUP -Wno-IMPLICIT
 endif
+
 
 SIM_ARGS = -voptargs=+acc
 # SCRIPT_FILE = wave.do
@@ -30,13 +31,8 @@ MODULE = tb_beehive_vr_sharded
 include $(shell cocotb-config --makefiles)/Makefile.sim
 
 export BEEHIVE_DESIGN_ROOT=$(PWD)
+include $(BEEHIVE_PROJECT_ROOT)/util/scripts/fusesoc_file_gen/Makefile
 
-.PHONY: gen_filelist
-gen_filelist:
-	fusesoc --config=$(PWD)/fusesoc.conf run --setup --target=sim --no-export uwcse:beehive:$(TOP_CORE_PKG)
-	python3 $(BEEHIVE_PROJECT_ROOT)/util/scripts/generate_filelist.py --target=flist \
-		--edam_file=build/uwcse_beehive_$(TOP_CORE_PKG)_0.1/sim-modelsim/uwcse_beehive_$(TOP_CORE_PKG)_0.1.eda.yml \
-		--output_file=$(FLIST_NAME)
 
 .PHONY: init_fusesoc
 init_fusesoc:

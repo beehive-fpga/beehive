@@ -77,11 +77,13 @@ class OpenLoopGenerator(RequestGenerator):
                     if (self.curr_op_num < self.num_reqs):
                         payload = bytearray([(self.curr_op_num % 256) for i in range(0,self.buf_size)])
                         status = self.send_buf.append(payload)
-        #                self.logger.info(f"App payload {self.curr_op_num}: {status}")
-        #                self.logger.info(f"Send buf space used: {self.send_buf.space_used}")
+                        self.logger.info(f"App payload {self.curr_op_num}: {status}")
+                        self.logger.info(f"Send buf space used: {self.send_buf.space_used}")
 
                         if status == DataBufStatus.OK:
                             self.curr_op_num += 1
+                            if self.curr_op_num == self.num_reqs:
+                                self.logger.info("App all done")
                             if start_logging:
                                 curr_time = get_sim_time(units='ns')
                                 tot_bytes += self.buf_size

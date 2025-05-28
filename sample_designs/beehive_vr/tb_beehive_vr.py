@@ -240,7 +240,7 @@ async def trace_test(tb):
             recv_wrapper, machine_config, machine_config[1])
 
     trace_file = PcapReader(os.environ["BEEHIVE_PROJECT_ROOT"] +
-            "/apps/beehive-vr-tile/tb/read_validate_trace.pcap")
+            "/apps/beehive-vr-tile/tb/basic_trace.pcap")
     trace_pkt_num = 0
     while True:
         try:

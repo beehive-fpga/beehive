@@ -22,6 +22,9 @@ ifeq "$(SIM)" "verilator"
 	COMPILE_ARGS += -Wno-UNOPTFLAT -Wno-CASEINCOMPLETE -Wno-WIDTHEXPAND -Wno-WIDTHTRUNC -Wno-SELRANGE -Wno-MODDUP -Wno-IMPLICIT
 endif
 
+FLIST_NAME = $(CORE_NAME).flist
+TOP_CORE_NAME = uwcse:beehive:$(CORE_NAME)
+
 SIM_ARGS = -voptargs=+acc
 # SCRIPT_FILE = wave.do
 # use VHDL_SOURCES for VHDL files
@@ -31,13 +34,7 @@ include $(shell cocotb-config --makefiles)/Makefile.sim
 
 export BEEHIVE_DESIGN_ROOT=$(PWD)
 
-.PHONY: gen_filelist
-gen_filelist:
-	export BEEHIVE_DESIGN_ROOT=$(PWD)
-	fusesoc --config=$(PWD)/fusesoc.conf run --setup --target=sim --no-export uwcse:beehive:$(CORE_NAME)
-	python3 $(BEEHIVE_PROJECT_ROOT)/util/scripts/generate_filelist.py --target=flist \
-		--edam_file=build/uwcse_beehive_$(CORE_NAME)_0.1/sim-modelsim/uwcse_beehive_$(CORE_NAME)_0.1.eda.yml \
-		--output_file=$(CORE_NAME).flist
+include $(BEEHIVE_PROJECT_ROOT)/util/scripts/fusesoc_file_gen/Makefile
 
 .PHONY: init_fusesoc
 init_fusesoc:

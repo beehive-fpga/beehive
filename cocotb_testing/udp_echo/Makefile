@@ -25,17 +25,15 @@ TOPLEVEL = udp_echo_top
 # MODULE is the basename of the Python test file
 MODULE = tb_udp_echo
 
+FLIST_NAME = test_udp_echo.flist
+TOP_CORE_NAME = uwcse:beehive:udp_echo
+
 # include cocotb's make rules to take care of the simulator setup
 include $(shell cocotb-config --makefiles)/Makefile.sim
 
 export BEEHIVE_DESIGN_ROOT=$(PWD)
 
-.PHONY: gen_filelist
-gen_filelist:
-	fusesoc --config=$(PWD)/fusesoc.conf run --setup --target=fpga --no-export uwcse:beehive:udp_echo
-	python3 $(BEEHIVE_PROJECT_ROOT)/util/scripts/generate_filelist.py --target=flist \
-		--edam_file=build/uwcse_beehive_udp_echo_0.1/fpga-vivado/uwcse_beehive_udp_echo_0.1.eda.yml \
-		--output_file=test_udp_echo.flist
+include $(BEEHIVE_PROJECT_ROOT)/util/scripts/fusesoc_file_gen/Makefile
 
 
 .PHONY: init_fusesoc

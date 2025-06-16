@@ -26,7 +26,7 @@ TOPLEVEL = udp_echo_top
 MODULE = tb_udp_echo
 
 FLIST_NAME = test_udp_echo.flist
-TOP_CORE_NAME = uwcse:beehive:udp_echo
+TOP_CORE_NAME = uwcse:beehive:udp_echo:0.1
 
 # include cocotb's make rules to take care of the simulator setup
 include $(shell cocotb-config --makefiles)/Makefile.sim

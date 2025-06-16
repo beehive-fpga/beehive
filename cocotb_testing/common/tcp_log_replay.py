@@ -18,6 +18,8 @@ import sys
 import os
 sys.path.append(os.environ["BEEHIVE_PROJECT_ROOT"] + "/cocotb_testing/common/")
 from noc_helpers import BeehiveHdrFlit, BeehiveIPFlit, BeehiveNoCConstants
+sys.path.append(os.environ["BEEHIVE_PROJECT_ROOT"] +
+"/cocotb_testing/cocotb_utils")
 from simple_val_rdy import SimpleValRdyFrame
 from timer_progress import TimerProgress
 

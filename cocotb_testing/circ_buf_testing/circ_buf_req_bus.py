@@ -2,7 +2,7 @@ from cocotb_bus.bus import Bus
 from cocotb.binary import BinaryValue
 import sys
 import os
-sys.path.append(os.environ["BEEHIVE_PROJECT_ROOT"] + "/cocotb_testing/common/")
+sys.path.append(os.environ["BEEHIVE_PROJECT_ROOT"] + "/cocotb_testing/cocotb_utils/")
 from simple_val_rdy import SimpleValRdyBusSource
 class CircBufReqFrame:
     def __init__(self, flowid, offset, size):

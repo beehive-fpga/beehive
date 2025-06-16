@@ -4,6 +4,10 @@
         <noc_name>data_noc0</noc_name>
         <noc_width_def>`NOC_DATA_WIDTH</noc_width_def>
     </noc>
+    <noc>
+        <noc_name>ctrl_noc1</noc_name>
+        <noc_width_def>`CTRL_NOC_DATA_W</noc_width_def>
+    </noc>
 </nocs>
 <tiles>
     <num_x_tiles>4</num_x_tiles>

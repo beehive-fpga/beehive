@@ -13,6 +13,8 @@ import sys
 import os
 sys.path.append(os.environ["BEEHIVE_PROJECT_ROOT"] + "/cocotb_testing/common/")
 from noc_helpers import BeehiveHdrFlit, BeehiveNoCConstants
+sys.path.append(os.environ["BEEHIVE_PROEJCT_ROOT"] +
+"/cocotb_testing/cocotb_utils")
 from simple_val_rdy import SimpleValRdyFrame, SimpleValRdyBus
 from simple_val_rdy import SimpleValRdyBusSource, SimpleValRdyBusSink
 from circ_buf_req_bus import CircBufReqFrame, CircBufReqBus, CircBufReqBusSource

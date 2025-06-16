@@ -31,3 +31,6 @@
 [submodule "util/scripts/fusesoc_file_gen"]
 	path = util/scripts/fusesoc_file_gen
 	url = git@github.com:beehive-fpga/fusesoc_file_gen.git
+[submodule "cocotb_testing/cocotb_utils"]
+	path = cocotb_testing/cocotb_utils
+	url = git@github.com:beehive-fpga/cocotb_utils.git

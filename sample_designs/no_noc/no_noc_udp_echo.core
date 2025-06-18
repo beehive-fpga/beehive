@@ -36,3 +36,7 @@ targets:
         filesets: [rtl]
         default_tool: modelsim
         toplevel: [no_noc_top]
+    sim:
+        filesets: [rtl]
+        default_tool: modelsim
+        toplevel: [no_noc_top]

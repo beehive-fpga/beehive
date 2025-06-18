@@ -1,6 +1,7 @@
 from collections import deque
 import sys, os
-sys.path.append(os.environ["BEEHIVE_PROJECT_ROOT"] + "/cocotb_testing/common")
+sys.path.append(os.environ["BEEHIVE_PROJECT_ROOT"] +
+"/cocotb_testing/cocotb_utils")
 
 from bitfields import AbstractStruct, bitfield
 import binascii

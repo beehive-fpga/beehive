@@ -23,7 +23,7 @@ ifeq "$(SIM)" "verilator"
 endif
 
 FLIST_NAME = $(CORE_NAME).flist
-TOP_CORE_NAME = uwcse:beehive:$(CORE_NAME)
+TOP_CORE_NAME = uwcse:beehive:$(CORE_NAME):0.1
 
 SIM_ARGS = -voptargs=+acc
 # SCRIPT_FILE = wave.do

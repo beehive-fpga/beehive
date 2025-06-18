@@ -1,6 +1,5 @@
 from tcp_driver import TCPDriver, TCPState, RequestGenerator, TCPFourTuple
 from tcp_driver import DataBufStatus, DataBuf, RequestGenReturn, TCPSeqNum
-from timer_disarm import TimerDisarm
 from scapy.layers.l2 import Ether, ARP
 from scapy.layers.inet import IP, UDP, TCP
 from scapy.packet import Raw
@@ -16,6 +15,11 @@ from cocotb.log import SimLog
 from cocotb.triggers import Combine
 from echo_generator import EchoGenerator
 import logging
+
+import sys, os
+sys.path.append(os.environ["BEEHIVE_PROJECT_ROOT"] +
+"/cocotb_testing/cocotb_utils/")
+from timer_disarm import TimerDisarm
 
 DUP_ACK_THRESH = 3
 

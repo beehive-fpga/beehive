@@ -9,7 +9,7 @@ TOPLEVEL_LANG ?= verilog
 # hand it a dummy file, but just give it the top level for now I guess
 
 FLIST_NAME = beehive_vr_test.flist
-TOP_CORE_NAME = uwcse:beehive:beehive_vr_test
+TOP_CORE_NAME = uwcse:beehive:beehive_vr_test:0.1
 
 VERILOG_SOURCES += $(PWD)/beehive_vr_top_gen.sv
 COMPILE_ARGS += -f $(PWD)/$(FLIST_NAME)

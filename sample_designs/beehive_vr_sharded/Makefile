@@ -7,7 +7,7 @@ TOPLEVEL_LANG ?= verilog
 # hand it a dummy file, but just give it the top level for now I guess
 
 FLIST_NAME = beehive_vr_sharded.flist
-TOP_CORE_NAME = uwcse:beehive:beehive_vr_sharded
+TOP_CORE_NAME = uwcse:beehive:beehive_vr_sharded:0.1
 
 VERILOG_SOURCES += $(PWD)/beehive_vr_sharded_top_gen_4shard.sv
 COMPILE_ARGS += -f $(PWD)/$(FLIST_NAME)

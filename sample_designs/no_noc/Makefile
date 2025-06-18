@@ -7,8 +7,11 @@ TOPLEVEL_LANG ?= verilog
 # This is already in the flist, but cocotb needs to receive at least one Verilog 
 # source file I guess to kick the compilation. There's probably a better way to 
 # hand it a dummy file, but just give it the top level for now I guess
+FLIST_NAME = no_noc_udp_echo.flist
+TOP_CORE_NAME = uwcse:beehive:no_noc_udp_echo:0.1
+
 VERILOG_SOURCES += $(PWD)/no_noc_top.sv
-COMPILE_ARGS += "-f $(PWD)/test_udp_echo.flist"
+COMPILE_ARGS += "-f $(PWD)/$(FLIST_NAME)"
 
 SIM_ARGS = -voptargs=+acc
 # SCRIPT_FILE = wave.do
@@ -25,13 +28,7 @@ include $(shell cocotb-config --makefiles)/Makefile.sim
 
 export BEEHIVE_DESIGN_ROOT=$(BEEHIVE_PROJECT_ROOT)/cocotb_testing/udp_echo
 
-.PHONY: gen_filelist
-gen_filelist:
-	fusesoc --config=$(PWD)/fusesoc.conf run --setup --target=default --no-export uwcse:beehive:no_noc_udp_echo
-	python3 $(BEEHIVE_PROJECT_ROOT)/util/scripts/generate_filelist.py --target=flist \
-		--edam_file=build/uwcse_beehive_no_noc_udp_echo_0.1/default-modelsim/uwcse_beehive_no_noc_udp_echo_0.1.eda.yml \
-		--output_file=test_udp_echo.flist
-
+include $(BEEHIVE_PROJECT_ROOT)/util/scripts/fusesoc_file_gen/Makefile
 
 .PHONY: init_fusesoc
 init_fusesoc:

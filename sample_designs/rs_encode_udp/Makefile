@@ -8,6 +8,9 @@ TOPLEVEL_LANG ?= verilog
 # source file I guess to kick the compilation. There's probably a better way to 
 # hand it a dummy file, but just give it the top level for now I guess
 
+TOP_CORE_NAME = uwcse:beehive:rs_encode_udp_design:0.1
+FLIST_NAME = Makefile.rs_encode_udp
+
 SIM_ARGS = -voptargs=+acc
 # SCRIPT_FILE = wave.do
 # use VHDL_SOURCES for VHDL files
@@ -27,13 +30,16 @@ export BEEHIVE_DESIGN_ROOT=$(PWD)
 
 VERILOG_SOURCES += $(PWD)/rs_encode_udp_top_gen.sv
 
+# Don't hook into the Makefile provided by the filegen, because we want to use
+# our own
+
 
 .PHONY: gen_filelist
 gen_filelist:
-	fusesoc --config=$(PWD)/fusesoc.conf run --setup --target=fpga --no-export uwcse:beehive:rs_encode_udp_design
-	python3 $(BEEHIVE_PROJECT_ROOT)/util/scripts/generate_filelist.py --target=cocotb_sim\
+	fusesoc --config=$(PWD)/fusesoc.conf run --setup --target=fpga --no-export $(TOP_CORE_NAME)
+	python3 $(BEEHIVE_PROJECT_ROOT)/util/scripts/fusesoc_file_gen/generate_filelist.py --target=cocotb_sim\
 		--edam_file=build/uwcse_beehive_rs_encode_udp_design_0.1/fpga-vivado/uwcse_beehive_rs_encode_udp_design_0.1.eda.yml \
-		--output_file=Makefile.rs_encode_udp
+		--output_file=$(FLIST_NAME)
 
 
 .PHONY: init_fusesoc

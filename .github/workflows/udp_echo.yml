@@ -34,7 +34,7 @@ jobs:
 
     - name: Check cache hit
       if: steps.cache.outputs.cache-hit != 'true'
-      uses: ./.github/workflows/build_verilator.yml
+      uses: ./beehive/.github/workflows/build_verilator.yml
       with:
         cache-key: ${{ steps.cache-check.outputs.cache-primary-key }}
 

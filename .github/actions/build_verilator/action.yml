@@ -1,38 +1,37 @@
 name: Build Verilator
-
-
+description: Checkout and build Verilator
 
 runs:
   using: 'composite'
   runs-on: ubuntu-latest
   steps:
-  - name: Checkout repository
-    uses: actions/checkout@v4
-    with: 
-      path: beehive
-        
-  - name: Install dependencies
-    run: |
-      chmod +x ./beehive/ci/verilator_deps.sh
-      ./beehive/ci/verilator_deps.sh
-        
-  - name: Setup Verilator
-    uses: actions/checkout@v4
-    with:
-      repository: verilator/verilator
-      ref: v5.024
-      path: verilator
-
-  - name: Build Verilator
-    run: |
-        cd verilator
-        autoconf
-        ./configure
-        make
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with: 
+        path: beehive
           
-  - name: Cache Verilator Build
-    uses: actions/cache/save@v3
-    id: cache
-    with:
-      path: verilator
-      key: verilator
+    - name: Install dependencies
+      run: |
+        chmod +x ./beehive/ci/verilator_deps.sh
+        ./beehive/ci/verilator_deps.sh
+          
+    - name: Setup Verilator
+      uses: actions/checkout@v4
+      with:
+        repository: verilator/verilator
+        ref: v5.024
+        path: verilator
+
+    - name: Build Verilator
+      run: |
+          cd verilator
+          autoconf
+          ./configure
+          make
+            
+    - name: Cache Verilator Build
+      uses: actions/cache/save@v3
+      id: cache
+      with:
+        path: verilator
+        key: verilator

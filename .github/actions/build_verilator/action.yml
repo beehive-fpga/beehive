@@ -3,7 +3,6 @@ description: Checkout and build Verilator
 
 runs:
   using: 'composite'
-  runs-on: ubuntu-latest
   steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -14,6 +13,7 @@ runs:
       run: |
         chmod +x ./beehive/ci/verilator_deps.sh
         ./beehive/ci/verilator_deps.sh
+      shell: bash
           
     - name: Setup Verilator
       uses: actions/checkout@v4
@@ -28,6 +28,7 @@ runs:
           autoconf
           ./configure
           make
+      shell: bash
             
     - name: Cache Verilator Build
       uses: actions/cache/save@v3

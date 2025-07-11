@@ -34,9 +34,7 @@ jobs:
 
     - name: Check cache hit
       if: steps.cache.outputs.cache-hit != 'true'
-      uses: ./beehive/.github/workflows/build_verilator.yml
-      with:
-        cache-key: ${{ steps.cache-check.outputs.cache-primary-key }}
+      uses: ./beehive/.github/actions/build_verilator
 
     - name: Setup environment variables
       run: |

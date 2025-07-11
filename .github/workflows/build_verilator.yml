@@ -1,7 +1,13 @@
 name: Build Verilator
 
 on:
+  workflow_call:
+    inputs:
+      cache-key:
+        required: true
+        type: string
   workflow_dispatch:
+
 
 jobs:
   build-verilator:

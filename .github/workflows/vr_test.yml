@@ -41,8 +41,6 @@ jobs:
         echo "VERILATOR_ROOT=${PWD}/verilator" >> $GITHUB_ENV
         echo "PATH=${PWD}/verilator/bin:$PATH" >> $GITHUB_ENV
         echo "SIM=verilator" >> $GITHUB_ENV
-        cd beehive
-        source settings.sh
 
   test-vr-single-shard:
     needs: setup_test_env
@@ -50,6 +48,8 @@ jobs:
     steps:
     - name: Run experiment
       run: |
+        cd beehive
+        source settings.sh
         cd $BEEHIVE_PROJECT_ROOT/sample_designs/beehive_vr
         export SIM=verilator
         make init_fusesoc

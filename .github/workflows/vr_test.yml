@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  test-vr-singles-shard:
+  setup_test_env:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
@@ -41,12 +41,26 @@ jobs:
         echo "VERILATOR_ROOT=${PWD}/verilator" >> $GITHUB_ENV
         echo "PATH=${PWD}/verilator/bin:$PATH" >> $GITHUB_ENV
         echo "SIM=verilator" >> $GITHUB_ENV
-
-    - name: Run experiment
-      run: |
         cd beehive
         source settings.sh
-        cd cocotb_testing/vr_test
+
+  test-vr-single-shard:
+    needs: setup_test_env
+    steps:
+    - name: Run experiment
+      run: |
+        cd $BEEHIVE_PROJECT_ROOT/sample_designs/beehive_vr
+        export SIM=verilator
+        make init_fusesoc
+        make gen_filelist
+        make 
+
+  test-vr-multi-shard:
+    needs: setup_test_env
+    steps:
+    - name: Run experiment with multiple shards
+      run: |
+        cd $BEEHIVE_PROJECT_ROOT/sample_designs/beehive_vr
         export SIM=verilator
         make init_fusesoc
         make gen_filelist

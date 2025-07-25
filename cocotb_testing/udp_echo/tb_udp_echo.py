@@ -80,10 +80,7 @@ class TB():
         self.MSS_SIZE=9100
         self.CLOCK_CYCLE_TIME = 4
 
-@cocotb.test()
-async def test_wrapper(dut):
-    tb = TB(dut)
-    # Set some initial values
+async def test_prep(dut, tb):
     dut.mac_engine_rx_val.setimmediatevalue(0)
     dut.mac_engine_rx_startframe.setimmediatevalue(0)
     dut.mac_engine_rx_data.setimmediatevalue(BinaryValue(value=0, n_bits=tb.MAC_W))
@@ -95,33 +92,11 @@ async def test_wrapper(dut):
 
     cocotb.start_soon(Clock(dut.clk, tb.CLOCK_CYCLE_TIME, units='ns').start())
     await reset(dut)
-
-    await sanity_test(tb)
-#    await bandwidth_log_test(tb)
 
 async def recv_event_wrapper(tb, done_event, timeout_ns):
     delay = 0
     frame_in_progress = Event()
     recv_frame_task = cocotb.start_soon(tb.output_op.recv_frame(frame_in_progress=frame_in_progress, pause_len=delay))
-
-@cocotb.test()
-async def test_wrapper(dut):
-    tb = TB(dut)
-    # Set some initial values
-    dut.mac_engine_rx_val.setimmediatevalue(0)
-    dut.mac_engine_rx_startframe.setimmediatevalue(0)
-    dut.mac_engine_rx_data.setimmediatevalue(BinaryValue(value=0, n_bits=tb.MAC_W))
-    dut.mac_engine_rx_endframe.setimmediatevalue(0)
-    dut.mac_engine_rx_padbytes.setimmediatevalue(0)
-    dut.mac_engine_rx_frame_size.setimmediatevalue(0)
-
-    dut.mac_engine_tx_rdy.setimmediatevalue(0)
-
-    cocotb.start_soon(Clock(dut.clk, tb.CLOCK_CYCLE_TIME, units='ns').start())
-    await reset(dut)
-
-    await sanity_test(tb)
-#    await bandwidth_log_test(tb)
 
 async def recv_event_wrapper(tb, done_event, timeout_ns):
     delay = 0
@@ -179,7 +154,6 @@ async def recv_loop(tb, done_event, full_event, wait_on_reqs=True):
         pkt_buf = await tb.output_op.recv_frame(pause_len=delay)
         recv_pkt = tb.pkts.popleft()
         max_udp_pkt_bytes = bytearray(recv_pkt.build())
-        tb.log.info(f"Got bytes {pkt_buf}")
         pad_packet(tb, max_udp_pkt_bytes)
         check_udp_frame(pkt_buf, max_udp_pkt_bytes)
         requests_recv += 1
@@ -233,110 +207,10 @@ async def send_loop(tb, run_cycles, req_size, done_event, full_event):
 
     return packet_times
 
-#@cocotb.test()
-async def latency_log_test(dut):
-    latencies = []
-    test_udp = create_udp_frame(2)
-    test_udp_bytes = bytearray(test_udp.build())
-    pad_packet(tb, test_udp_bytes)
-    for i in range(0, 10):
-        await RisingEdge(dut.clk)
-        start_time = get_sim_time(units="ns")
-        await tb.input_op.xmit_frame(test_udp_bytes, rand_delay=False)
-        recv_pkt = await tb.output_op.recv_frame()
-        end_time = get_sim_time(units="ns")
-        latencies.append(end_time-start_time)
-
-    log_four_tuple = TCPFourTuple(our_ip = "198.0.0.5",
-                                our_port = 55000,
-                                their_ip = "198.0.0.7",
-                                their_port = 60001)
-    log_reader = EthLatencyLogRead(10, 2, tb, log_four_tuple)
-
-    log_entries = await log_reader.read_log()
-    print(log_entries)
-    tb.log.debug(log_entries)
-    tb.log.debug(latencies)
-
-    res_dir = Path(f"./logs/latency_test")
-    res_dir.mkdir(parents=True, exist_ok=True)
-    eth_latency_log_read.entries_to_csv(f"logs/latency_test/latency_log.csv", log_entries)
-
-    await RisingEdge(dut.clk)
-    await RisingEdge(dut.clk)
-    await RisingEdge(dut.clk)
-    await RisingEdge(dut.clk)
-
-#@cocotb.test()
-async def bandwidth_log_test(tb, wait_on_reqs=True, runtime=1000, buffer_size=64):
-    tb.pkts = collections.deque()
-    done_event = Event()
-    full_event = Event()
-
-#    await ClockCycles(tb.clk, 5000)
-    tb.log.info("Starting application echo")
-    send_task = cocotb.start_soon(send_loop(tb, runtime, buffer_size, done_event,
-        full_event))
-    recv_task = cocotb.start_soon(recv_loop(tb, done_event, full_event,
-        wait_on_reqs=wait_on_reqs))
-
-    await Combine(send_task, recv_task)
-
-    tb.log.info("App 1 stats")
-    log_four_tuple = TCPFourTuple(our_ip = "198.0.0.5",
-                                our_port = 55000,
-                                their_ip = "198.0.0.7",
-                                their_port = 60000)
-    log_reader = UDPAppLogRead(8, 2, tb, log_four_tuple)
-
-    log_entries = await log_reader.read_log()
-    tb.log.info(log_entries)
-    intervals = log_reader.calculate_bws(log_entries, tb.CLOCK_CYCLE_TIME)
-    tb.log.info(intervals)
-    
-    await RisingEdge(tb.clk)
-    await RisingEdge(tb.clk)
-    await RisingEdge(tb.clk)
-
-
-#@cocotb.test()
-async def bandwidth_size_test(dut):
-    # Set some initial values
+@cocotb.test()
+async def sanity_test(dut):
     tb = TB(dut)
-    packet_sizes = [(64, 210), (128, 200), (256, 190),
-                    (512, 180), (1024, 170), (2048, 160),
-                    (3072, 150), (4096, 140), (6144, 130), (8192, 120)]
-
-    for size, num_requests in packet_sizes:
-        tb.log.info(f"Running for packet size {size}")
-        await reset(dut)
-
-        done_event = Event()
-        full_event = Event()
-        send_task = cocotb.start_soon(send_loop(tb, 25000, size, done_event,
-            full_event))
-        recv_task = cocotb.start_soon(recv_loop(tb, done_event, full_event))
-
-        packet_times = await send_task
-        await recv_task
-
-        log_four_tuple = TCPFourTuple(our_ip = "198.0.0.5",
-                                    our_port = 55000,
-                                    their_ip = "198.0.0.7",
-                                    their_port = 60000)
-        log_reader = UDPAppLogRead(8, 2, tb, log_four_tuple)
-
-        log_entries = await log_reader.read_log()
-
-        res_dir = Path(f"./bw_benchmark/{size}bytes")
-        res_dir.mkdir(parents=True, exist_ok=True)
-        log_reader.entries_to_csv(f"{str(res_dir)}/bw_log.csv", log_entries)
-        await RisingEdge(dut.clk)
-
-    await RisingEdge(dut.clk)
-    await RisingEdge(dut.clk)
-
-async def sanity_test(tb):
+    await test_prep(dut, tb)
     # Create the frame
     test_udp = create_udp_frame(14)
     test_packet_bytes = bytearray(test_udp.build())
@@ -452,6 +326,118 @@ async def sanity_test(tb):
     await tb.input_op.xmit_frame(max_udp_pkt_bytes, rand_delay=False)
     echoed_bytes = await tb.output_op.recv_frame()
     check_udp_frame(echoed_bytes, max_udp_pkt_bytes)
+
+
+#@cocotb.test()
+async def latency_log_test(dut):
+    latencies = []
+    test_udp = create_udp_frame(2)
+    test_udp_bytes = bytearray(test_udp.build())
+    pad_packet(tb, test_udp_bytes)
+    for i in range(0, 10):
+        await RisingEdge(dut.clk)
+        start_time = get_sim_time(units="ns")
+        await tb.input_op.xmit_frame(test_udp_bytes, rand_delay=False)
+        recv_pkt = await tb.output_op.recv_frame()
+        end_time = get_sim_time(units="ns")
+        latencies.append(end_time-start_time)
+
+    log_four_tuple = TCPFourTuple(our_ip = "198.0.0.5",
+                                our_port = 55000,
+                                their_ip = "198.0.0.7",
+                                their_port = 60001)
+    log_reader = EthLatencyLogRead(10, 2, tb, log_four_tuple)
+
+    log_entries = await log_reader.read_log()
+    print(log_entries)
+    tb.log.debug(log_entries)
+    tb.log.debug(latencies)
+
+    res_dir = Path(f"./logs/latency_test")
+    res_dir.mkdir(parents=True, exist_ok=True)
+    eth_latency_log_read.entries_to_csv(f"logs/latency_test/latency_log.csv", log_entries)
+
+    await RisingEdge(dut.clk)
+    await RisingEdge(dut.clk)
+    await RisingEdge(dut.clk)
+    await RisingEdge(dut.clk)
+
+@cocotb.test()
+async def bandwidth_log_test_wrapper(dut):
+    tb = TB(dut)
+    await test_prep(dut, tb)
+
+    await bandwidth_log_test(tb, wait_on_reqs=True, runtime=1000,
+            buffer_size=64)
+
+async def bandwidth_log_test(tb, wait_on_reqs=True, runtime=1000, buffer_size=64):
+    tb.pkts = collections.deque()
+    done_event = Event()
+    full_event = Event()
+
+#    await ClockCycles(tb.clk, 5000)
+    tb.log.info("Starting application echo")
+    send_task = cocotb.start_soon(send_loop(tb, runtime, buffer_size, done_event,
+        full_event))
+    recv_task = cocotb.start_soon(recv_loop(tb, done_event, full_event,
+        wait_on_reqs=wait_on_reqs))
+
+    await Combine(send_task, recv_task)
+
+    tb.log.info("App 1 stats")
+    log_four_tuple = TCPFourTuple(our_ip = "198.0.0.5",
+                                our_port = 55000,
+                                their_ip = "198.0.0.7",
+                                their_port = 60000)
+    log_reader = UDPAppLogRead(8, 2, tb, log_four_tuple)
+
+    log_entries = await log_reader.read_log()
+    tb.log.info(log_entries)
+    intervals = log_reader.calculate_bws(log_entries, tb.CLOCK_CYCLE_TIME)
+    tb.log.info(intervals)
+    
+    await RisingEdge(tb.clk)
+    await RisingEdge(tb.clk)
+    await RisingEdge(tb.clk)
+
+
+@cocotb.test()
+async def bandwidth_size_test(dut):
+    # Set some initial values
+    tb = TB(dut)
+    await test_prep(dut, tb)
+    packet_sizes = [(64, 210), (128, 200), (256, 190),
+                    (512, 180), (1024, 170), (2048, 160),
+                    (3072, 150), (4096, 140), (6144, 130), (8192, 120)]
+
+    for size, num_requests in packet_sizes:
+        tb.log.info(f"Running for packet size {size}")
+        await reset(dut)
+
+        done_event = Event()
+        full_event = Event()
+        send_task = cocotb.start_soon(send_loop(tb, 5000, size, done_event,
+            full_event))
+        recv_task = cocotb.start_soon(recv_loop(tb, done_event, full_event))
+
+        packet_times = await send_task
+        await recv_task
+
+        log_four_tuple = TCPFourTuple(our_ip = "198.0.0.5",
+                                    our_port = 55000,
+                                    their_ip = "198.0.0.7",
+                                    their_port = 60000)
+        log_reader = UDPAppLogRead(8, 2, tb, log_four_tuple)
+
+        log_entries = await log_reader.read_log()
+
+        res_dir = Path(f"./bw_benchmark/{size}bytes")
+        res_dir.mkdir(parents=True, exist_ok=True)
+        log_reader.entries_to_csv(f"{str(res_dir)}/bw_log.csv", log_entries)
+        await RisingEdge(dut.clk)
+
+    await RisingEdge(dut.clk)
+    await RisingEdge(dut.clk)
 
 
 def check_udp_frame(output_pkt_bytes, test_udp_bytes):

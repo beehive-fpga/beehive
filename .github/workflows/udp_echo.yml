@@ -34,7 +34,7 @@ jobs:
 
     - name: Check cache hit
       if: steps.cache.outputs.cache-hit != 'true'
-      run: exit 1
+      uses: ./beehive/.github/actions/build_verilator
 
     - name: Setup environment variables
       run: |

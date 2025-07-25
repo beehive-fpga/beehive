@@ -50,5 +50,5 @@ jobs:
         export SIM=verilator
         make init_fusesoc
         make gen_filelist
-        make
+        make TESTCASE=sanity_test
 

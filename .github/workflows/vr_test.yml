@@ -1,4 +1,4 @@
-name: Test VR setup with one shard
+name: Test VR setup 
 
 on:
   schedule:
@@ -46,6 +46,7 @@ jobs:
 
   test-vr-single-shard:
     needs: setup_test_env
+    runs-on: ubuntu-latest
     steps:
     - name: Run experiment
       run: |
@@ -57,6 +58,7 @@ jobs:
 
   test-vr-multi-shard:
     needs: setup_test_env
+    runs-on: ubuntu-latest
     steps:
     - name: Run experiment with multiple shards
       run: |

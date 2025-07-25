@@ -1,0 +1,53 @@
+name: Test VR setup with one shard
+
+on:
+  schedule:
+    - cron: '0 7 * * *'  # Triggers the workflow daily at midnight PST/7 AM UTC
+  workflow_dispatch:
+
+jobs:
+  test-vr-singles-shard:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        path: beehive
+        submodules: recursive
+
+    - name: Setup Python 3.9
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.9
+
+    - name: Setup dependencies
+      run: |
+        ./beehive/ci/dependencies.sh
+        ./beehive/ci/verilator_deps.sh  
+
+    - name: Restore Verilator
+      uses: actions/cache/restore@v3
+      id: cache
+      with:
+        path: verilator
+        key: verilator
+    
+    - name: Check cache hit
+      if: steps.cache.outputs.cache-hit != 'true'
+      uses: ./beehive/.github/actions/build_verilator
+
+    - name: Setup environment variables
+      run: |
+        echo "VERILATOR_ROOT=${PWD}/verilator" >> $GITHUB_ENV
+        echo "PATH=${PWD}/verilator/bin:$PATH" >> $GITHUB_ENV
+        echo "SIM=verilator" >> $GITHUB_ENV
+
+    - name: Run experiment
+      run: |
+        cd beehive
+        source settings.sh
+        cd cocotb_testing/vr_test
+        export SIM=verilator
+        make init_fusesoc
+        make gen_filelist
+        make 

@@ -1,4 +1,4 @@
-name: Test VR setup 
+name: Test VR for one shard
 
 on:
   schedule:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  setup_test_env:
+  test_single_shard:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
@@ -31,7 +31,7 @@ jobs:
       with:
         path: verilator
         key: verilator
-    
+
     - name: Check cache hit
       if: steps.cache.outputs.cache-hit != 'true'
       uses: ./beehive/.github/actions/build_verilator
@@ -42,26 +42,10 @@ jobs:
         echo "PATH=${PWD}/verilator/bin:$PATH" >> $GITHUB_ENV
         echo "SIM=verilator" >> $GITHUB_ENV
 
-  test-vr-single-shard:
-    needs: setup_test_env
-    runs-on: ubuntu-latest
-    steps:
     - name: Run experiment
       run: |
         cd beehive
         source settings.sh
-        cd $BEEHIVE_PROJECT_ROOT/sample_designs/beehive_vr
-        export SIM=verilator
-        make init_fusesoc
-        make gen_filelist
-        make 
-
-  test-vr-multi-shard:
-    needs: setup_test_env
-    runs-on: ubuntu-latest
-    steps:
-    - name: Run experiment with multiple shards
-      run: |
         cd $BEEHIVE_PROJECT_ROOT/sample_designs/beehive_vr
         export SIM=verilator
         make init_fusesoc

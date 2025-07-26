@@ -23,6 +23,7 @@ update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.9 1 && \
 # install cocotb and testing dependencies
 pip3 install cocotb
 pip3 install cocotb_bus
+pip3 install cocotb-test
 pip3 install scapy
 pip3 install fusesoc
 pip3 install pytest

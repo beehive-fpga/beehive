@@ -42,18 +42,6 @@ init_fusesoc:
 	echo "cache_root = $(PWD)" >> fusesoc.conf
 	fusesoc library add pyhp_generator $(BEEHIVE_PROJECT_ROOT)/tile_generator
 	fusesoc library add network_components $(BEEHIVE_PROJECT_ROOT)/network_tiles
-	fusesoc library add tcp $(BEEHIVE_PROJECT_ROOT)/protocols/tcp_hw
-	fusesoc library add beehive_apps $(BEEHIVE_PROJECT_ROOT)/apps
-	fusesoc library add beehive_util $(BEEHIVE_PROJECT_ROOT)/util
-	fusesoc library add beehive_msgs $(BEEHIVE_PROJECT_ROOT)/include
-	fusesoc library add tcp_log_test $(BEEHIVE_PROJECT_ROOT)/sample_designs/$(CORE_NAME)
-
-.PHONY: init_fusesoc_slow
-init_fusesoc_slow:
-	echo "[main]" > fusesoc.conf
-	echo "cache_root = $(PWD)" >> fusesoc.conf
-	fusesoc library add pyhp_generator $(BEEHIVE_PROJECT_ROOT)/tile_generator
-	fusesoc library add network_components $(BEEHIVE_PROJECT_ROOT)/network_tiles
 	fusesoc library add tcp $(BEEHIVE_PROJECT_ROOT)/protocols/tcp_slow
 	fusesoc library add beehive_apps $(BEEHIVE_PROJECT_ROOT)/apps
 	fusesoc library add beehive_util $(BEEHIVE_PROJECT_ROOT)/util

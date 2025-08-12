@@ -1,4 +1,5 @@
 # Beehive
+[![Test UDP echo](https://github.com/beehive-fpga/beehive/actions/workflows/udp_echo.yml/badge.svg)](https://github.com/beehive-fpga/beehive/actions/workflows/udp_echo.yml)
 
 Beehive is a NoC-based network stack designed for flexibility and scalability.
 

@@ -67,6 +67,14 @@ import tracker_pkg::*;
     logic   [`CTRL_NOC_DATA_W-1:0]  rd_tracker_out_vrtoc_data;
     logic                           vrtoc_rd_tracker_out_rdy;
 
+    logic                           router_ctovr_ctrl_noc1_val;
+    logic   [`CTRL_NOC_DATA_W-1:0]  router_ctovr_ctrl_noc1_data;
+    logic                           ctovr_router_ctrl_noc1_yummy;
+
+    logic                           vrtoc_router_ctrl_noc1_val;
+    logic   [`CTRL_NOC_DATA_W-1:0]  vrtoc_router_ctrl_noc1_data;
+    logic                           router_vrtoc_ctrl_noc1_yummy;
+
 <%
 router_wires = noc_if_generator.genNocProcessorWires(inst_name="router", nocs=tile_config.nocs,
         noc_widths = tile_config.nocs_data_width)
@@ -109,6 +117,10 @@ print(router_wires)
 %>
     );
 
+    logic                           ctovr_router_ctrl_noc2_yummy;
+    logic                           vrtoc_router_ctrl_noc2_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   vrtoc_router_ctrl_noc2_data;
+
     assign ctovr_router_ctrl_noc2_yummy = 1'b0;
     assign vrtoc_router_ctrl_noc2_val = 1'b0;
     assign vrtoc_router_ctrl_noc2_data = '0;
@@ -141,7 +153,7 @@ generate
         assign src_eth_format_data_padbytes = mac_engine_rx_padbytes;
         assign engine_mac_rx_rdy = eth_format_src_rdy;
     
-        assign eth_rx_out_ctovr_data_noc0_rdy = 1'b0;
+        assign eth_rx_in_ctovr_data_noc0_rdy = 1'b0;
     end
 endgenerate
 
@@ -172,7 +184,7 @@ endgenerate
 
         ,.vrtoc_dst_data    (vrtoc_router_data_noc0_data    )
         ,.vrtoc_dst_val     (vrtoc_router_data_noc0_val     )
-		,.dst_vrtoc_yummy   (router_vrtoc_data_noc0_yummy   )
+        ,.dst_vrtoc_yummy   (router_vrtoc_data_noc0_yummy   )
     );
     
     eth_frame_format rx_eth_frame_format (
@@ -249,7 +261,7 @@ endgenerate
 
         ,.vrtoc_dst_data    (vrtoc_router_ctrl_noc1_data    )
         ,.vrtoc_dst_val     (vrtoc_router_ctrl_noc1_val     )
-		,.dst_vrtoc_yummy   (router_vrtoc_ctrl_noc1_yummy   )
+        ,.dst_vrtoc_yummy   (router_vrtoc_ctrl_noc1_yummy   )
     );
 
     tracker_top #(

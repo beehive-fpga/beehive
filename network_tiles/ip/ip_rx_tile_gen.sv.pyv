@@ -80,6 +80,14 @@ print(router_wires)
     logic                           rd_tracker_out_vrtoc_val;
     logic   [`CTRL_NOC_DATA_W-1:0]  rd_tracker_out_vrtoc_data;
     logic                           vrtoc_rd_tracker_out_rdy;
+
+    logic                           router_ctovr_ctrl_noc1_val;
+    logic   [`CTRL_NOC_DATA_W-1:0]  router_ctovr_ctrl_noc1_data;
+    logic                           ctovr_router_ctrl_noc1_yummy;
+
+    logic                           vrtoc_router_ctrl_noc1_val;
+    logic   [`CTRL_NOC_DATA_W-1:0]  vrtoc_router_ctrl_noc1_data;
+    logic                           router_vrtoc_ctrl_noc1_yummy;
     
     noc_router_block #(
          .SRC_X (SRC_X  )
@@ -173,7 +181,7 @@ print(router_wires)
 
         ,.vrtoc_dst_data    (vrtoc_router_ctrl_noc1_data    )
         ,.vrtoc_dst_val     (vrtoc_router_ctrl_noc1_val     )
-		,.dst_vrtoc_yummy   (router_vrtoc_ctrl_noc1_yummy   )
+        ,.dst_vrtoc_yummy   (router_vrtoc_ctrl_noc1_yummy   )
     );
 
     beehive_valrdy_to_credit #(
@@ -188,7 +196,7 @@ print(router_wires)
 
         ,.vrtoc_dst_data    (vrtoc_router_data_noc0_data    )
         ,.vrtoc_dst_val     (vrtoc_router_data_noc0_val     )
-		,.dst_vrtoc_yummy   (router_vrtoc_data_noc0_yummy   )
+        ,.dst_vrtoc_yummy   (router_vrtoc_data_noc0_yummy   )
     );
     
     ip_rx_noc_in ip_rx_noc_in (

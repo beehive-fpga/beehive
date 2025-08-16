@@ -22,6 +22,7 @@ for endpoint in eth_tx_endpoints:
 if len(eth_tx_names) > (1 << 4):
     raise RuntimeError("Too many destinations for the ROM size")
 %>
+`include "noc_defs.vh"
 module ip_tx_hash_table_init_rom 
 import hash_pkg::*;
 #(

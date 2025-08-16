@@ -1,3 +1,4 @@
+`include "noc_defs.vh"
 module flit_hdr_strip 
 import beehive_noc_msg::*;
 (

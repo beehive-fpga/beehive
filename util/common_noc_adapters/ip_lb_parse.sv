@@ -1,7 +1,10 @@
 // a parser for things using the IP flit format
+`include "noc_defs.vh"
+`include "soc_defs.vh"
 module ip_lb_parse 
     import hash_pkg::*;
     import beehive_ip_msg::*;
+    import beehive_noc_msg::*;
 (
      input clk
     ,input rst

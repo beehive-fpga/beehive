@@ -1,4 +1,8 @@
-module ip_rx_out_cam_multi #(
+`include "noc_defs.vh"
+`include "packet_defs.vh"
+module ip_rx_out_cam_multi
+import beehive_topology::*;
+#(
      parameter SRC_X = -1
     ,parameter SRC_Y = -1
 )(

@@ -1,17 +1,22 @@
 `include "noc_datactrl_convert.svh"
-module noc_ctrl_to_data (
+// It is YOUR JOB to make sure that DATA_NOC_W is a multiple of 
+// CTRL_NOC_W. YOU HAVE BEEN WARNED
+module noc_ctrl_to_data #(
+     parameter DATA_NOC_W = 512
+    ,parameter CTRL_NOC_W = 64
+)(
      input clk
     ,input rst
     
-    ,input                                  src_noc_ctd_val
-    ,input          [`CTRL_NOC1_DATA_W-1:0] src_noc_ctd_data
-    ,output logic                           noc_ctd_src_rdy
+    ,input                              src_noc_ctd_val
+    ,input          [CTRL_NOC_W-1:0]    src_noc_ctd_data
+    ,output logic                       noc_ctd_src_rdy
 
-    ,output logic                           noc_ctd_dst_val
-    ,output logic   [`NOC_DATA_WIDTH-1:0]   noc_ctd_dst_data
-    ,input                                  dst_noc_ctd_rdy
+    ,output logic                       noc_ctd_dst_val
+    ,output logic   [DATA_NOC_W-1:0]    noc_ctd_dst_data
+    ,input                              dst_noc_ctd_rdy
 );
-    localparam FLIT_MULTIPLES = `NOC_DATA_WIDTH/`CTRL_NOC1_DATA_W; 
+    localparam FLIT_MULTIPLES = DATA_NOC_W/CTRL_NOC_W; 
     localparam FLIT_SHIFT = $clog2(FLIT_MULTIPLES);
 
     typedef enum logic[2:0] {
@@ -52,7 +57,7 @@ module noc_ctrl_to_data (
 
     logic                           wide_val;
     logic                           wide_last;
-    logic   [`NOC_DATA_WIDTH-1:0]   wide_data;
+    logic   [DATA_NOC_W-1:0]   wide_data;
     logic                           wide_rdy;
 
     always_ff @(posedge clk) begin
@@ -163,7 +168,7 @@ module noc_ctrl_to_data (
     end
 
     narrow_to_wide #(
-         .IN_DATA_W     (`CTRL_NOC1_DATA_W  )
+         .IN_DATA_W     (CTRL_NOC_W  )
         ,.OUT_DATA_ELS  (FLIT_MULTIPLES     )
     ) ntw (
          .clk   (clk    )
@@ -193,7 +198,7 @@ module noc_ctrl_to_data (
 
     always_comb begin
         wide_hdr_flit = '0;
-        wide_hdr_flit[`NOC_DATA_WIDTH-1 -: (2 * `CTRL_NOC1_DATA_W)] = 
+        wide_hdr_flit[DATA_NOC_W-1 -: (2 * CTRL_NOC_W)] = 
             {narrow_hdr_flit_1_reg, narrow_hdr_flit_2_reg};
         wide_hdr_flit.core.core.msg_len = (narrow_hdr_flit_1_reg.msg_len - 1) >> FLIT_SHIFT;
         wide_hdr_flit.core.metadata_flits = (narrow_hdr_flit_2_reg.metadata_flits) >> FLIT_SHIFT;

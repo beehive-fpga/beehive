@@ -1,0 +1,27 @@
+CAPI=2:
+name: uwcse:basejump:bsg_mem:0.1
+description: BSG memory primitives
+
+filesets:
+    rtl:
+        files:
+            - bsg_cam_1r1w_tag_array.sv
+            - bsg_cam_1r1w_unmanaged.sv
+            - bsg_mem_1r1w.sv
+            - bsg_mem_1r1w_one_hot.sv
+            - bsg_mem_1r1w_sync.sv
+            - bsg_mem_1r1w_sync_synth.sv
+            - bsg_mem_1r1w_synth.sv
+            - bsg_mem_1rw_sync.sv
+            - bsg_mem_1rw_sync_mask_write_byte.sv
+            - bsg_mem_1rw_sync_mask_write_byte_synth.sv
+            - bsg_mem_1rw_sync_synth.sv
+            - bsg_mem_2r1w_sync.sv
+            - bsg_mem_2r1w_sync_synth.sv
+        depend:
+            - uwcse:basejump:bsg_include
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]

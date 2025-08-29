@@ -1,0 +1,27 @@
+CAPI=2:
+name: uwcse:basejump:bsg_misc:0.1
+description: BSG misc modules
+
+filesets:
+    rtl:
+        files:
+            - bsg_arb_round_robin.sv
+            - bsg_circular_ptr.sv
+            - bsg_counter_clear_up.sv
+            - bsg_dff_en.sv
+            - bsg_dff_reset_en.sv
+            - bsg_encode_one_hot.sv
+            - bsg_lfsr.sv
+            - bsg_mux.sv
+            - bsg_mux_one_hot.sv
+            - bsg_popcount.sv
+            - bsg_priority_encode.sv
+            - bsg_priority_encode_one_hot_out.sv
+            - bsg_scan.sv
+        depend:
+            - uwcse:basejump:bsg_include
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]

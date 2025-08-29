@@ -1,0 +1,19 @@
+CAPI=2:
+name: uwcse:basejump:bsg_dataflow:0.1
+description: BSG dataflow modules
+
+filesets:
+    rtl:
+        files:
+            - bsg_fifo_1r1w_small.sv
+            - bsg_two_fifo.sv
+            - bsg_fifo_1r1w_small_hardened.sv
+            - bsg_fifo_tracker.sv
+        depend:
+            - uwcse:basejump:bsg_include
+            - uwcse:basejump:bsg_mem
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]

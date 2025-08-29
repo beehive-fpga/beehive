@@ -21,8 +21,8 @@ filesets:
             - udp_splitter.sv
             - udp_splitter_cam.sv
         depend:
-            - uwcse:buckfast:includes
-            - uwcse:buckfast:bsg_misc
+            - uwcse:beehive:common_inc
+            - uwcse:basejump:bsg_misc
             - uwcse:beehive:data_converters
             - uwcse:beehive:misc
             - uwcse:buckfast:frontend

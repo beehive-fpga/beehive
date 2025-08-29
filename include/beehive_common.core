@@ -5,6 +5,8 @@ filesets:
     rtl:
         files:
             - packet_defs.vh: {is_include_file: true}
+            - noc_defs.vh: {is_include_file: true}
+            - soc_defs.vh: {is_include_file: true}
             - packet_struct_pkg.sv
         file_type: systemVerilogSource
 

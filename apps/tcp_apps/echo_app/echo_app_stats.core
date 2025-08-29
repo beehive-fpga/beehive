@@ -10,7 +10,7 @@ filesets:
             - echo_app_stats_log.sv
             - echo_app_stats_record.sv
         depend: 
-            - uwcse:buckfast:includes
+            - uwcse:beehive:common_inc
             - uwcse:beehive:msgs
             - uwcse:beehive:logging
         file_type: systemVerilogSource

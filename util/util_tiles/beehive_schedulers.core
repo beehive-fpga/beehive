@@ -9,7 +9,7 @@ filesets:
             - include/rr_scheduler_defs.svh: {is_include_file: true}
             - rr_scheduler.sv
         depend:
-            - uwcse:buckfast:includes
+            - uwcse:beehive:common_inc
             - uwcse:beehive:msgs
         file_type: systemVerilogSource
 

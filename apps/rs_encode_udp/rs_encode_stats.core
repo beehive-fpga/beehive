@@ -10,7 +10,7 @@ filesets:
             - rs_encode_stats.sv
             - rs_encode_stats_record.sv
         depend:
-            - uwcse:buckfast:includes
+            - uwcse:beehive:common_inc
             - uwcse:beehive:openpiton_beehive_noc
             - uwcse:beehive:msgs
             - uwcse:beehive:logging

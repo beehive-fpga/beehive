@@ -5,7 +5,7 @@ description: Beehive topology package
 filesets:
     rtl:
         depend:
-            - uwcse:buckfast:includes
+            - uwcse:beehive:common_inc
             - uwcse:beehive:pyhp_generator
         file_type: systemVerilogSource
 

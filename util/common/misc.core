@@ -13,7 +13,7 @@ filesets:
             - mem_mux_param.sv
             - stream_mux.sv
         depend:
-            - uwcse:buckfast:bsg_misc
+            - uwcse:basejump:bsg_misc
         file_type: systemVerilogSource
 
 targets:

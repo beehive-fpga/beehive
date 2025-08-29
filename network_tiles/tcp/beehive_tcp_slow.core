@@ -43,10 +43,10 @@ filesets:
             - tcp_tx_msg_noc_if_out_ctrl.sv
             - tcp_tx_msg_noc_if_out_datap.sv
         depend:
-            - uwcse:buckfast:includes
+            - uwcse:beehive:common_inc
             - uwcse:buckfast:frontend
             - uwcse:buckfast:tcp_data_move
-            - uwcse:buckfast:bsg_dataflow
+            - uwcse:basejump:bsg_dataflow
             - uwcse:beehive:openpiton_beehive_noc
             - uwcse:beehive:tcp_engine
             - uwcse:beehive:msgs

@@ -13,7 +13,7 @@ filesets:
             - to_udp_ctrl.sv
             - to_udp_datap.sv
         depend:
-            - uwcse:buckfast:includes
+            - uwcse:beehive:common_inc
             - uwcse:beehive:msgs
         file_type: systemVerilogSource
 

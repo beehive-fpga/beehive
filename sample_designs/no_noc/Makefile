@@ -34,17 +34,16 @@ include $(BEEHIVE_PROJECT_ROOT)/util/scripts/fusesoc_file_gen/Makefile
 init_fusesoc:
 	echo "[main]" > fusesoc.conf
 	echo "cache_root = $(PWD)" >> fusesoc.conf
-	fusesoc library add pyhp_generator $(BEEHIVE_PROJECT_ROOT)/tile_generator
-	fusesoc library add network_tiles $(BEEHIVE_PROJECT_ROOT)/network_tiles/
-	fusesoc library add beehive_msgs $(BEEHIVE_PROJECT_ROOT)/include
 	fusesoc library add udp_echo_app $(BEEHIVE_PROJECT_ROOT)/protocols/tcp_hw/apps/udp_echo
 	fusesoc library add udp_echo_app_stats $(BEEHIVE_PROJECT_ROOT)/apps/udp_echo_app
-	fusesoc library add echo_app $(BEEHIVE_PROJECT_ROOT)/sample_designs/no_noc
+	fusesoc library add pyhp_generator $(BEEHIVE_PROJECT_ROOT)/tile_generator
+	fusesoc library add udp_echo $(BEEHIVE_PROJECT_ROOT)/cocotb_testing/udp_echo
+	fusesoc library add network_components $(BEEHIVE_PROJECT_ROOT)/network_tiles
+	fusesoc library add beehive_msgs $(BEEHIVE_PROJECT_ROOT)/include
 	fusesoc library add beehive_util $(BEEHIVE_PROJECT_ROOT)/util
-	fusesoc library add beehive_topology $(BEEHIVE_PROJECT_ROOT)/cocotb_testing/udp_echo/include
-	fusesoc library add basejump $(BEEHIVE_PROJECT_ROOT)/protocols/tcp_hw/basejump_files
-	fusesoc library add buckfast_front $(BEEHIVE_PROJECT_ROOT)/protocols/tcp_hw/frontend
-	fusesoc library add buckfast_common_inc $(BEEHIVE_PROJECT_ROOT)/protocols/tcp_hw/include/common
-	fusesoc library add buckfast_common $(BEEHIVE_PROJECT_ROOT)/protocols/tcp_hw/common
 	fusesoc library add beehive_noc $(BEEHIVE_PROJECT_ROOT)/beehive_noc
-	fusesoc library add tcp $(BEEHIVE_PROJECT_ROOT)/protocols/tcp_hw
+	fusesoc library add buckfast_front $(BEEHIVE_PROJECT_ROOT)/protocols/tcp_hw/frontend
+	fusesoc library add buckfast_common $(BEEHIVE_PROJECT_ROOT)/protocols/tcp_hw/common
+	fusesoc library add tcp_inc	$(BEEHIVE_PROJECT_ROOT)/protocols/tcp_hw/include/tcp
+	fusesoc library add beehive_topology $(BEEHIVE_PROJECT_ROOT)/cocotb_testing/udp_echo/include
+	fusesoc library add echo_app $(BEEHIVE_PROJECT_ROOT)/sample_designs/no_noc

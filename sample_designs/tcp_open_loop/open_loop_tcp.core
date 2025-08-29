@@ -4,8 +4,8 @@ description: Implementation of TCP design but with logging included
 filesets:
     rtl:
         depend:
-            - uwcse:buckfast:includes
-            - uwcse:buckfast:ram
+            - uwcse:beehive:common_inc
+            - uwcse:beehive:ram
             - uwcse:beehive:tcp_open_loop_app
             - uwcse:beehive:eth
             - uwcse:beehive:ip

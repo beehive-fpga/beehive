@@ -1,0 +1,18 @@
+CAPI=2:
+name: uwcse:beehive:common_msgs:0.1
+description: Beehive NoC message packages
+
+filesets:
+    rtl:
+        files:
+            - beehive_noc_msg.sv
+            - beehive_ctrl_noc_msg.sv
+        depend:
+            - uwcse:beehive:common_inc
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]
+
+

@@ -13,7 +13,7 @@ filesets:
             - udp_rs_encode_out_datap.sv
             - udp_rs_encode_wrap.sv
         depend: 
-            - uwcse:buckfast:includes
+            - uwcse:beehive:common_inc
             - uwcse:buckfast:packet_queue
             - uwcse:beehive:msgs
             - uwcse:beehive:rs_encode_core

@@ -6,7 +6,7 @@ filesets:
     rtl:
         files: []
         depend:
-            - uwcse:buckfast:includes
+            - uwcse:beehive:common_inc
             - uwcse:beehive:openpiton_beehive_noc
             - uwcse:beehive:msgs
             - uwcse:beehive:schedulers

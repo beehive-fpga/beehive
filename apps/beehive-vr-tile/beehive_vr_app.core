@@ -7,7 +7,7 @@ filesets:
             - vr_app_wrap.sv
         depend:
             - uwcse:beehive:beehive_vr
-            - uwcse:buckfast:includes
+            - uwcse:beehive:common_inc
             - uwcse:beehive:msgs
             - uwcse:beehive:topology
             - uwcse:beehive:pyhp_generator

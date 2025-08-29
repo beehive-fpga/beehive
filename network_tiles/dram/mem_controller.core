@@ -5,11 +5,12 @@ filesets:
     rtl:
         files: []
         depend:
-            - uwcse:buckfast:includes
-            - uwcse:buckfast:bsg_dataflow
+            - uwcse:basejump:bsg_dataflow
             - uwcse:beehive:openpiton_beehive_noc
             - uwcse:beehive:mem_controller_components
-            - uwcse:beehive:msgs
+            - uwcse:beehive:noc_gearbox
+            - uwcse:beehive:common_msgs
+            - uwcse:beehive:common_inc
             - uwcse:beehive:pyhp_generator
             - uwcse:beehive:router_block
             - uwcse:beehive:data_converters

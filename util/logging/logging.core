@@ -12,7 +12,7 @@ filesets:
             - simple_log_udp_noc_read_ctrl.sv
             - simple_log_udp_noc_read_datap.sv
         depend:
-            - uwcse:buckfast:includes
+            - uwcse:beehive:common_inc
             - uwcse:beehive:msgs
             - uwcse:beehive:topology
         file_type: systemVerilogSource

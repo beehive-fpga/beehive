@@ -5,9 +5,9 @@ description: Beehive VR test
 filesets:
     rtl:
         depend:
-            - uwcse:buckfast:includes
-            - uwcse:buckfast:bsg_mem
-            - uwcse:buckfast:bsg_misc
+            - uwcse:beehive:common_inc
+            - uwcse:basejump:bsg_mem
+            - uwcse:basejump:bsg_misc
             - uwcse:beehive:data_converters
             - uwcse:beehive:misc
             - uwcse:beehive:empty_tile

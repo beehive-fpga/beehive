@@ -13,11 +13,10 @@ filesets:
             - masked_mem_wr_ctrl.sv
             - masked_mem_wrap_valrdy.sv
         depend:
-            - uwcse:buckfast:includes
-            - uwcse:buckfast:fifo
-            - uwcse:buckfast:bsg_dataflow
+            - uwcse:beehive:fifo
+            - uwcse:basejump:bsg_dataflow
             - uwcse:beehive:openpiton_beehive_noc
-            - uwcse:beehive:msgs
+            - uwcse:beehive:common_msgs
             - uwcse:beehive:data_converters
         file_type: systemVerilogSource
 

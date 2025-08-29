@@ -1,0 +1,13 @@
+CAPI=2:
+name: uwcse:basejump:bsg_include:0.1
+description: BSG include files
+
+filesets:
+    rtl:
+        files:
+            - bsg_defines.v: {is_include_file: true}
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]

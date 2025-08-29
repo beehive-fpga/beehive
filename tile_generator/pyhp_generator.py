@@ -30,6 +30,9 @@ import subprocess
 import os
 import shutil
 
+from pathlib import Path
+
+
 include_core_template = """CAPI=2:
 name: __VLNV_TEMPLATE__
 description: Generated files
@@ -63,7 +66,8 @@ if __name__ == "__main__":
     vlnv = config["vlnv"]
 
     # Run PyHP for each input/output pair 
-    pyhp_path = os.environ["BEEHIVE_PROJECT_ROOT"] + "/tile_generator"
+    # Get script directory
+    pyhp_path = Path(__file__).parent.resolve()
     cmd = ["python3", f"{pyhp_path}/pyhp.py"]
     io_pairs = config["parameters"]["process_me"]
     rtl_files = ""

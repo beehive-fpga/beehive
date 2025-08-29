@@ -10,7 +10,7 @@ filesets:
             - udp_echo_app_stats.sv
             - udp_echo_app_stats_record.sv
         depend: 
-            - uwcse:buckfast:includes
+            - uwcse:beehive:common_inc
             - uwcse:beehive:msgs
             - uwcse:beehive:topology
             - uwcse:beehive:logging

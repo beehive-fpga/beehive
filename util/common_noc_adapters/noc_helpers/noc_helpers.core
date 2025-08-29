@@ -9,8 +9,7 @@ filesets:
             - rd_mem_noc_module.sv
             - wr_mem_noc_module.sv
         depend:
-            - uwcse:buckfast:includes
-            - uwcse:beehive:tcp_inc
+            - uwcse:beehive:common_inc
             - uwcse:beehive:openpiton_beehive_noc
         file_type: systemVerilogSource
 targets:

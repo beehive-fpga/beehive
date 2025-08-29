@@ -93,6 +93,13 @@ package beehive_noc_msg;
     localparam [`MSG_TYPE_WIDTH-1:0]    IP_REWRITE_ADJUST_TABLE = `MSG_TYPE_WIDTH'd15;
 
     localparam [`MSG_TYPE_WIDTH-1:0]    TRACKER_MSG = `MSG_TYPE_WIDTH'd16;
+
+    localparam [`MSG_TYPE_WIDTH-1:0]    ALLOC_MEM = `MSG_TYPE_WIDTH'd17;
+    localparam [`MSG_TYPE_WIDTH-1:0]    FREE_MEM = `MSG_TYPE_WIDTH'd18;
+    localparam [`MSG_TYPE_WIDTH-1:0]    ALLOC_MEM_RSP = `MSG_TYPE_WIDTH'd19;
+    localparam [`MSG_TYPE_WIDTH-1:0]    FREE_MEM_RSP = `MSG_TYPE_WIDTH'd20;
+
+    localparam [`MSG_TYPE_WIDTH-1:0]    ERROR = {(`MSG_TYPE_WIDTH){1'b1}};
     
     localparam PKT_IF_FBITS = {1'b1, {(`NOC_FBITS_WIDTH-1){1'd0}}};
 endpackage

@@ -10,8 +10,8 @@ filesets:
             - l4_hash_table.sv
             - hash_table_init.sv
         depend:
-            - uwcse:buckfast:includes
-            - uwcse:buckfast:ram
+            - uwcse:beehive:common_inc
+            - uwcse:beehive:ram
         file_type: systemVerilogSource
 
 targets:

@@ -28,7 +28,8 @@ filesets:
             - common/beehive_space_avail_top.v
             - common/beehive_valrdy_to_credit.v
         depend:
-            - uwcse:buckfast:includes
+            - uwcse:beehive:common_inc
+            - uwcse:basejump:bsg_misc
         file_type: systemVerilogSource
 
 targets:

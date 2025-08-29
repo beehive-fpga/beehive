@@ -11,7 +11,7 @@ import beehive_ctrl_noc_msg::*;
     ,input          [`NOC_DATA_WIDTH-1:0]   src_noc_dtc_data
     ,output logic                           noc_dtc_src_rdy
 
-    ,output logic                           noc_dtc_dst_val
+  ,output logic                           noc_dtc_dst_val
     ,output logic   [`CTRL_NOC1_DATA_W-1:0] noc_dtc_dst_data
     ,input                                  dst_noc_dtc_rdy
 );

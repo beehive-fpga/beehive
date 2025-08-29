@@ -16,7 +16,7 @@ filesets:
             - echo_app_tx_msg_if_ctrl.sv
             - echo_app_tx_msg_if_datap.sv
         depend:
-            - uwcse:buckfast:includes
+            - uwcse:beehive:common_inc
             - uwcse:beehive:msgs
             - uwcse:beehive:echo_app_stats
             - uwcse:beehive:pyhp_generator

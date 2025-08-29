@@ -1,18 +1,24 @@
 `include "noc_datactrl_convert.svh"
-module noc_data_to_ctrl (
+// It is YOUR JOB to make sure that DATA_NOC_W is a multiple of 
+// CTRL_NOC_W. YOU HAVE BEEN WARNED
+module noc_data_to_ctrl #(
+     parameter DATA_NOC_W = 512
+    ,parameter CTRL_NOC_W = 64
+
+)(
      input clk
     ,input rst
 
     ,input                                  src_noc_dtc_val
-    ,input          [`NOC_DATA_WIDTH-1:0]   src_noc_dtc_data
+    ,input          [DATA_NOC_W-1:0]        src_noc_dtc_data
     ,output logic                           noc_dtc_src_rdy
 
     ,output logic                           noc_dtc_dst_val
-    ,output logic   [`CTRL_NOC1_DATA_W-1:0] noc_dtc_dst_data
+    ,output logic   [CTRL_NOC_W-1:0]        noc_dtc_dst_data
     ,input                                  dst_noc_dtc_rdy
 );
 
-    localparam FLIT_MULTIPLES = `NOC_DATA_WIDTH/`CTRL_NOC1_DATA_W; 
+    localparam FLIT_MULTIPLES = DATA_NOC_W/CTRL_NOC_W; 
     localparam FLIT_SHIFT = $clog2(FLIT_MULTIPLES);
 
     typedef enum logic[1:0] {
@@ -53,7 +59,7 @@ module noc_data_to_ctrl (
 
     logic                           narrow_val;
     logic                           narrow_last;
-    logic   [`CTRL_NOC1_DATA_W-1:0] narrow_data;
+    logic   [CTRL_NOC_W-1:0] narrow_data;
     logic                           narrow_rdy;
 
     assign wide_hdr_flit = src_noc_dtc_data;
@@ -156,7 +162,7 @@ module noc_data_to_ctrl (
     end
 
     wide_to_narrow #(
-         .OUT_DATA_W    (`CTRL_NOC1_DATA_W  )
+         .OUT_DATA_W    (CTRL_NOC_W  )
         ,.IN_DATA_ELS   (FLIT_MULTIPLES     )
     ) wtn (
          .clk   (clk    )
@@ -188,7 +194,7 @@ module noc_data_to_ctrl (
     end
 
     always_comb begin
-        narrow_hdr_flit_1 = wide_hdr_flit[`NOC_DATA_WIDTH-1 -: `CTRL_NOC1_DATA_W];
+        narrow_hdr_flit_1 = wide_hdr_flit[DATA_NOC_W-1 -: CTRL_NOC_W];
         // plus one for the extra hdr flit
         narrow_hdr_flit_1.msg_len = (wide_hdr_flit.core.core.msg_len << FLIT_SHIFT) + 1;
     end

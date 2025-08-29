@@ -1,0 +1,19 @@
+CAPI=2:
+name: uwcse:beehive:noc_gearbox:0.1
+description: Adapters for changing between wide and narrow NoCs
+
+filesets:
+  rtl:
+    files:
+      - include/noc_datactrl_convert.svh: {is_include_file: true}
+      - extra_hdr_noc_ctrl_to_data.sv
+      - extra_hdr_noc_data_to_ctrl.sv
+      - noc_data_to_ctrl.sv
+      - noc_ctrl_to_data.sv
+    depend:
+      - uwcse:beehive:openpiton_beehive_noc
+    file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]

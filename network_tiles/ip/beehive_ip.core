@@ -23,7 +23,7 @@ filesets:
             - ip_tx_noc_out_ctrl.sv
             - ip_tx_noc_out_datap.sv
         depend:
-            - uwcse:buckfast:includes
+            - uwcse:beehive:common_inc
             - uwcse:buckfast:frontend
             - uwcse:beehive:openpiton_beehive_noc
             - uwcse:beehive:msgs

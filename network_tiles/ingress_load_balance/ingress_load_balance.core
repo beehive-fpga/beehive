@@ -8,8 +8,7 @@ filesets:
             - include/ingress_load_balance_defs.svh: {is_include_file: true}
             - ingress_noc_out.sv
         depend:
-            - uwcse:buckfast:includes
-            - uwcse:buckfast:fifo
+            - uwcse:beehive:fifo
             - uwcse:beehive:openpiton_beehive_noc
             - uwcse:beehive:msgs
             - uwcse:beehive:l4_hash

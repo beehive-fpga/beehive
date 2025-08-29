@@ -4,7 +4,6 @@
  * up its requests appropriately
  */
 `include "noc_defs.vh"
-
 module rd_mem_noc_module 
 import mem_noc_helper_pkg::*;
 import beehive_noc_msg::*;
@@ -18,13 +17,13 @@ import beehive_noc_msg::*;
      input clk
     ,input rst
 
-    ,output logic                               rd_mem_noc_req_noc0_val
-    ,output logic   [`NOC_DATA_WIDTH-1:0]       rd_mem_noc_req_noc0_data
-    ,input  logic                               noc_rd_mem_req_noc0_rdy
+    ,output logic                               rd_mem_noc_req_noc_val
+    ,output logic   [`NOC_DATA_WIDTH-1:0]       rd_mem_noc_req_noc_data
+    ,input  logic                               noc_rd_mem_req_noc_rdy
 
-    ,input  logic                               noc_rd_mem_resp_noc0_val
-    ,input  logic   [`NOC_DATA_WIDTH-1:0]       noc_rd_mem_resp_noc0_data
-    ,output logic                               rd_mem_noc_resp_noc0_rdy
+    ,input  logic                               noc_rd_mem_resp_noc_val
+    ,input  logic   [`NOC_DATA_WIDTH-1:0]       noc_rd_mem_resp_noc_data
+    ,output logic                               rd_mem_noc_resp_noc_rdy
 
     ,input  logic                               src_rd_mem_req_val
     ,input  mem_req_struct                      src_rd_mem_req_entry
@@ -62,7 +61,7 @@ import beehive_noc_msg::*;
     
     logic   [`NOC_PADBYTES_WIDTH-1:0]   last_padbytes;
 
-    assign rd_resp_flit_cast = noc_rd_mem_resp_noc0_data;
+    assign rd_resp_flit_cast = noc_rd_mem_resp_noc_data;
     assign last_padbytes = req_entry_reg.mem_req_size[`NOC_PADBYTES_WIDTH-1:0] == 0
                          ? '0
                          : (`NOC_DATA_BYTES - req_entry_reg.mem_req_size[`NOC_PADBYTES_WIDTH-1:0]);
@@ -82,8 +81,8 @@ import beehive_noc_msg::*;
         end
     end
 
-    assign rd_mem_noc_req_noc0_data = hdr_flit;
-    assign rd_mem_src_resp_data = noc_rd_mem_resp_noc0_data;
+    assign rd_mem_noc_req_noc_data = hdr_flit;
+    assign rd_mem_src_resp_data = noc_rd_mem_resp_noc_data;
 
     always_comb begin
         state_next = state_reg;
@@ -92,8 +91,8 @@ import beehive_noc_msg::*;
         flits_recv_next = flits_recv_reg;
 
         rd_mem_src_req_rdy = 1'b0;
-        rd_mem_noc_req_noc0_val = 1'b0;
-        rd_mem_noc_resp_noc0_rdy = 1'b0;
+        rd_mem_noc_req_noc_val = 1'b0;
+        rd_mem_noc_resp_noc_rdy = 1'b0;
         rd_mem_src_resp_val = 1'b0;
         rd_mem_src_resp_last = 1'b0;
         rd_mem_src_resp_padbytes = '0;
@@ -111,8 +110,8 @@ import beehive_noc_msg::*;
                 end
             end
             SEND_RD_REQ: begin
-                rd_mem_noc_req_noc0_val = 1'b1;
-                if (noc_rd_mem_req_noc0_rdy) begin
+                rd_mem_noc_req_noc_val = 1'b1;
+                if (noc_rd_mem_req_noc_rdy) begin
                     state_next = WAIT_RD_RESP;
                 end
                 else begin
@@ -120,10 +119,10 @@ import beehive_noc_msg::*;
                 end
             end
             WAIT_RD_RESP: begin
-                rd_mem_noc_resp_noc0_rdy = 1'b1;
+                rd_mem_noc_resp_noc_rdy = 1'b1;
 
-                if (noc_rd_mem_resp_noc0_val) begin
-                    rd_resp_flit_next = noc_rd_mem_resp_noc0_data;
+                if (noc_rd_mem_resp_noc_val) begin
+                    rd_resp_flit_next = noc_rd_mem_resp_noc_data;
                     state_next = RECV_RD_RESP;
                 end
                 else begin
@@ -131,10 +130,10 @@ import beehive_noc_msg::*;
                 end
             end
             RECV_RD_RESP: begin
-                rd_mem_noc_resp_noc0_rdy = src_rd_mem_resp_rdy;
-                rd_mem_src_resp_val = noc_rd_mem_resp_noc0_val;
+                rd_mem_noc_resp_noc_rdy = src_rd_mem_resp_rdy;
+                rd_mem_src_resp_val = noc_rd_mem_resp_noc_val;
 
-                if (src_rd_mem_resp_rdy & noc_rd_mem_resp_noc0_val) begin
+                if (src_rd_mem_resp_rdy & noc_rd_mem_resp_noc_val) begin
                     flits_recv_next = flits_recv_reg + 1'b1;
                     if (flits_recv_reg == (rd_resp_flit_reg.core.msg_len - 1'b1)) begin
                         rd_mem_src_resp_last = 1'b1;
@@ -156,8 +155,8 @@ import beehive_noc_msg::*;
                 flits_recv_next = 'X;
 
                 rd_mem_src_req_rdy = 'X;
-                rd_mem_noc_req_noc0_val = 'X;
-                rd_mem_noc_resp_noc0_rdy = 'X;
+                rd_mem_noc_req_noc_val = 'X;
+                rd_mem_noc_resp_noc_rdy = 'X;
                 rd_mem_src_resp_val = 'X;
                 rd_mem_src_resp_last = 'X;
                 rd_mem_src_resp_padbytes = 'X;

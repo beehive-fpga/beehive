@@ -7,9 +7,11 @@ filesets:
         files:
             - include/parser_pkg.sv
             - fixed_parser.sv
+            - ip_lb_parse.sv
         depend:
-            - uwcse:buckfast:includes
-            - uwcse:buckfast:fifo
+            - uwcse:beehive:common_inc
+            - uwcse:beehive:fifo
+            - uwcse:beehive:l4_hash
         file_type: systemVerilogSource
 
 targets:

@@ -18,8 +18,8 @@ filesets:
             - tcp_logger_wrap.sv
             - tcp_log_replay.sv
         depend:
-            - uwcse:buckfast:includes
-            - uwcse:buckfast:ram
+            - uwcse:beehive:common_inc
+            - uwcse:beehive:ram
             - uwcse:beehive:openpiton_beehive_noc
             - uwcse:beehive:msgs
             - uwcse:beehive:pyhp_generator

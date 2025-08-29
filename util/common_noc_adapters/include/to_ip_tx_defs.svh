@@ -6,6 +6,5 @@
 
     import beehive_noc_msg::*;
     import beehive_ip_msg::*;
-    import beehive_topology::*;
     import to_ip_tx_pkg::*;
 `endif

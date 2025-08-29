@@ -17,7 +17,7 @@ filesets:
             - eth_tx_noc_in_ctrl.sv
             - eth_tx_noc_in_datap.sv
         depend:
-            - uwcse:buckfast:includes
+            - uwcse:beehive:common_inc
             - uwcse:buckfast:frontend
             - uwcse:beehive:openpiton_beehive_noc
             - uwcse:beehive:msgs

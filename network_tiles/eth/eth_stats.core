@@ -10,7 +10,7 @@ filesets:
             - eth_latency_stats.sv
             - eth_latency_stats_record.sv
         depend:
-            - uwcse:buckfast:includes
+            - uwcse:beehive:common_inc
             - uwcse:beehive:msgs
             - uwcse:beehive:topology
             - uwcse:beehive:logging

@@ -15,7 +15,7 @@ filesets:
             - realign_runtime.sv
             - inserter_compile.sv
         depend:
-            - uwcse:buckfast:fifo
+            - uwcse:beehive:fifo
         file_type: systemVerilogSource
 
 targets:

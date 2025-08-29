@@ -1,0 +1,18 @@
+CAPI=2:
+name: uwcse:beehive:fifo:0.1
+description: FIFO components from Beehive
+
+filesets:
+    rtl:
+        files:
+            - axis_fifo.v
+            - fifo_1r1w.sv
+            - fifo_2w.v
+            - peek_fifo_1r1w.sv
+        depend:
+            - uwcse:beehive:ram
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]

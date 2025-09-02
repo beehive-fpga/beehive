@@ -3,6 +3,7 @@ import socket
 
 class BeehiveNoCConstants:
     NOC_DATA_W              = 512
+    CTRL_NOC_DATA_W         = 64
     MSG_DST_CHIPID_WIDTH    = 14
     MSG_DST_X_WIDTH         = 8
     MSG_DST_Y_WIDTH         = 8
@@ -19,10 +20,11 @@ class BeehiveNoCConstants:
 
 
 class BeehiveFlit():
-    def __init__(self):
+    def __init__(self, noc_width=BeehiveNoCConstants.NOC_DATA_W):
+        self.noc_width = noc_width
         flit_width = 0
         for field, width in self.fields.items():
-            setattr(self, field, BinaryValue(value=0, n_bits=width,bigEndian=False))
+            setattr(self, field, BinaryValue(value=0, n_bits=width, bigEndian=False))
             flit_width += width
 
     def assemble_flit(self):
@@ -34,15 +36,13 @@ class BeehiveFlit():
             i += 1
 
         full_bitstring = "".join(bitstrings)
-        padding = BeehiveNoCConstants.NOC_DATA_W - len(full_bitstring)
-        pad_str = ""
+
+        padding = self.noc_width - len(full_bitstring)
         if padding > 0:
-            pad_str = "0"*padding
+            padding_str = "0" * padding
+            full_bitstring += padding_str
 
-        padded_bitstring = full_bitstring + pad_str
-        #return padded_bitstring
-
-        final_bin_value = BinaryValue(value=0, n_bits=BeehiveNoCConstants.NOC_DATA_W)
+        final_bin_value = BinaryValue(value=0, n_bits=self.noc_width)
         final_bin_value.binstr = full_bitstring
         return final_bin_value
 
@@ -85,6 +85,52 @@ class BeehiveHdrFlit(BeehiveFlit):
         "src_y": BeehiveNoCConstants.MSG_DST_X_WIDTH,
         "src_fbits": BeehiveNoCConstants.MSG_SRC_FBITS_WIDTH,
         "metadata_flits": BeehiveNoCConstants.MSG_METADATA_FLITS_W,
+        "addr": BeehiveNoCConstants.MSG_ADDR_WIDTH,
+        "data_size": BeehiveNoCConstants.MSG_DATA_SIZE_WIDTH
+    }
+
+class BeehiveMemControllerFlit(BeehiveFlit):
+    fields = {
+        "dst_chipid": BeehiveNoCConstants.MSG_DST_CHIPID_WIDTH,
+        "dst_x": BeehiveNoCConstants.MSG_DST_X_WIDTH,
+        "dst_y": BeehiveNoCConstants.MSG_DST_Y_WIDTH,
+        "dst_fbits": BeehiveNoCConstants.MSG_DST_FBITS_WIDTH,
+        "msg_length": BeehiveNoCConstants.MSG_LENGTH_WIDTH,
+        "msg_type": BeehiveNoCConstants.MSG_TYPE_WIDTH,
+        "src_chipid": BeehiveNoCConstants.MSG_SRC_CHIPID_WIDTH,
+        "src_x": BeehiveNoCConstants.MSG_SRC_X_WIDTH,
+        "src_y": BeehiveNoCConstants.MSG_DST_X_WIDTH,
+        "src_fbits": BeehiveNoCConstants.MSG_SRC_FBITS_WIDTH,
+        "addr": BeehiveNoCConstants.MSG_ADDR_WIDTH,
+        "data_size": BeehiveNoCConstants.MSG_DATA_SIZE_WIDTH
+    }
+
+class BeehiveCtrlHdrFlit(BeehiveFlit):
+    def __init__(self):
+        super().__init__(BeehiveNoCConstants.CTRL_NOC_DATA_W)
+
+    fields = {
+        "dst_chipid": BeehiveNoCConstants.MSG_DST_CHIPID_WIDTH,
+        "dst_x": BeehiveNoCConstants.MSG_DST_X_WIDTH,
+        "dst_y": BeehiveNoCConstants.MSG_DST_Y_WIDTH,
+        "dst_fbits": BeehiveNoCConstants.MSG_DST_FBITS_WIDTH,
+        "msg_length": BeehiveNoCConstants.MSG_LENGTH_WIDTH,
+        "msg_type": BeehiveNoCConstants.MSG_TYPE_WIDTH,
+    }
+
+class BeehiveCtrlMiscFlit(BeehiveFlit):
+    def __init__(self):
+        super().__init__(BeehiveNoCConstants.CTRL_NOC_DATA_W)
+
+    fields = {
+        "src_chipid": BeehiveNoCConstants.MSG_SRC_CHIPID_WIDTH,
+        "src_x": BeehiveNoCConstants.MSG_SRC_X_WIDTH,
+        "src_y": BeehiveNoCConstants.MSG_DST_X_WIDTH,
+        "src_fbits": BeehiveNoCConstants.MSG_SRC_FBITS_WIDTH,
+    }
+
+class BeehiveMemReqFlit(BeehiveFlit):
+    fields = {
         "addr": BeehiveNoCConstants.MSG_ADDR_WIDTH,
         "data_size": BeehiveNoCConstants.MSG_DATA_SIZE_WIDTH
     }

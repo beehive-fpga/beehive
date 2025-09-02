@@ -33,6 +33,7 @@ SIM_ARGS = -voptargs=+acc
 include $(shell cocotb-config --makefiles)/Makefile.sim
 
 export BEEHIVE_DESIGN_ROOT=$(PWD)
+export DESIGN_ROOT=$(BEEHIVE_DESIGN_ROOT)
 
 include $(BEEHIVE_PROJECT_ROOT)/util/scripts/fusesoc_file_gen/Makefile
 
@@ -42,24 +43,10 @@ init_fusesoc:
 	echo "cache_root = $(PWD)" >> fusesoc.conf
 	fusesoc library add pyhp_generator $(BEEHIVE_PROJECT_ROOT)/tile_generator
 	fusesoc library add network_components $(BEEHIVE_PROJECT_ROOT)/network_tiles
-	fusesoc library add tcp $(BEEHIVE_PROJECT_ROOT)/protocols/tcp_hw
-	fusesoc library add beehive_apps $(BEEHIVE_PROJECT_ROOT)/apps
-	fusesoc library add beehive_util $(BEEHIVE_PROJECT_ROOT)/util
-	fusesoc library add beehive_msgs $(BEEHIVE_PROJECT_ROOT)/include
-	fusesoc library add tcp_log_test $(BEEHIVE_PROJECT_ROOT)/sample_designs/$(CORE_NAME)
-
-.PHONY: init_fusesoc_slow
-init_fusesoc_slow:
-	echo "[main]" > fusesoc.conf
-	echo "cache_root = $(PWD)" >> fusesoc.conf
-	fusesoc library add pyhp_generator $(BEEHIVE_PROJECT_ROOT)/tile_generator
-	fusesoc library add network_components $(BEEHIVE_PROJECT_ROOT)/network_tiles
 	fusesoc library add tcp $(BEEHIVE_PROJECT_ROOT)/protocols/tcp_slow
 	fusesoc library add beehive_apps $(BEEHIVE_PROJECT_ROOT)/apps
 	fusesoc library add beehive_util $(BEEHIVE_PROJECT_ROOT)/util
 	fusesoc library add beehive_msgs $(BEEHIVE_PROJECT_ROOT)/include
-	fusesoc library add basejump $(BEEHIVE_PROJECT_ROOT)/protocols/tcp_hw/basejump_files
-	fusesoc library add buckfast_common_inc $(BEEHIVE_PROJECT_ROOT)/protocols/tcp_hw/include/common
 	fusesoc library add buckfast_common $(BEEHIVE_PROJECT_ROOT)/protocols/tcp_hw/common
 	fusesoc library add beehive_noc $(BEEHIVE_PROJECT_ROOT)/beehive_noc
 	fusesoc library add buckfast_front $(BEEHIVE_PROJECT_ROOT)/protocols/tcp_hw/frontend

@@ -32,6 +32,7 @@ TOP_CORE_NAME = uwcse:beehive:udp_echo:0.1
 include $(shell cocotb-config --makefiles)/Makefile.sim
 
 export BEEHIVE_DESIGN_ROOT=$(PWD)
+export DESIGN_ROOT=$(BEEHIVE_DESIGN_ROOT)
 
 include $(BEEHIVE_PROJECT_ROOT)/util/scripts/fusesoc_file_gen/Makefile
 
@@ -41,18 +42,15 @@ init_fusesoc:
 	echo "[main]" > fusesoc.conf
 	echo "cache_root = $(PWD)" >> fusesoc.conf
 	fusesoc library add pyhp_generator $(BEEHIVE_PROJECT_ROOT)/tile_generator
-	fusesoc library add udp_echo $(BEEHIVE_PROJECT_ROOT)/cocotb_testing/udp_echo
 	fusesoc library add network_components $(BEEHIVE_PROJECT_ROOT)/network_tiles
 	fusesoc library add beehive_msgs $(BEEHIVE_PROJECT_ROOT)/include
 	fusesoc library add beehive_apps $(BEEHIVE_PROJECT_ROOT)/apps
 	fusesoc library add beehive_util $(BEEHIVE_PROJECT_ROOT)/util
-	fusesoc library add tcp $(BEEHIVE_PROJECT_ROOT)/protocols/tcp_hw
-	fusesoc library add basejump $(BEEHIVE_PROJECT_ROOT)/protocols/tcp_hw/basejump_files
-	fusesoc library add buckfast_common_inc $(BEEHIVE_PROJECT_ROOT)/protocols/tcp_hw/include/common
-	fusesoc library add buckfast_common $(BEEHIVE_PROJECT_ROOT)/protocols/tcp_hw/common
 	fusesoc library add beehive_noc $(BEEHIVE_PROJECT_ROOT)/beehive_noc
 	fusesoc library add buckfast_front $(BEEHIVE_PROJECT_ROOT)/protocols/tcp_hw/frontend
-	fusesoc library add beehive_topology $(BEEHIVE_PROJECT_ROOT)/cocotb_testing/udp_echo/include
+	fusesoc library add buckfast_common $(BEEHIVE_PROJECT_ROOT)/protocols/tcp_hw/common
+	fusesoc library add tcp_inc	$(BEEHIVE_PROJECT_ROOT)/protocols/tcp_hw/include/tcp
+	fusesoc library add udp_echo $(BEEHIVE_PROJECT_ROOT)/cocotb_testing/udp_echo
 
 clean::
 	rm -rf build/ generated/ modelsim.ini results.xml transcript vsim.wlf __pycache__

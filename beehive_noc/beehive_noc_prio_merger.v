@@ -32,7 +32,7 @@ module beehive_noc_prio_merger #(
      parameter NOC_DATA_W = 512
     ,parameter MSG_PAYLOAD_LEN = 22
     ,parameter MSG_LEN_HI = 477
-    ,parameter MSG_LEN_LO = MSG_LEN_HI - MSG_PAYLOAD_LEN
+    ,parameter MSG_LEN_LO = MSG_LEN_HI - (MSG_PAYLOAD_LEN - 1)
     ,parameter   [2:0]  num_sources = 3'd1      // Maximum source number is fixed to 5
 ) (   
     input                           clk,

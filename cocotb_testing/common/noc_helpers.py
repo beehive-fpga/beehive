@@ -50,6 +50,10 @@ class BeehiveFlit():
         binary_field = getattr(self, field)
         binary_field.assign(value)
 
+    def get_field(self, field):
+        binary_field = getattr(self, field)
+        return binary_field
+
     def flit_from_bitstring(self, bitstring):
         bitstr_index = 0
         for (field, width) in self.fields.items():

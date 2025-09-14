@@ -27,8 +27,7 @@
 // Author: Fei Gao
 // Description: Split the noc message to different destination based on the fbits
 
-// NoC msg with unspecified fbits will not be received: 
-// the ready signal keeps low, and it will block the router
+// The splitter with FBITS unspecified by a parameter will be sent out a default port
 module beehive_noc_fbits_splitter #(
      parameter                      NOC_FBITS_W = 4
     ,parameter                      NOC_DATA_W = 512
@@ -42,7 +41,6 @@ module beehive_noc_fbits_splitter #(
     ,parameter  [NOC_FBITS_W-1:0]   fbits_type1 = 0
     ,parameter  [NOC_FBITS_W-1:0]   fbits_type2 = 0
     ,parameter  [NOC_FBITS_W-1:0]   fbits_type3 = 0
-    ,parameter  [NOC_FBITS_W-1:0]   fbits_type4 = 0     // Maximum target number is fixed to 5
 ) (
     input                          clk,
     input                          rst_n,
@@ -67,9 +65,9 @@ module beehive_noc_fbits_splitter #(
     output      [NOC_DATA_W-1:0]    splitter_dst3_vr_noc_dat,
     input                           dst3_splitter_vr_noc_rdy,
 
-    output reg                      splitter_dst4_vr_noc_val,
-    output      [NOC_DATA_W-1:0]    splitter_dst4_vr_noc_dat,
-    input                           dst4_splitter_vr_noc_rdy
+    output reg                      splitter_catch_vr_noc_val,
+    output      [NOC_DATA_W-1:0]    splitter_catch_vr_noc_dat,
+    input                           catch_splitter_vr_noc_rdy
 
 );
 
@@ -78,16 +76,24 @@ module beehive_noc_fbits_splitter #(
     localparam COUNT_TYPE1 = 3'd2;
     localparam COUNT_TYPE2 = 3'd3;
     localparam COUNT_TYPE3 = 3'd4;
-    localparam COUNT_TYPE4 = 3'd5;
+    localparam COUNT_CATCH = 3'd5;
     
     reg [2:0] state_reg;
     reg [2:0] state_next;
+
+    logic   [4-1:0] vals;
+    logic   [num_sources-1:0] used_vals;
     
     reg [MSG_PAYLOAD_LEN-1:0] count_reg;
     reg [MSG_PAYLOAD_LEN-1:0] count_next;
 
     logic   [NOC_FBITS_W-1:0] fbits_debug_value;
     assign fbits_debug_value = src_splitter_vr_noc_dat[FBITS_HI:FBITS_LO];
+
+    assign vals = {splitter_dst3_vr_noc_val, splitter_dst2_vr_noc_val,
+                    splitter_dst1_vr_noc_val, splitter_dst0_vr_noc_val};
+
+    assign used_vals = vals[0 +: num_sources];
     
     always @(posedge clk) begin
         if (~rst_n) begin
@@ -106,14 +112,14 @@ module beehive_noc_fbits_splitter #(
     assign splitter_dst1_vr_noc_dat = src_splitter_vr_noc_dat;
     assign splitter_dst2_vr_noc_dat = src_splitter_vr_noc_dat;
     assign splitter_dst3_vr_noc_dat = src_splitter_vr_noc_dat;
-    assign splitter_dst4_vr_noc_dat = src_splitter_vr_noc_dat;
+    assign splitter_catch_vr_noc_dat = src_splitter_vr_noc_dat;
     
     always @* begin
         splitter_dst0_vr_noc_val = 0;    
         splitter_dst1_vr_noc_val = 0;
         splitter_dst2_vr_noc_val = 0;
         splitter_dst3_vr_noc_val = 0;
-        splitter_dst4_vr_noc_val = 0;
+        splitter_catch_vr_noc_val = 0;
     
         case (state_reg)
         IDLE: begin
@@ -132,17 +138,13 @@ module beehive_noc_fbits_splitter #(
                                         & ~splitter_dst0_vr_noc_val
                                         & ~splitter_dst1_vr_noc_val
                                         & ~splitter_dst2_vr_noc_val;
-            splitter_dst4_vr_noc_val = src_splitter_vr_noc_val & (src_splitter_vr_noc_dat[FBITS_HI:FBITS_LO] == fbits_type4) & (num_targets > 4)
-                                        & ~splitter_dst0_vr_noc_val
-                                        & ~splitter_dst1_vr_noc_val
-                                        & ~splitter_dst2_vr_noc_val
-                                        & ~splitter_dst3_vr_noc_val;                      // Conservative design, in case different fbits_types are set to a same value
+            splitter_catch_vr_noc_val = src_splitter_vr_noc_val & (used_vals == 0);
     
             splitter_src_vr_noc_rdy =  (splitter_dst0_vr_noc_val & dst0_splitter_vr_noc_rdy) | 
                                     (splitter_dst1_vr_noc_val & dst1_splitter_vr_noc_rdy) |
                                     (splitter_dst2_vr_noc_val & dst2_splitter_vr_noc_rdy) |
                                     (splitter_dst3_vr_noc_val & dst3_splitter_vr_noc_rdy) |
-                                    (splitter_dst4_vr_noc_val & dst4_splitter_vr_noc_rdy) ;
+                                    (splitter_catch_vr_noc_val & catch_splitter_vr_noc_rdy) ;
     
             state_next =    (|src_splitter_vr_noc_dat[MSG_LEN_HI:MSG_LEN_LO] == 0) 
                             ? (IDLE) 
@@ -154,7 +156,7 @@ module beehive_noc_fbits_splitter #(
                             ? (COUNT_TYPE2)
                             : (splitter_dst3_vr_noc_val & dst3_splitter_vr_noc_rdy)
                             ? (COUNT_TYPE3)
-                            : (splitter_dst4_vr_noc_val & dst4_splitter_vr_noc_rdy)
+                            : (splitter_catch_vr_noc_val & catch_splitter_vr_noc_rdy)
                             ? (COUNT_TYPE4) 
                             : (IDLE);
         end
@@ -186,12 +188,12 @@ module beehive_noc_fbits_splitter #(
             count_next = (splitter_dst3_vr_noc_val & dst3_splitter_vr_noc_rdy) ? (count_reg - 1'b1) : count_reg;
             state_next = (count_next == {MSG_PAYLOAD_LEN{1'b0}}) ? IDLE : COUNT_TYPE3;
         end
-        COUNT_TYPE4: begin
-            splitter_dst4_vr_noc_val = src_splitter_vr_noc_val;
-            splitter_src_vr_noc_rdy = dst4_splitter_vr_noc_rdy;
+        COUNT_CATCH: begin
+            splitter_catch_vr_noc_val = src_splitter_vr_noc_val;
+            splitter_src_vr_noc_rdy = catch_splitter_vr_noc_rdy;
     
-            count_next = (splitter_dst4_vr_noc_val & dst4_splitter_vr_noc_rdy) ? (count_reg - 1'b1) : count_reg;
-            state_next = (count_next == {MSG_PAYLOAD_LEN{1'b0}}) ? IDLE : COUNT_TYPE4;
+            count_next = (splitter_catch_vr_noc_val & catch_splitter_vr_noc_rdy) ? (count_reg - 1'b1) : count_reg;
+            state_next = (count_next == {MSG_PAYLOAD_LEN{1'b0}}) ? IDLE : COUNT_CATCH;
         end
         default: begin
             count_next = {MSG_PAYLOAD_LEN{1'b0}};

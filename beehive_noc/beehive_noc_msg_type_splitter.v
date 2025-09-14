@@ -34,9 +34,9 @@ module beehive_noc_msg_type_splitter #(
     ,parameter                      NOC_DATA_W = 512
     ,parameter                      MSG_PAYLOAD_LEN = 22
     ,parameter                      MSG_LEN_HI = 477
-    ,parameter                      MSG_LEN_LO = MSG_LEN_HI - MSG_PAYLOAD_LEN - 1
+    ,parameter                      MSG_LEN_LO = MSG_LEN_HI - MSG_PAYLOAD_LEN - 2
     ,parameter                      MSG_TYPE_HI = 455
-    ,parameter                      MSG_TYPE_LO = MSG_TYPE_HI - MSG_TYPE_W - 1
+    ,parameter                      MSG_TYPE_LO = MSG_TYPE_HI - MSG_TYPE_W - 2
     ,parameter  [2:0]               num_targets = 3'd1
     ,parameter  [MSG_TYPE_W-1:0]    msg_type0 = 0    // Processor
     ,parameter  [MSG_TYPE_W-1:0]    msg_type1 = 0
@@ -44,32 +44,32 @@ module beehive_noc_msg_type_splitter #(
     ,parameter  [MSG_TYPE_W-1:0]    msg_type3 = 0
     ,parameter  [MSG_TYPE_W-1:0]    msg_type4 = 0     // Maximum target number is fixed to 5
 ) (
-    input                               clk,
-    input                               rst_n,
+     input                               clk
+    ,input                               rst_n
 
-    input                               src_splitter_vr_noc_val,
-    input       [NOC_DATA_W-1:0]   src_splitter_vr_noc_dat,
-    output reg                          splitter_src_vr_noc_rdy,
+    ,input                               src_splitter_vr_noc_val
+    ,input       [NOC_DATA_W-1:0]   src_splitter_vr_noc_dat
+    ,output reg                          splitter_src_vr_noc_rdy
 
-    output reg                          splitter_dst0_vr_noc_val,
-    output      [NOC_DATA_W-1:0]   splitter_dst0_vr_noc_dat,
-    input                               dst0_splitter_vr_noc_rdy,
+    ,output reg                          splitter_dst0_vr_noc_val
+    ,output      [NOC_DATA_W-1:0]   splitter_dst0_vr_noc_dat
+    ,input                               dst0_splitter_vr_noc_rdy
 
-    output reg                          splitter_dst1_vr_noc_val,
-    output      [NOC_DATA_W-1:0]   splitter_dst1_vr_noc_dat,
-    input                               dst1_splitter_vr_noc_rdy,
+    ,output reg                          splitter_dst1_vr_noc_val
+    ,output      [NOC_DATA_W-1:0]   splitter_dst1_vr_noc_dat
+    ,input                               dst1_splitter_vr_noc_rdy
 
-    output reg                          splitter_dst2_vr_noc_val,
-    output      [NOC_DATA_W-1:0]   splitter_dst2_vr_noc_dat,
-    input                               dst2_splitter_vr_noc_rdy,
+    ,output reg                          splitter_dst2_vr_noc_val
+    ,output      [NOC_DATA_W-1:0]   splitter_dst2_vr_noc_dat
+    ,input                               dst2_splitter_vr_noc_rdy
 
-    output reg                          splitter_dst3_vr_noc_val,
-    output      [NOC_DATA_W-1:0]   splitter_dst3_vr_noc_dat,
-    input                               dst3_splitter_vr_noc_rdy,
+    ,output reg                          splitter_dst3_vr_noc_val
+    ,output      [NOC_DATA_W-1:0]   splitter_dst3_vr_noc_dat
+    ,input                               dst3_splitter_vr_noc_rdy
 
-    output reg                          splitter_dst4_vr_noc_val,
-    output      [NOC_DATA_W-1:0]   splitter_dst4_vr_noc_dat,
-    input                               dst4_splitter_vr_noc_rdy
+    ,output reg                          splitter_dst4_vr_noc_val
+    ,output      [NOC_DATA_W-1:0]   splitter_dst4_vr_noc_dat
+    ,input                               dst4_splitter_vr_noc_rdy
 
 );
 

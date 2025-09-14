@@ -17,6 +17,7 @@ noc_if_generator = NocInterfaceGen()
 module tcp_tiles_wrap 
 import tcp_pkg::*;
 import tcp_misc_pkg::*;
+import mem_msg_pkg::*;
 #(
      parameter TCP_RX_SRC_X = -1
     ,parameter TCP_RX_SRC_Y = -1
@@ -26,6 +27,10 @@ import tcp_misc_pkg::*;
     ,parameter TCP_TX_SRC_Y = -1
     ,parameter TCP_TX_DRAM_X = -1
     ,parameter TCP_TX_DRAM_Y = -1
+    ,parameter MGMT_X = -1
+    ,parameter MGMT_Y = -1
+    ,parameter FALAFEL_X = -1
+    ,parameter FALAFEL_Y = -1
 )(
      input clk
     ,input rst
@@ -97,9 +102,16 @@ import tcp_misc_pkg::*;
     logic   [RX_PAYLOAD_PTR_W:0]            commit_ptr_store_buf_rd_resp_data;
     logic                                   store_buf_commit_ptr_rd_resp_rdy;
     
+    logic                               store_buf_base_addr_rd_req_val;
+    logic   [FLOWID_W-1:0]              store_buf_base_addr_rd_req_addr;
+    logic                               base_addr_store_buf_rd_req_rdy;
+
+    logic                               base_addr_store_buf_rd_resp_val;
+    vaddr_t                             base_addr_store_buf_rd_resp_data;
+    logic                               store_buf_base_addr_rd_resp_rdy;
+    
     logic                               app_new_flow_notif_val;
-    logic   [FLOWID_W-1:0]              app_new_flow_flowid;
-    four_tuple_struct                   app_new_flow_lookup;
+    app_new_flow_info                   app_new_flow_notif_info;
     logic                               app_new_flow_notif_rdy;
     
     logic                               app_tail_ptr_tx_wr_req_val;
@@ -155,6 +167,10 @@ import tcp_misc_pkg::*;
         ,.SRC_Y     (TCP_RX_SRC_Y   )
         ,.RX_DRAM_X (TCP_RX_DRAM_X  )
         ,.RX_DRAM_Y (TCP_RX_DRAM_Y  )
+        ,.MGMT_X    (MGMT_X         )
+        ,.MGMT_Y    (MGMT_Y         )
+        ,.FALAFEL_X (FALAFEL_X      )
+        ,.FALAFEL_Y (FALAFEL_Y      )
     ) tcp_rx_tile (
          .clk   (clk)
         ,.rst   (rst)
@@ -165,7 +181,7 @@ import tcp_misc_pkg::*;
     module="tcp_rx", nocs=tile_config.nocs)
     print(noc_ports)
 %>
-                                                                                    
+
         ,.tcp_format_dst_rx_hdr_val                 (tcp_format_tmp_buf_rx_hdr_val              )
         ,.tcp_format_dst_rx_src_ip                  (tcp_format_tmp_buf_rx_src_ip               )
         ,.tcp_format_dst_rx_dst_ip                  (tcp_format_tmp_buf_rx_dst_ip               )
@@ -178,58 +194,65 @@ import tcp_misc_pkg::*;
         ,.tcp_format_dst_rx_last                    (tcp_format_tmp_buf_rx_last                 )
         ,.tcp_format_dst_rx_padbytes                (tcp_format_tmp_buf_rx_padbytes             )
         ,.dst_tcp_format_rx_data_rdy                (tmp_buf_tcp_format_rx_data_rdy             )
-    
+
         ,.read_store_buf_q_req_val                  (read_store_buf_q_req_val                   )
         ,.read_store_buf_q_req_data                 (read_store_buf_q_req_data                  )
         ,.read_store_buf_q_empty                    (read_store_buf_q_empty                     )
-                                                                                                
+
         ,.store_buf_tmp_buf_store_rx_rd_req_val     (store_buf_tmp_buf_store_rx_rd_req_val      )
         ,.store_buf_tmp_buf_store_rx_rd_req_addr    (store_buf_tmp_buf_store_rx_rd_req_addr     )
         ,.tmp_buf_store_store_buf_rx_rd_req_rdy     (tmp_buf_store_store_buf_rx_rd_req_rdy      )
-                                                                                                
+
         ,.tmp_buf_store_store_buf_rx_rd_resp_val    (tmp_buf_store_store_buf_rx_rd_resp_val     )
         ,.tmp_buf_store_store_buf_rx_rd_resp_data   (tmp_buf_store_store_buf_rx_rd_resp_data    )
         ,.store_buf_tmp_buf_store_rx_rd_resp_rdy    (store_buf_tmp_buf_store_rx_rd_resp_rdy     )
-                                                                                                
+
         ,.store_buf_tmp_buf_free_slab_rx_req_val    (store_buf_tmp_buf_free_slab_rx_req_val     )
         ,.store_buf_tmp_buf_free_slab_rx_req_addr   (store_buf_tmp_buf_free_slab_rx_req_addr    )
         ,.tmp_buf_free_slab_store_buf_rx_req_rdy    (tmp_buf_free_slab_store_buf_rx_req_rdy     )
-                                                                                                
+
         ,.store_buf_commit_ptr_rd_req_val           (store_buf_commit_ptr_rd_req_val            )
         ,.store_buf_commit_ptr_rd_req_flowid        (store_buf_commit_ptr_rd_req_addr           )
         ,.commit_ptr_store_buf_rd_req_rdy           (commit_ptr_store_buf_rd_req_rdy            )
-                                                                                                
+
         ,.commit_ptr_store_buf_rd_resp_val          (commit_ptr_store_buf_rd_resp_val           )
         ,.commit_ptr_store_buf_rd_resp_data         (commit_ptr_store_buf_rd_resp_data          )
         ,.store_buf_commit_ptr_rd_resp_rdy          (store_buf_commit_ptr_rd_resp_rdy           )
-                                                                                                
+
+        ,.store_buf_base_addr_rd_req_val            (store_buf_base_addr_rd_req_val             )
+        ,.store_buf_base_addr_rd_req_addr           (store_buf_base_addr_rd_req_addr            )
+        ,.base_addr_store_buf_rd_req_rdy            (base_addr_store_buf_rd_req_rdy             )
+
+        ,.base_addr_store_buf_rd_resp_val           (base_addr_store_buf_rd_resp_val            )
+        ,.base_addr_store_buf_rd_resp_data          (base_addr_store_buf_rd_resp_data           )
+        ,.store_buf_base_addr_rd_resp_rdy           (store_buf_base_addr_rd_resp_rdy            )
+
         ,.store_buf_commit_ptr_wr_req_val           (store_buf_commit_ptr_wr_req_val            )
         ,.store_buf_commit_ptr_wr_req_flowid        (store_buf_commit_ptr_wr_req_flowid         )
         ,.store_buf_commit_ptr_wr_req_data          (store_buf_commit_ptr_wr_req_data           )
         ,.commit_ptr_store_buf_wr_req_rdy           (commit_ptr_store_buf_wr_req_rdy            )
 
         ,.app_new_flow_notif_val                    (app_new_flow_notif_val                     )
-        ,.app_new_flow_lookup                       (app_new_flow_lookup                        )
-        ,.app_new_flow_flowid                       (app_new_flow_flowid                        )
+        ,.app_new_flow_notif_info                   (app_new_flow_notif_info                    )
         ,.app_new_flow_notif_rdy                    (app_new_flow_notif_rdy                     )
-    
+
         ,.app_rx_head_ptr_wr_req_val                (app_rx_head_ptr_wr_req_val                 )
         ,.app_rx_head_ptr_wr_req_addr               (app_rx_head_ptr_wr_req_addr                )
         ,.app_rx_head_ptr_wr_req_data               (app_rx_head_ptr_wr_req_data                )
         ,.rx_head_ptr_app_wr_req_rdy                (rx_head_ptr_app_wr_req_rdy                 )
-                                                                                                
+
         ,.app_rx_head_ptr_rd_req_val                (app_rx_head_ptr_rd_req_val                 )
         ,.app_rx_head_ptr_rd_req_addr               (app_rx_head_ptr_rd_req_addr                )
         ,.rx_head_ptr_app_rd_req_rdy                (rx_head_ptr_app_rd_req_rdy                 )
-                                                                                                
+
         ,.rx_head_ptr_app_rd_resp_val               (rx_head_ptr_app_rd_resp_val                )
         ,.rx_head_ptr_app_rd_resp_data              (rx_head_ptr_app_rd_resp_data               )
         ,.app_rx_head_ptr_rd_resp_rdy               (app_rx_head_ptr_rd_resp_rdy                )
-                                                                                                
+
         ,.app_rx_commit_ptr_rd_req_val              (app_rx_commit_ptr_rd_req_val               )
         ,.app_rx_commit_ptr_rd_req_addr             (app_rx_commit_ptr_rd_req_addr              )
         ,.rx_commit_ptr_app_rd_req_rdy              (rx_commit_ptr_app_rd_req_rdy               )
-                                                                                                
+
         ,.rx_commit_ptr_app_rd_resp_val             (rx_commit_ptr_app_rd_resp_val              )
         ,.rx_commit_ptr_app_rd_resp_data            (rx_commit_ptr_app_rd_resp_data             )
         ,.app_rx_commit_ptr_rd_resp_rdy             (app_rx_commit_ptr_rd_resp_rdy              )
@@ -265,8 +288,7 @@ import tcp_misc_pkg::*;
         ,.dst_send_tx_rdy                       (dst_send_tx_rdy                            )
 
         ,.app_new_flow_notif_val                (app_new_flow_notif_val                     )
-        ,.app_new_flow_flowid                   (app_new_flow_flowid                        )
-        ,.app_new_flow_lookup                   (app_new_flow_lookup                        )
+        ,.app_new_flow_notif_info               (app_new_flow_notif_info                    )
         ,.app_new_flow_notif_rdy                (app_new_flow_notif_rdy                     )
         
         ,.rx_store_buf_q_rd_req_val             (read_store_buf_q_req_val                   )
@@ -341,6 +363,14 @@ import tcp_misc_pkg::*;
         ,.commit_ptr_store_buf_rd_resp_val      (commit_ptr_store_buf_rd_resp_val           )
         ,.commit_ptr_store_buf_rd_resp_data     (commit_ptr_store_buf_rd_resp_data          )
         ,.store_buf_commit_ptr_rd_resp_rdy      (store_buf_commit_ptr_rd_resp_rdy           )
+    
+        ,.store_buf_base_addr_rd_req_val        (store_buf_base_addr_rd_req_val             )
+        ,.store_buf_base_addr_rd_req_addr       (store_buf_base_addr_rd_req_addr            )
+        ,.base_addr_store_buf_rd_req_rdy        (base_addr_store_buf_rd_req_rdy             )
+
+        ,.base_addr_store_buf_rd_resp_val       (base_addr_store_buf_rd_resp_val            )
+        ,.base_addr_store_buf_rd_resp_data      (base_addr_store_buf_rd_resp_data           )
+        ,.store_buf_base_addr_rd_resp_rdy       (store_buf_base_addr_rd_resp_rdy            )
 
         ,.app_sched_update_val                  (app_sched_update_val                       )
         ,.app_sched_update_cmd                  (app_sched_update_cmd                       )

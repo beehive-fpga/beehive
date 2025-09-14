@@ -35,32 +35,34 @@ module beehive_noc_prio_merger #(
     ,parameter MSG_LEN_LO = MSG_LEN_HI - (MSG_PAYLOAD_LEN - 1)
     ,parameter   [2:0]  num_sources = 3'd1      // Maximum source number is fixed to 5
 ) (   
-    input                           clk,
-    input                           rst_n,
+    ,input                           clk
+    ,input                           rst_n
 
-    input                           src0_merger_vr_noc_val,   // Highest priority
-    input       [NOC_DATA_W-1:0]    src0_merger_vr_noc_dat,
-    output reg                      merger_src0_vr_noc_rdy,
+     // Highest priority
+    ,input                           src0_merger_vr_noc_val
+    ,input       [NOC_DATA_W-1:0]    src0_merger_vr_noc_dat
+    ,output reg                      merger_src0_vr_noc_rdy
 
-    input                           src1_merger_vr_noc_val,
-    input       [NOC_DATA_W-1:0]    src1_merger_vr_noc_dat,
-    output reg                      merger_src1_vr_noc_rdy,
+    ,input                           src1_merger_vr_noc_val
+    ,input       [NOC_DATA_W-1:0]    src1_merger_vr_noc_dat
+    ,output reg                      merger_src1_vr_noc_rdy
 
-    input                           src2_merger_vr_noc_val,
-    input       [NOC_DATA_W-1:0]    src2_merger_vr_noc_dat,
-    output reg                      merger_src2_vr_noc_rdy,
+    ,input                           src2_merger_vr_noc_val
+    ,input       [NOC_DATA_W-1:0]    src2_merger_vr_noc_dat
+    ,output reg                      merger_src2_vr_noc_rdy
 
-    input                           src3_merger_vr_noc_val,
-    input       [NOC_DATA_W-1:0]    src3_merger_vr_noc_dat,
-    output reg                      merger_src3_vr_noc_rdy,
+    ,input                           src3_merger_vr_noc_val
+    ,input       [NOC_DATA_W-1:0]    src3_merger_vr_noc_dat
+    ,output reg                      merger_src3_vr_noc_rdy
 
-    input                           src4_merger_vr_noc_val,  // Lowest priority
-    input       [NOC_DATA_W-1:0]    src4_merger_vr_noc_dat,
-    output reg                      merger_src4_vr_noc_rdy,
+    // Lowest priority
+    ,input                           src4_merger_vr_noc_val
+    ,input       [NOC_DATA_W-1:0]    src4_merger_vr_noc_dat
+    ,output reg                      merger_src4_vr_noc_rdy
 
-    output reg                      merger_dst_vr_noc_val,   
-    output reg  [NOC_DATA_W-1:0]    merger_dst_vr_noc_dat,
-    input                           dst_merger_vr_noc_rdy
+    ,output reg                      merger_dst_vr_noc_val   
+    ,output reg  [NOC_DATA_W-1:0]    merger_dst_vr_noc_dat
+    ,input                           dst_merger_vr_noc_rdy
 );
 
     localparam num_sources_w  = `BSG_SAFE_CLOG2(num_sources);

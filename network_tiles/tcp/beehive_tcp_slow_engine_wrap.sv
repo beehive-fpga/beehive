@@ -31,8 +31,7 @@ import packet_struct_pkg::*;
     ,input                                      dst_send_tx_rdy
 
     ,output logic                               app_new_flow_notif_val
-    ,output logic   [FLOWID_W-1:0]              app_new_flow_flowid
-    ,output four_tuple_struct                   app_new_flow_lookup
+    ,output app_new_flow_info                   app_new_flow_notif_info
     ,input  logic                               app_new_flow_notif_rdy
     
     ,input  logic                               rx_store_buf_q_rd_req_val
@@ -178,8 +177,7 @@ import packet_struct_pkg::*;
          * App interface
          *******************************/
         ,.app_new_flow_notif_val            (app_new_flow_notif_val             )
-        ,.app_new_flow_flowid               (app_new_flow_flowid                )
-        ,.app_new_flow_entry                (app_new_flow_lookup                )
+        ,.app_new_flow_notif_info           (app_new_flow_notif_info            )
         ,.app_new_flow_notif_rdy            (app_new_flow_notif_rdy             )
         
         ,.app_rx_head_ptr_wr_req_val        (app_rx_head_ptr_wr_req_val         )

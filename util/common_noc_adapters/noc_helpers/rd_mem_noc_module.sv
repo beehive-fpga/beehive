@@ -5,8 +5,8 @@
  */
 `include "noc_defs.vh"
 module rd_mem_noc_module 
-import mem_noc_helper_pkg::*;
-import beehive_noc_msg::*;
+import mem_msg_pkg::*;
+import apiary_noc_msg::*;
 #(
      parameter SRC_X = 0
     ,parameter SRC_Y = 0
@@ -36,11 +36,12 @@ import beehive_noc_msg::*;
     ,input  logic                               src_rd_mem_resp_rdy
 );
 
-    typedef enum logic[1:0] {
-        READY = 2'd0,
-        SEND_RD_REQ = 2'd1,
-        WAIT_RD_RESP = 2'd2,
-        RECV_RD_RESP = 2'd3,
+    typedef enum logic[2:0] {
+        READY = 3'd0,
+        SEND_RD_REQ_HDR = 3'd1,
+        SEND_RD_REQ_BODY = 3'd4,
+        WAIT_RD_RESP = 3'd2,
+        RECV_RD_RESP = 3'd3,
         UND = 'X
     } states_e;
 
@@ -50,8 +51,8 @@ import beehive_noc_msg::*;
     mem_req_struct  req_entry_next;
     mem_req_struct  req_entry_reg;
    
-    dram_noc_hdr_flit                   hdr_flit;
-    dram_noc_hdr_flit                   rd_req_flit;
+    apiary_hdr_flit                   hdr_flit;
+    apiary_hdr_flit                   rd_req_flit;
     dram_noc_hdr_flit                   rd_resp_flit_cast;
     dram_noc_hdr_flit                   rd_resp_flit_next;
     dram_noc_hdr_flit                   rd_resp_flit_reg;
@@ -60,6 +61,7 @@ import beehive_noc_msg::*;
     logic   [`MSG_LENGTH_WIDTH-1:0]     flits_recv_next;
     
     logic   [`NOC_PADBYTES_WIDTH-1:0]   last_padbytes;
+    logic   send_hdr;
 
     assign rd_resp_flit_cast = noc_rd_mem_resp_noc_data;
     assign last_padbytes = req_entry_reg.mem_req_size[`NOC_PADBYTES_WIDTH-1:0] == 0
@@ -81,7 +83,9 @@ import beehive_noc_msg::*;
         end
     end
 
-    assign rd_mem_noc_req_noc_data = hdr_flit;
+    assign rd_mem_noc_req_noc_data = send_hdr
+                                    ? hdr_flit
+                                    : {req_entry_reg, {MEM_REQ_PADDING{1'b0}}};
     assign rd_mem_src_resp_data = noc_rd_mem_resp_noc_data;
 
     always_comb begin
@@ -89,6 +93,7 @@ import beehive_noc_msg::*;
         req_entry_next = req_entry_reg;
         rd_resp_flit_next = rd_resp_flit_reg;
         flits_recv_next = flits_recv_reg;
+        send_hdr = 1'b0;
 
         rd_mem_src_req_rdy = 1'b0;
         rd_mem_noc_req_noc_val = 1'b0;
@@ -103,19 +108,20 @@ import beehive_noc_msg::*;
                 if (src_rd_mem_req_val) begin
                     req_entry_next = src_rd_mem_req_entry;
                     flits_recv_next = '0;
-                    state_next = SEND_RD_REQ;
-                end
-                else begin
-                    state_next = READY;
+                    state_next = SEND_RD_REQ_HDR;
                 end
             end
-            SEND_RD_REQ: begin
+            SEND_RD_REQ_HDR: begin
+                send_hdr = 1'b1;
+                rd_mem_noc_req_noc_val = 1'b1;
+                if (noc_rd_mem_req_noc_rdy) begin
+                    state_next = SEND_RD_REQ_BODY;
+                end
+            end
+            SEND_RD_REQ_BODY: begin
                 rd_mem_noc_req_noc_val = 1'b1;
                 if (noc_rd_mem_req_noc_rdy) begin
                     state_next = WAIT_RD_RESP;
-                end
-                else begin
-                    state_next = SEND_RD_REQ;
                 end
             end
             WAIT_RD_RESP: begin
@@ -166,17 +172,12 @@ import beehive_noc_msg::*;
 
     always_comb begin
         hdr_flit = '0;
-        hdr_flit.core.dst_chip_id = '0;
-        hdr_flit.core.dst_x_coord = DST_DRAM_X[`MSG_DST_X_WIDTH-1:0];
-        hdr_flit.core.dst_y_coord = DST_DRAM_Y[`MSG_DST_Y_WIDTH-1:0];
-        hdr_flit.core.dst_fbits = '0;
-        hdr_flit.core.msg_len = '0;
+        hdr_flit.core.dst_x_coord = '1;
+        hdr_flit.core.dst_y_coord = '1;
+        hdr_flit.core.dst_fbits = MEM_FBITS;
+        hdr_flit.core.msg_len = 1;
         hdr_flit.core.msg_type = `MSG_TYPE_LOAD_MEM;
-
-        hdr_flit.req.addr = req_entry_reg.mem_req_addr;
-        hdr_flit.req.data_size = req_entry_reg.mem_req_size;
         
-        hdr_flit.core.src_chip_id = 'b0;
         hdr_flit.core.src_x_coord = SRC_X[`MSG_SRC_X_WIDTH-1:0];
         hdr_flit.core.src_y_coord = SRC_Y[`MSG_SRC_Y_WIDTH-1:0];
         hdr_flit.core.src_fbits = FBITS;

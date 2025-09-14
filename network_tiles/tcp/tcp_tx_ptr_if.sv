@@ -1,5 +1,7 @@
-`include "tcp_tx_tile_defs.svh"
-module tcp_tx_ptr_if #(
+`include "noc_defs.vh"
+module tcp_tx_ptr_if 
+import tcp_pkg::*;
+#(
      parameter SRC_X = "inv"
     ,parameter SRC_Y = "inv"
 )(
@@ -15,26 +17,26 @@ module tcp_tx_ptr_if #(
     ,input  logic                           noc0_vrtoc_tcp_tx_ptr_if_rdy
     
     ,output logic                           app_tail_ptr_tx_wr_req_val
-    ,output logic   [`FLOW_ID_W-1:0]        app_tail_ptr_tx_wr_req_flowid
-    ,output logic   [`PAYLOAD_PTR_W:0]      app_tail_ptr_tx_wr_req_data
+    ,output logic   [FLOWID_W-1:0]        app_tail_ptr_tx_wr_req_flowid
+    ,output logic   [PAYLOAD_PTR_W:0]      app_tail_ptr_tx_wr_req_data
     ,input                                  tail_ptr_app_tx_wr_req_rdy
     
     ,output logic                           app_tail_ptr_tx_rd_req_val
-    ,output logic   [`FLOW_ID_W-1:0]        app_tail_ptr_tx_rd_req_flowid
+    ,output logic   [FLOWID_W-1:0]        app_tail_ptr_tx_rd_req_flowid
     ,input  logic                           tail_ptr_app_tx_rd_req_rdy
 
     ,input                                  tail_ptr_app_tx_rd_resp_val
-    ,input  logic   [`FLOW_ID_W-1:0]        tail_ptr_app_tx_rd_resp_flowid
-    ,input  logic   [`PAYLOAD_PTR_W:0]      tail_ptr_app_tx_rd_resp_data
+    ,input  logic   [FLOWID_W-1:0]        tail_ptr_app_tx_rd_resp_flowid
+    ,input  logic   [PAYLOAD_PTR_W:0]      tail_ptr_app_tx_rd_resp_data
     ,output logic                           app_tail_ptr_tx_rd_resp_rdy
 
     ,output                                 app_head_ptr_tx_rd_req_val
-    ,output         [`FLOW_ID_W-1:0]        app_head_ptr_tx_rd_req_flowid
+    ,output         [FLOWID_W-1:0]        app_head_ptr_tx_rd_req_flowid
     ,input  logic                           head_ptr_app_tx_rd_req_rdy
 
     ,input                                  head_ptr_app_tx_rd_resp_val
-    ,input  logic   [`FLOW_ID_W-1:0]        head_ptr_app_tx_rd_resp_flowid
-    ,input  logic   [`PAYLOAD_PTR_W:0]      head_ptr_app_tx_rd_resp_data
+    ,input  logic   [FLOWID_W-1:0]        head_ptr_app_tx_rd_resp_flowid
+    ,input  logic   [PAYLOAD_PTR_W:0]      head_ptr_app_tx_rd_resp_data
     ,output logic                           app_head_ptr_tx_rd_resp_rdy
 );
     

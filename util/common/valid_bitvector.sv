@@ -1,6 +1,7 @@
 module valid_bitvector #(
      parameter BITVECTOR_SIZE = 64
     ,parameter BITVECTOR_INDEX_W = $clog2(BITVECTOR_SIZE)
+    ,parameter INIT_TO_ONE = 1
 )(
      input clk
     ,input rst
@@ -24,7 +25,12 @@ module valid_bitvector #(
 
     always_ff @(posedge clk) begin
         if (rst) begin
-            valid_bits_reg <= '0;
+            if (INIT_TO_ONE) begin
+                valid_bits_reg <= '1;
+            end
+            else begin
+                valid_bits_reg <= '0;
+            end
         end
         else begin
             valid_bits_reg <= valid_bits_next;

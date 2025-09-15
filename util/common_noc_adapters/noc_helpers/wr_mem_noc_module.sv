@@ -5,7 +5,7 @@
  */
 `include "noc_defs.vh"
 module wr_mem_noc_module 
-import apiary_noc_msg::*;
+import beehive_noc_msg::*;
 import mem_msg_pkg::*;
 #(
      parameter SRC_X = 0
@@ -39,11 +39,9 @@ import mem_msg_pkg::*;
     ,input  logic                               wr_req_done_rdy
 );
 
-    localparam MEM_ENTRY_PADDING = `NOC_DATA_WIDTH - MEM_REQ_STRUCT_W;
     typedef enum logic[2:0] {
         READY = 3'd0,
         SEND_WR_HDR = 3'd1,
-        SEND_WR_BODY = 3'd5,
         SEND_WR_PAYLOAD = 3'd2,
         WAIT_WR_RESP = 3'd3,
         OUTPUT_WR_DONE = 3'd4,
@@ -57,7 +55,7 @@ import mem_msg_pkg::*;
     mem_req_struct  req_entry_reg;
     mem_req_struct  req_entry_next;
 
-    apiary_hdr_flit     hdr_flit;
+    dram_noc_hdr_flit   hdr_flit;
     dram_noc_hdr_flit   wr_resp_flit_cast;
     
     logic   [`MSG_LENGTH_WIDTH-1:0]     flits_to_send_reg;
@@ -104,12 +102,14 @@ import mem_msg_pkg::*;
 
                 if (src_wr_mem_req_val) begin
                     req_entry_next = src_wr_mem_req_entry;
-                    // this is the number of payload flits
-                    flits_to_send_next = req_entry_cast.mem_req_size[`NOC_DATA_BYTES_W-1:0] == 0
-                              ? req_entry_cast.mem_req_size >> `NOC_DATA_BYTES_W
-                              : (req_entry_cast.mem_req_size >> `NOC_DATA_BYTES_W) + 1;
+                    flits_to_send_next = req_entry_cast.size[`NOC_DATA_BYTES_W-1:0] == 0
+                              ? req_entry_cast.size >> `NOC_DATA_BYTES_W
+                              : (req_entry_cast.size >> `NOC_DATA_BYTES_W) + 1;
                     flits_sent_next = '0;
                     state_next = SEND_WR_HDR;
+                end
+                else begin
+                    state_next = READY;
                 end
             end
             SEND_WR_HDR: begin
@@ -117,15 +117,10 @@ import mem_msg_pkg::*;
                 wr_mem_noc_req_noc0_data = hdr_flit;
 
                 if (noc_wr_mem_req_noc0_rdy) begin
-                    state_next = SEND_WR_BODY;
-                end
-            end
-            SEND_WR_BODY: begin
-                wr_mem_noc_req_noc0_val = 1'b1;
-                wr_mem_noc_req_noc0_data = {req_entry_reg, {MEM_ENTRY_PADDING{1'b0}}};
-
-                if (noc_wr_mem_req_noc0_rdy) begin
                     state_next = SEND_WR_PAYLOAD;
+                end
+                else begin
+                    state_next = SEND_WR_HDR;
                 end
             end
             SEND_WR_PAYLOAD: begin
@@ -198,9 +193,12 @@ import mem_msg_pkg::*;
         hdr_flit.core.dst_chip_id = '0;
         hdr_flit.core.dst_x_coord = DST_DRAM_X[`MSG_DST_X_WIDTH-1:0];
         hdr_flit.core.dst_y_coord = DST_DRAM_Y[`MSG_DST_Y_WIDTH-1:0];
-        hdr_flit.core.dst_fbits = MEM_FBITS;
-        hdr_flit.core.msg_len = flits_to_send_reg + 1;
+        hdr_flit.core.dst_fbits = '0;
+        hdr_flit.core.msg_len = flits_to_send_reg;
         hdr_flit.core.msg_type = `MSG_TYPE_STORE_MEM;
+
+        hdr_flit.req.addr = req_entry_reg.addr;
+        hdr_flit.req.data_size = req_entry_reg.size;
 
         hdr_flit.core.src_chip_id = '0;
         hdr_flit.core.src_x_coord = SRC_X[`MSG_SRC_X_WIDTH-1:0];

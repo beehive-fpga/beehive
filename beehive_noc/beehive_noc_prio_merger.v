@@ -35,7 +35,7 @@ module beehive_noc_prio_merger #(
     ,parameter MSG_LEN_LO = MSG_LEN_HI - (MSG_PAYLOAD_LEN - 1)
     ,parameter   [2:0]  num_sources = 3'd1      // Maximum source number is fixed to 5
 ) (   
-    ,input                           clk
+     input                           clk
     ,input                           rst_n
 
      // Highest priority

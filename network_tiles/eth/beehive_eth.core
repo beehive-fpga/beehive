@@ -27,6 +27,7 @@ filesets:
             - uwcse:beehive:data_converters
             - uwcse:beehive:router_block
             - uwcse:beehive:l4_extract
+            - uwcse:beehive:topology
         file_type: systemVerilogSource
 
 targets:

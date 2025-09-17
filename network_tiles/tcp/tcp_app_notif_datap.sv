@@ -4,9 +4,13 @@ import tcp_pkg::*;
 import packet_struct_pkg::*;
 import tcp_rx_tile_pkg::*;
 import op_helper_pkg::*;
+import mem_manage_pkg::*;
+import mem_msg_pkg::*;
+import apiary_noc_msg::*;
 #(
      parameter SRC_X = -1
     ,parameter SRC_Y = -1
+    ,parameter MONITOR_DATA_W = -1
 )(
      input clk
     ,input rst
@@ -21,7 +25,7 @@ import op_helper_pkg::*;
 
     ,input  logic   [MONITOR_DATA_W-1:0]    monitor_app_notif_noc_data
 );
-    localparam REQ_CAP_LINE_PADDING = `NOC_DATA_WIDTH - APP_CAP_SEND_STRUCT_W - (2 * APP_CAP_SEND_CMD_STRUCT_W);
+    localparam REQ_CAP_LINE_PADDING = `NOC_DATA_WIDTH - APP_CAP_SEND_W_CAP_STRUCT - (2 * APP_CAP_SEND_CMD_STRUCT_W);
     tcp_notif_cam_entry cam_dst;
 
     tcp_noc_hdr_flit tcp_hdr_flit;
@@ -56,11 +60,11 @@ import op_helper_pkg::*;
          .clk   (clk)
         ,.rst   (rst)
 
-        ,.dst_addr      (lookup_reg.host_ip     )
-        ,.dst_port      (lookup_reg.host_port   )
-        ,.rd_cam_val    (ctrl_datap_read_cam    )
+        ,.dst_addr      (new_flow_info_reg.flow_entry.host_ip   )
+        ,.dst_port      (new_flow_info_reg.flow_entry.host_port )
+        ,.rd_cam_val    (ctrl_datap_read_cam                    )
         
-        ,.rd_cam_data   (cam_dst                )
+        ,.rd_cam_data   (cam_dst                                )
         ,.rd_cam_hit    ()
     );
 
@@ -71,15 +75,15 @@ import op_helper_pkg::*;
         req_hdr_flit.core.dst_fbits = MEM_MANAGE_FBITS;
         req_hdr_flit.core.msg_len = 2;
         req_hdr_flit.core.msg_type = SEND_CAP;
-        req_hdr_flit.src_fbits = TCP_RX_APP_NOTIF_FBITS;
+        req_hdr_flit.core.src_fbits = TCP_RX_APP_NOTIF_FBITS;
     end
 
     always_comb begin
         req_cap_data = '0;
         req_cap_data.sendto_x = cam_dst.dst_x;
         req_cap_data.sendto_y = cam_dst.dst_y;
-        req_cap_data.num_caps = 2;
-        req_cap_data.first_cap = rx_cmd;
+        req_cap_data.sendto_fbits = TCP_RX_APP_NOTIF_FBITS;
+        req_cap_data.num_cmds = 2;
     end
 
     always_comb begin

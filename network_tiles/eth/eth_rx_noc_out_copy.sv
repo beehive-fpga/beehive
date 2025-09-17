@@ -1,5 +1,13 @@
-`include "eth_rx_tile_defs.svh"
-module eth_rx_noc_out_copy #(
+`include "noc_defs.vh"
+`include "packet_defs.vh"
+module eth_rx_noc_out_copy 
+import packet_struct_pkg::*;
+
+import eth_rx_tile_pkg::*;
+import beehive_eth_msg::*;
+import beehive_noc_msg::*;
+import beehive_topology::*;
+#(
      parameter SRC_X = -1
     ,parameter SRC_Y = -1
 )(

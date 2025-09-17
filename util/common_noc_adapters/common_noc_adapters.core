@@ -6,18 +6,13 @@ filesets:
     rtl:
         files:
             - include/to_ip_tx_pkg.sv
-            - include/to_ip_tx_defs.svh: {is_include_file: true}
             - to_ip_tx_noc_out.sv
             - to_ip_tx_noc_out_ctrl.sv
             - to_ip_tx_noc_out_datap.sv
-            - flit_hdr_join.sv
-            - flit_hdr_strip.sv
-            - hdr_flit_modify.sv
         depend:
             - uwcse:beehive:common_msgs
             - uwcse:beehive:openpiton_beehive_noc
             - uwcse:beehive:noc_gearbox
-            - uwcse:beehive:l4_hash
         file_type: systemVerilogSource
 
 targets:

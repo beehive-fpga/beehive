@@ -5,16 +5,12 @@ module tcp_rx_app_if_wrap
      parameter SRC_X = -1
     ,parameter SRC_Y = -1
     ,parameter MONITOR_DATA_W = -1
-)(
+)(     
      input clk
     ,input rst
     
-    ,output logic                           tcp_rx_notif_if_noc0_vrtoc_val
-    ,output logic   [`NOC_DATA_WIDTH-1:0]   tcp_rx_notif_if_noc0_vrtoc_data
-    ,input  logic                           noc0_vrtoc_tcp_rx_notif_if_rdy
-    
     ,input  logic                           app_new_flow_notif_val
-    ,input  logic                           app_new_flow_notif_info
+    ,input  app_new_flow_info               app_new_flow_notif_info
     ,output logic                           app_new_flow_notif_rdy
     
     ,input  logic                           noc_tcp_rx_ptr_if_val
@@ -46,13 +42,13 @@ module tcp_rx_app_if_wrap
     ,input  logic   [RX_PAYLOAD_PTR_W:0]    rx_commit_ptr_app_rd_resp_data
     ,output logic                           app_rx_commit_ptr_rd_resp_rdy
     
-    ,input                                  app_notif_monitor_noc_val
-    ,input  [MONITOR_DATA_W-1:0]            app_notif_monitor_noc_data
-    ,output                                 monitor_app_notif_noc_rdy
+    ,output                                 app_notif_monitor_noc_val
+    ,output [MONITOR_DATA_W-1:0]            app_notif_monitor_noc_data
+    ,input                                  monitor_app_notif_noc_rdy
 
-    ,output                                 monitor_app_notif_noc_val
-    ,output [MONITOR_DATA_W-1:0]            monitor_app_notif_noc_data
-    ,input                                  app_notif_monitor_noc_rdy
+    ,input                                  monitor_app_notif_noc_val
+    ,input  [MONITOR_DATA_W-1:0]            monitor_app_notif_noc_data
+    ,output                                 app_notif_monitor_noc_rdy
 );
     
     logic                           noc_if_poller_msg_req_val;
@@ -80,10 +76,6 @@ module tcp_rx_app_if_wrap
     ) rx_app_notif (
          .clk   (clk    )
         ,.rst   (rst    )
-
-        ,.tcp_rx_notif_if_noc0_vrtoc_val    (tcp_rx_notif_if_noc0_vrtoc_val     )
-        ,.tcp_rx_notif_if_noc0_vrtoc_data   (tcp_rx_notif_if_noc0_vrtoc_data    )
-        ,.noc0_vrtoc_tcp_rx_notif_if_rdy    (noc0_vrtoc_tcp_rx_notif_if_rdy     )
 
         ,.app_new_flow_notif_val            (app_new_flow_notif_val             )
         ,.app_new_flow_notif_info           (app_new_flow_notif_info            )

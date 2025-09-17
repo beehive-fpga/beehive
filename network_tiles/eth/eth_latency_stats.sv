@@ -1,5 +1,10 @@
-`include "eth_latency_stats_defs.svh"
-module eth_latency_stats #(
+`include "noc_defs.vh"
+module eth_latency_stats 
+import beehive_noc_msg::*;
+import beehive_udp_msg::*;
+import beehive_eth_latency_logger_msg::*;
+import eth_latency_stats_pkg::*;
+#(
      parameter SRC_X = -1
     ,parameter SRC_Y = -1
     ,parameter NOC1_DATA_W=-1

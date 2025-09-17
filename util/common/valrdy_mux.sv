@@ -11,7 +11,7 @@ module valrdy_mux #(
 
     ,output                         val_dst_o
     ,output [DATA_W-1:0]            data_dst_o
-    ,input  [ELS_P-1:0]             dst_rdy_i
+    ,input                          dst_rdy_i
 );
 
     bsg_mux #(
@@ -32,13 +32,14 @@ module valrdy_mux #(
         ,.data_o    (data_dst_o )
     );
 
-    bsg_mux #(
-         .width_p   (1      )
-        ,.els_p     (ELS_P  )
-    ) rdys_mux (
-         .data_i    (dst_rdy_i  )
-        ,.sel_i     (sel_i      )
-        ,.data_o    (rdys_src_o )
+
+    demux #(
+         .NUM_OUTPUTS   (ELS_P  )
+        ,.INPUT_WIDTH   (1)
+    ) rdys_demux (
+         .input_sel   (sel_i    )
+        ,.data_input  (dst_rdy_i    )
+        ,.data_outputs(rdys_src_o   )
     );
 
 endmodule

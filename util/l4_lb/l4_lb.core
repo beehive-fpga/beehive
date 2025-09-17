@@ -1,0 +1,20 @@
+CAPI=2:
+name: uwcse:beehive:l4_lb:0.1
+description: Reusable components for L4 load balancing internal to Beehive
+
+filesets:
+    rtl:
+        files:
+            - flit_hdr_join.sv
+            - flit_hdr_strip.sv
+            - hdr_flit_modify.sv
+        depend:
+            - uwcse:beehive:common_msgs
+            - uwcse:beehive:openpiton_beehive_noc
+            - uwcse:beehive:noc_gearbox
+            - uwcse:beehive:l4_hash
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]

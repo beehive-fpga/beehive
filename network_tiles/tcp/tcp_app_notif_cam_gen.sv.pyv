@@ -1,5 +1,8 @@
-`include "tcp_rx_tile_defs.svh"
-module tcp_app_notif_cam (
+`include "noc_defs.vh"
+`include "packet_defs.vh"
+module tcp_app_notif_cam 
+import beehive_topology::*;
+(
      input clk
     ,input rst
 
@@ -19,7 +22,7 @@ sys.path.append(os.environ["BEEHIVE_PROJECT_ROOT"] + "/tile_generator/")
 from tile_generator import BeehiveConfig
 import logging
 logging.basicConfig(level=logging.INFO)
-design_path = os.environ["BEEHIVE_DESIGN_ROOT"]
+design_path = os.environ["DESIGN_ROOT"]
 logging.info(f"Using tile config at {design_path}")
 tile_config = BeehiveConfig(design_path + "/tile_config.xml")
 %>

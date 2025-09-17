@@ -28,7 +28,7 @@
 // Description: Split the noc message to different destination based on the fbits
 
 // The splitter with FBITS unspecified by a parameter will be sent out a default port
-module beehive_noc_fbits_splitter #(
+module beehive_noc_fbits_splitter_catch#(
      parameter                      NOC_FBITS_W = 4
     ,parameter                      NOC_DATA_W = 512
     ,parameter                      MSG_PAYLOAD_LEN = 22
@@ -71,18 +71,20 @@ module beehive_noc_fbits_splitter #(
 
 );
 
-    localparam IDLE = 3'd0;
-    localparam COUNT_TYPE0 = 3'd1;
-    localparam COUNT_TYPE1 = 3'd2;
-    localparam COUNT_TYPE2 = 3'd3;
-    localparam COUNT_TYPE3 = 3'd4;
-    localparam COUNT_CATCH = 3'd5;
-    
-    reg [2:0] state_reg;
-    reg [2:0] state_next;
+    typedef enum logic[2:0] {
+        IDLE = 3'd0,
+        COUNT_TYPE0 = 3'd1,
+        COUNT_TYPE1 = 3'd2,
+        COUNT_TYPE2 = 3'd3,
+        COUNT_TYPE3 = 3'd4,
+        COUNT_CATCH = 3'd5
+    } state_e;
+
+    state_e state_reg;
+    state_e state_next;
 
     logic   [4-1:0] vals;
-    logic   [num_sources-1:0] used_vals;
+    logic   [num_targets-1:0] used_vals;
     
     reg [MSG_PAYLOAD_LEN-1:0] count_reg;
     reg [MSG_PAYLOAD_LEN-1:0] count_next;
@@ -93,7 +95,7 @@ module beehive_noc_fbits_splitter #(
     assign vals = {splitter_dst3_vr_noc_val, splitter_dst2_vr_noc_val,
                     splitter_dst1_vr_noc_val, splitter_dst0_vr_noc_val};
 
-    assign used_vals = vals[0 +: num_sources];
+    assign used_vals = vals[0 +: num_targets];
     
     always @(posedge clk) begin
         if (~rst_n) begin
@@ -102,7 +104,7 @@ module beehive_noc_fbits_splitter #(
         end
         else begin
             state_reg <= state_next;
-            if ((state_next >= COUNT_TYPE0) && (state_next <= COUNT_TYPE4)) begin
+            if (state_next != IDLE) begin
                 count_reg <= count_next;
             end
         end
@@ -157,7 +159,7 @@ module beehive_noc_fbits_splitter #(
                             : (splitter_dst3_vr_noc_val & dst3_splitter_vr_noc_rdy)
                             ? (COUNT_TYPE3)
                             : (splitter_catch_vr_noc_val & catch_splitter_vr_noc_rdy)
-                            ? (COUNT_TYPE4) 
+                            ? (COUNT_CATCH) 
                             : (IDLE);
         end
         COUNT_TYPE0: begin

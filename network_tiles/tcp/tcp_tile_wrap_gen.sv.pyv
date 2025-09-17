@@ -9,7 +9,7 @@ from tile_generator import BeehiveConfig
 from noc_if_gen import NocInterfaceGen
 import logging
 logging.basicConfig(level=logging.INFO)
-design_path = os.environ["BEEHIVE_DESIGN_ROOT"]
+design_path = os.environ["DESIGN_ROOT"]
 logging.info(f"Using tile config at {design_path}")
 tile_config = BeehiveConfig(design_path + "/tile_config.xml")
 noc_if_generator = NocInterfaceGen()
@@ -48,6 +48,8 @@ import mem_msg_pkg::*;
 %>
 
 );
+
+    localparam MONITOR_DATA_W = `NOC_DATA_WIDTH;
     
     logic                           tcp_format_tmp_buf_rx_hdr_val;
     logic   [`IP_ADDR_W-1:0]        tcp_format_tmp_buf_rx_src_ip;
@@ -64,7 +66,7 @@ import mem_msg_pkg::*;
     logic                           tmp_buf_tcp_format_rx_data_rdy;
 
     logic                           send_dst_tx_val;
-    logic   [FLOWID_W-1:0]        send_dst_tx_flowid;
+    vaddr_t                         send_dst_tx_base_addr;
     logic   [`IP_ADDR_W-1:0]        send_dst_tx_src_ip;
     logic   [`IP_ADDR_W-1:0]        send_dst_tx_dst_ip;
     tcp_pkt_hdr                     send_dst_tx_tcp_hdr;
@@ -162,6 +164,22 @@ import mem_msg_pkg::*;
     sched_cmd_struct                    app_sched_update_cmd;
     logic                               sched_app_update_rdy;
     
+    logic                                   rx_monitor_noc_val;
+    logic   [MONITOR_DATA_W-1:0]            rx_monitor_noc_data;
+    logic                                   monitor_rx_noc_rdy;
+
+    logic                                   monitor_rx_noc_val;
+    logic   [MONITOR_DATA_W-1:0]            monitor_rx_noc_data;
+    logic                                   rx_monitor_noc_rdy;
+    
+    logic                                       tx_monitor_noc_val;
+    logic   [MONITOR_DATA_W-1:0]                tx_monitor_noc_data;
+    logic                                       monitor_tx_noc_rdy;
+
+    logic                                       monitor_tx_noc_val;
+    logic   [MONITOR_DATA_W-1:0]                monitor_tx_noc_data;
+    logic                                       tx_monitor_noc_rdy;
+    
     tcp_rx_tile #(
          .SRC_X     (TCP_RX_SRC_X   )
         ,.SRC_Y     (TCP_RX_SRC_Y   )
@@ -256,12 +274,22 @@ import mem_msg_pkg::*;
         ,.rx_commit_ptr_app_rd_resp_val             (rx_commit_ptr_app_rd_resp_val              )
         ,.rx_commit_ptr_app_rd_resp_data            (rx_commit_ptr_app_rd_resp_data             )
         ,.app_rx_commit_ptr_rd_resp_rdy             (app_rx_commit_ptr_rd_resp_rdy              )
+    
+        ,.rx_monitor_noc_val                        (rx_monitor_noc_val                         )
+        ,.rx_monitor_noc_data                       (rx_monitor_noc_data                        )
+        ,.monitor_rx_noc_rdy                        (monitor_rx_noc_rdy                         )
+                                                     
+        ,.monitor_rx_noc_val                        (monitor_rx_noc_val                         )
+        ,.monitor_rx_noc_data                       (monitor_rx_noc_data                        )
+        ,.rx_monitor_noc_rdy                        (rx_monitor_noc_rdy                         )
     );
 
     assign tcp_format_tmp_buf_rx_tcp_payload_len = tcp_format_tmp_buf_rx_tcp_tot_len - 
                                     (tcp_format_tmp_buf_rx_tcp_hdr.raw_data_offset << 2);
     
-    beehive_tcp_slow_engine_wrap tcp_engine (
+    beehive_tcp_slow_engine_wrap #(
+        .MONITOR_DATA_W (`NOC_DATA_WIDTH    )
+    ) tcp_engine (
          .clk   (clk)
         ,.rst   (rst)
         
@@ -280,7 +308,7 @@ import mem_msg_pkg::*;
         ,.tmp_buf_src_rx_data_rdy               (tmp_buf_tcp_format_rx_data_rdy             )
         
         ,.send_dst_tx_val                       (send_dst_tx_val                            )
-        ,.send_dst_tx_flowid                    (send_dst_tx_flowid                         )
+        ,.send_dst_tx_base_addr                 (send_dst_tx_base_addr                      )
         ,.send_dst_tx_src_ip                    (send_dst_tx_src_ip                         )
         ,.send_dst_tx_dst_ip                    (send_dst_tx_dst_ip                         )
         ,.send_dst_tx_tcp_hdr                   (send_dst_tx_tcp_hdr                        )
@@ -375,6 +403,22 @@ import mem_msg_pkg::*;
         ,.app_sched_update_val                  (app_sched_update_val                       )
         ,.app_sched_update_cmd                  (app_sched_update_cmd                       )
         ,.sched_app_update_rdy                  (sched_app_update_rdy                       )
+    
+        ,.rx_monitor_noc_val                    (rx_monitor_noc_val                         )
+        ,.rx_monitor_noc_data                   (rx_monitor_noc_data                        )
+        ,.monitor_rx_noc_rdy                    (monitor_rx_noc_rdy                         )
+                                                 
+        ,.monitor_rx_noc_val                    (monitor_rx_noc_val                         )
+        ,.monitor_rx_noc_data                   (monitor_rx_noc_data                        )
+        ,.rx_monitor_noc_rdy                    (rx_monitor_noc_rdy                         )
+                                                 
+        ,.tx_monitor_noc_val                    (tx_monitor_noc_val                         )
+        ,.tx_monitor_noc_data                   (tx_monitor_noc_data                        )
+        ,.monitor_tx_noc_rdy                    (monitor_tx_noc_rdy                         )
+                                                 
+        ,.monitor_tx_noc_val                    (monitor_tx_noc_val                         )
+        ,.monitor_tx_noc_data                   (monitor_tx_noc_data                        )
+        ,.tx_monitor_noc_rdy                    (tx_monitor_noc_rdy                         )
     );
     
     tcp_tx_tile #(
@@ -382,6 +426,10 @@ import mem_msg_pkg::*;
         ,.SRC_Y     (TCP_TX_SRC_Y   )
         ,.TX_DRAM_X (TCP_TX_DRAM_X  )
         ,.TX_DRAM_Y (TCP_TX_DRAM_Y  )
+        ,.MGMT_X    (MGMT_X         )
+        ,.MGMT_Y    (MGMT_Y         )
+        ,.FALAFEL_X (FALAFEL_X      )
+        ,.FALAFEL_Y (FALAFEL_Y      )
     ) tx_tile (
          .clk   (clk    )
         ,.rst   (rst    )
@@ -394,7 +442,7 @@ import mem_msg_pkg::*;
 %>
                                                                             
         ,.send_dst_tx_val                   (send_dst_tx_val                )
-        ,.send_dst_tx_flowid                (send_dst_tx_flowid             )
+        ,.send_dst_tx_base_addr             (send_dst_tx_base_addr          )
         ,.send_dst_tx_src_ip                (send_dst_tx_src_ip             )
         ,.send_dst_tx_dst_ip                (send_dst_tx_dst_ip             )
         ,.send_dst_tx_tcp_hdr               (send_dst_tx_tcp_hdr            )
@@ -427,6 +475,14 @@ import mem_msg_pkg::*;
         ,.app_sched_update_val              (app_sched_update_val           )
         ,.app_sched_update_cmd              (app_sched_update_cmd           )
         ,.sched_app_update_rdy              (sched_app_update_rdy           )
+    
+        ,.tx_monitor_noc_val                (tx_monitor_noc_val             )
+        ,.tx_monitor_noc_data               (tx_monitor_noc_data            )
+        ,.monitor_tx_noc_rdy                (monitor_tx_noc_rdy             )
+                                             
+        ,.monitor_tx_noc_val                (monitor_tx_noc_val             )
+        ,.monitor_tx_noc_data               (monitor_tx_noc_data            )
+        ,.tx_monitor_noc_rdy                (tx_monitor_noc_rdy             )
     );
 
 endmodule

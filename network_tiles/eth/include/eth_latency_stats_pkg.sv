@@ -1,6 +1,6 @@
+//`include "noc_defs.vh"
 package eth_latency_stats_pkg;
     import beehive_noc_msg::*;
-    `include "noc_defs.vh"
 
     localparam ETH_STATS_DEPTH_LOG2 = 10;
 

@@ -1,5 +1,6 @@
-`include "to_ip_tx_defs.svh"
-module to_ip_tx_noc_out #(
+module to_ip_tx_noc_out 
+import to_ip_tx_pkg::*;
+#(
      parameter SRC_X = -1
     ,parameter SRC_Y = -1
 )(

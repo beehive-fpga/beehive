@@ -6,7 +6,6 @@ filesets:
     rtl:
         files:
             - include/simple_log_udp_noc_read_pkg.sv
-            - include/simple_log_udp_noc_read_defs.svh: {is_include_file: true}
             - simple_log.sv
             - simple_log_udp_noc_read.sv
             - simple_log_udp_noc_read_ctrl.sv
@@ -14,7 +13,6 @@ filesets:
         depend:
             - uwcse:beehive:common_inc
             - uwcse:beehive:msgs
-            - uwcse:beehive:topology
         file_type: systemVerilogSource
 
 targets:

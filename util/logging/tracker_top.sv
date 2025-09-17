@@ -1,5 +1,5 @@
 module tracker_top 
-    import tracker_pkg::*;
+import tracker_pkg::*;
 #(
      parameter SRC_X = -1
     ,parameter SRC_Y = -1

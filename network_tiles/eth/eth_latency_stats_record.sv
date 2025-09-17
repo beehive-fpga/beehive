@@ -1,5 +1,7 @@
-`include "eth_latency_stats_defs.svh"
-module eth_latency_stats_record (
+`include "noc_defs.vh"
+module eth_latency_stats_record 
+import eth_latency_stats_pkg::*;
+(
      input clk
     ,input rst
 

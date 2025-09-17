@@ -34,6 +34,8 @@ module tcp_rx_ptr_if #(
     ,input  logic                           rx_commit_ptr_app_rd_resp_val
     ,input  logic   [`RX_PAYLOAD_PTR_W:0]   rx_commit_ptr_app_rd_resp_data
     ,output logic                           app_rx_commit_ptr_rd_resp_rdy
+
+    ,input  
 );
     
     logic                           ctrl_datap_store_hdr_flit;

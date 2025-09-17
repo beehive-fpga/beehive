@@ -11,11 +11,11 @@ import tcp_rx_tile_pkg::*;
     ,output logic                           ctrl_datap_read_cam
     ,output cap_sel_e                       ctrl_datap_sel_cap
     
-    ,input                                  app_notif_monitor_noc_val
-    ,output                                 monitor_app_notif_noc_rdy
+    ,output logic                           app_notif_monitor_noc_val
+    ,input                                  monitor_app_notif_noc_rdy
 
-    ,output                                 monitor_app_notif_noc_val
-    ,input                                  app_notif_monitor_noc_rdy
+    ,input                                  monitor_app_notif_noc_val
+    ,output logic                           app_notif_monitor_noc_rdy
 );
 
     typedef enum logic[2:0] {
@@ -41,7 +41,6 @@ import tcp_rx_tile_pkg::*;
 
     assign ctrl_datap_read_cam = 1'b1;
     always_comb begin
-        tcp_rx_notif_if_noc0_vrtoc_val = 1'b0;
         app_new_flow_notif_rdy = 1'b0;
         ctrl_datap_store_inputs = 1'b0;
         ctrl_datap_sel_cap = HDR;
@@ -86,7 +85,6 @@ import tcp_rx_tile_pkg::*;
                 end
             end
             default: begin
-                tcp_rx_notif_if_noc0_vrtoc_val = 'X;
                 app_new_flow_notif_rdy = 'X;
                 ctrl_datap_store_inputs = 'X;
 

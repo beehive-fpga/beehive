@@ -9,7 +9,7 @@ from tile_generator import TileDirs
 import logging
 logging.basicConfig(level=logging.INFO)
 
-design_path = os.environ["BEEHIVE_DESIGN_ROOT"]
+design_path = os.environ["DESIGN_ROOT"]
 logging.info(f"Using tile config at {design_path}")
 tile_config = BeehiveConfig(design_path + "/tile_config.xml")
 

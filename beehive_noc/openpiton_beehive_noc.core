@@ -16,6 +16,7 @@ filesets:
             - beehive_dynamic_output_top.v
             - beehive_noc_splitter.sv
             - beehive_noc_fbits_splitter.v
+            - beehive_noc_fbits_splitter_catch.sv
             - beehive_noc_msg_type_splitter.v
             - beehive_noc_prio_merger.v
             - common/beehive_bus_compare_equal.v

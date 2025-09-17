@@ -1,4 +1,5 @@
-`include "tcp_rx_tile_defs.svh"
+`include "noc_defs.vh"
+`include "packet_defs.vh"
 <%
 # Get the basic configuration object
 import sys
@@ -8,13 +9,22 @@ from tile_generator import BeehiveConfig
 from noc_if_gen import NocInterfaceGen
 import logging
 logging.basicConfig(level=logging.INFO)
-design_path = os.environ["BEEHIVE_DESIGN_ROOT"]
+design_path = os.environ["DESIGN_ROOT"]
 logging.info(f"Using tile config at {design_path}")
 tile_config = BeehiveConfig(design_path + "/tile_config.xml")
 noc_if_generator = NocInterfaceGen()
 %>
 module tcp_rx_tile 
 import tcp_pkg::*;
+import packet_struct_pkg::*;
+
+import beehive_tcp_msg::*; 
+import beehive_ip_msg::*;
+import beehive_noc_msg::*;
+import beehive_topology::*;
+
+import tcp_rx_tile_pkg::*;
+import mem_msg_pkg::*;
 #(
      parameter SRC_X = -1
     ,parameter SRC_Y = -1
@@ -24,6 +34,7 @@ import tcp_pkg::*;
     ,parameter MGMT_Y = -1
     ,parameter FALAFEL_X = -1
     ,parameter FALAFEL_Y = -1
+    ,parameter MONITOR_DATA_W = `NOC_DATA_WIDTH
 )(
      input clk
     ,input rst
@@ -71,13 +82,13 @@ import tcp_pkg::*;
     ,input  logic   [RX_PAYLOAD_PTR_W:0]            commit_ptr_store_buf_rd_resp_data
     ,output logic                                   store_buf_commit_ptr_rd_resp_rdy
     
-    ,input  logic                                   store_buf_base_addr_rd_req_val
-    ,input  logic   [FLOWID_W-1:0]                  store_buf_base_addr_rd_req_addr
-    ,output logic                                   base_addr_store_buf_rd_req_rdy
+    ,output logic                                   store_buf_base_addr_rd_req_val
+    ,output logic   [FLOWID_W-1:0]                  store_buf_base_addr_rd_req_addr
+    ,input  logic                                   base_addr_store_buf_rd_req_rdy
 
-    ,output logic                                   base_addr_store_buf_rd_resp_val
-    ,output vaddr_t                                 base_addr_store_buf_rd_resp_data
-    ,input  logic                                   store_buf_base_addr_rd_resp_rdy
+    ,input  logic                                   base_addr_store_buf_rd_resp_val
+    ,input  vaddr_t                                 base_addr_store_buf_rd_resp_data
+    ,output logic                                   store_buf_base_addr_rd_resp_rdy
     
     ,output logic                                   store_buf_commit_ptr_wr_req_val
     ,output logic   [FLOWID_W-1:0]                  store_buf_commit_ptr_wr_req_flowid
@@ -392,8 +403,8 @@ print(router_wires)
          .clk       (clk)
         ,.reset     (rst)
 
-        ,.src_vrtoc_data    (merger_vrtoc_ctrl_noc1_val     )
-        ,.src_vrtoc_val     (merger_vrtoc_ctrl_noc1_data    )
+        ,.src_vrtoc_data    (merger_vrtoc_ctrl_noc1_data    )
+        ,.src_vrtoc_val     (merger_vrtoc_ctrl_noc1_val     )
         ,.vrtoc_src_rdy     (vrtoc_merger_ctrl_noc1_rdy     )
 
         ,.vrtoc_dst_data    (vrtoc_router_ctrl_noc1_data    )
@@ -643,10 +654,6 @@ print(router_wires)
          .clk   (clk)
         ,.rst   (rst)
 
-        ,.tcp_rx_notif_if_noc0_vrtoc_val    (tcp_rx_notif_if_merger_data_noc0_val   )
-        ,.tcp_rx_notif_if_noc0_vrtoc_data   (tcp_rx_notif_if_merger_data_noc0_data  )
-        ,.noc0_vrtoc_tcp_rx_notif_if_rdy    (merger_tcp_rx_notif_if_data_noc0_rdy   )
-
         ,.app_new_flow_notif_val            (app_new_flow_notif_val                 )
         ,.app_new_flow_notif_info           (app_new_flow_notif_info                )
         ,.app_new_flow_notif_rdy            (app_new_flow_notif_rdy                 )
@@ -689,41 +696,6 @@ print(router_wires)
         ,.app_notif_monitor_noc_rdy         (app_notif_monitor_noc_rdy              )
     );
     
-    beehive_noc_prio_merger #(
-         .NOC_DATA_W        (`NOC_DATA_WIDTH    )
-        ,.MSG_PAYLOAD_LEN   (`PAYLOAD_LEN       )
-        ,.MSG_LEN_HI        (`MSG_LENGTH_HI     )
-        ,.MSG_LEN_LO        (`MSG_LENGTH_LO     )
-        ,.num_sources    (2)
-    ) merger (   
-         .clk   (clk)
-        ,.rst_n (~rst)
-    
-        ,.src0_merger_vr_noc_val    (fifo_noc_rd_val                        )
-        ,.src0_merger_vr_noc_dat    (fifo_noc_rd_data                       )
-        ,.merger_src0_vr_noc_rdy    (noc_fifo_rd_rdy                        )
-    
-        ,.src1_merger_vr_noc_val    (tcp_rx_notif_if_merger_data_noc0_val   )
-        ,.src1_merger_vr_noc_dat    (tcp_rx_notif_if_merger_data_noc0_data  )
-        ,.merger_src1_vr_noc_rdy    (merger_tcp_rx_notif_if_data_noc0_rdy   )
-    
-        ,.src2_merger_vr_noc_val    ('0)
-        ,.src2_merger_vr_noc_dat    ('0)
-        ,.merger_src2_vr_noc_rdy    ()
-    
-        ,.src3_merger_vr_noc_val    ('0)
-        ,.src3_merger_vr_noc_dat    ('0)
-        ,.merger_src3_vr_noc_rdy    ()
-    
-        ,.src4_merger_vr_noc_val    ('0)
-        ,.src4_merger_vr_noc_dat    ('0)
-        ,.merger_src4_vr_noc_rdy    ()
-    
-        ,.merger_dst_vr_noc_val     (merger_vrtoc_data_noc0_val             )
-        ,.merger_dst_vr_noc_dat     (merger_vrtoc_data_noc0_data            )
-        ,.dst_merger_vr_noc_rdy     (vrtoc_merger_data_noc0_rdy             )
-    );
-
     beehive_noc_prio_merger #(
          .NOC_DATA_W        (`NOC_DATA_WIDTH    )
         ,.MSG_PAYLOAD_LEN   (`PAYLOAD_LEN       )

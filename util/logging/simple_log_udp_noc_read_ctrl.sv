@@ -1,5 +1,8 @@
-`include "simple_log_udp_noc_read_defs.svh"
-module simple_log_udp_noc_read_ctrl (
+module simple_log_udp_noc_read_ctrl
+import beehive_noc_msg::*;
+import beehive_udp_msg::*;
+import simple_log_udp_noc_read_pkg::*;
+(
      input clk
     ,input rst
     

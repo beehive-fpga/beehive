@@ -12,6 +12,9 @@ filesets:
             - mem_mux.sv
             - mem_mux_param.sv
             - stream_mux.sv
+            - valrdy_arb.sv
+            - valrdy_mux.sv
+            - valrdy_demux.sv
         depend:
             - uwcse:basejump:bsg_misc
         file_type: systemVerilogSource

@@ -1,4 +1,4 @@
-`include "tcp_tx_tile_defs.svh"
+`include "noc_defs.vh"
 <%
 # Get the basic configuration object
 import sys
@@ -8,7 +8,7 @@ from tile_generator import BeehiveConfig
 from noc_if_gen import NocInterfaceGen
 import logging
 logging.basicConfig(level=logging.INFO)
-design_path = os.environ["BEEHIVE_DESIGN_ROOT"]
+design_path = os.environ["DESIGN_ROOT"]
 logging.info(f"Using tile config at {design_path}")
 tile_config = BeehiveConfig(design_path + "/tile_config.xml")
 noc_if_generator = NocInterfaceGen()
@@ -16,11 +16,22 @@ noc_if_generator = NocInterfaceGen()
 module tcp_tx_tile 
 import tcp_pkg::*;
 import tcp_misc_pkg::*;
+import beehive_tcp_msg::*; 
+import beehive_ip_msg::*;
+import beehive_noc_msg::*;
+import tcp_tx_tile_pkg::*;
+import beehive_topology::*;
+import mem_msg_pkg::*;
 #(
      parameter SRC_X = -1
     ,parameter SRC_Y = -1
+    ,parameter MONITOR_DATA_W = `NOC_DATA_WIDTH
     ,parameter TX_DRAM_X = -1
     ,parameter TX_DRAM_Y = -1
+    ,parameter MGMT_X = -1
+    ,parameter MGMT_Y = -1
+    ,parameter FALAFEL_X = -1
+    ,parameter FALAFEL_Y = -1
 )(
      input clk
     ,input rst
@@ -30,7 +41,7 @@ import tcp_misc_pkg::*;
     print(noc_if_str)
 %>
     ,input                                  send_dst_tx_val
-    ,input  logic   [FLOWID_W-1:0]          send_dst_tx_flowid
+    ,input  vaddr_t                         send_dst_tx_base_addr
     ,input  logic   [`IP_ADDR_W-1:0]        send_dst_tx_src_ip
     ,input  logic   [`IP_ADDR_W-1:0]        send_dst_tx_dst_ip
     ,input  tcp_pkt_hdr                     send_dst_tx_tcp_hdr
@@ -63,6 +74,14 @@ import tcp_misc_pkg::*;
     ,output logic                           app_sched_update_val
     ,output sched_cmd_struct                app_sched_update_cmd
     ,input  logic                           sched_app_update_rdy
+    
+    ,input                                  tx_monitor_noc_val
+    ,input  [MONITOR_DATA_W-1:0]            tx_monitor_noc_data
+    ,output                                 monitor_tx_noc_rdy
+
+    ,output                                 monitor_tx_noc_val
+    ,output [MONITOR_DATA_W-1:0]            monitor_tx_noc_data
+    ,input                                  tx_monitor_noc_rdy
 );
     
     typedef struct packed {
@@ -137,22 +156,18 @@ print(router_wires)
     logic                           chksum_tcp_tx_out_last;
     logic   [`MAC_PADBYTES_W-1:0]   chksum_tcp_tx_out_padbytes;
 
-    logic                           noc_in_payload_fifo_wr_val;
-    logic   [`NOC_DATA_WIDTH-1:0]   noc_in_payload_fifo_wr_data;
-    logic                           payload_fifo_noc_in_wr_rdy;
-
-    logic                           payload_fifo_engine_rd_val;
-    logic   [`NOC_DATA_WIDTH-1:0]   payload_fifo_engine_rd_data;
-    logic                           engine_payload_fifo_rd_rdy;
-    logic                           engine_payload_fifo_rd_req;
     
     logic                           merger_vrtoc_ctrl_noc1_val;
     logic   [`CTRL_NOC1_DATA_W-1:0] merger_vrtoc_ctrl_noc1_data;    
     logic                           vrtoc_merger_ctrl_noc1_rdy;
     
-    logic                           ctovr_ctd_ctrl_noc1_val;
-    logic   [`CTRL_NOC1_DATA_W-1:0] ctovr_ctd_ctrl_noc1_data;
-    logic                           ctd_ctovr_ctrl_noc1_rdy;
+    logic                           ctovr_splitter_ctrl_noc1_val;
+    logic   [`CTRL_NOC1_DATA_W-1:0] ctovr_splitter_ctrl_noc1_data;
+    logic                           splitter_ctovr_ctrl_noc1_rdy;     
+    
+    logic                           splitter_ctd_ctrl_noc1_val;
+    logic   [`CTRL_NOC1_DATA_W-1:0] splitter_ctd_ctrl_noc1_data;
+    logic                           ctd_splitter_ctrl_noc1_rdy;
     
     logic                           ctd_ptr_if_ctrl_noc1_val;
     logic   [`NOC_DATA_WIDTH-1:0]   ctd_ptr_if_ctrl_noc1_data;
@@ -170,13 +185,41 @@ print(router_wires)
     logic   [`CTRL_NOC1_DATA_W-1:0] ptr_dtc_merger_ctrl_noc1_data;
     logic                           merger_ptr_dtc_ctrl_noc1_rdy;
 
-    logic                           mem_dtc_merger_ctrl_noc1_val;
-    logic   [`CTRL_NOC1_DATA_W-1:0] mem_dtc_merger_ctrl_noc1_data;
-    logic                           merger_mem_dtc_ctrl_noc1_rdy;
-    
     logic                           tx_payload_merger_data_noc0_val;
     logic   [`NOC_DATA_WIDTH-1:0]   tx_payload_merger_data_noc0_data;
     logic                           merger_tx_payload_data_noc0_rdy;
+    
+    logic                           tx_payload_monitor_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   tx_payload_monitor_data;
+    logic                           monitor_tx_payload_rdy;
+   
+    logic                           monitor_tx_payload_val;
+    logic   [`NOC_DATA_WIDTH-1:0]   monitor_tx_payload_data;
+    logic                           tx_payload_monitor_rdy;
+    
+    logic                       app_monitor_noc_val;
+    logic   [`NOC_DATA_WIDTH-1:0]    app_monitor_noc_data;
+    logic                       monitor_app_noc_rdy;
+    
+    logic                       monitor_app_noc_val;
+    logic   [`NOC_DATA_WIDTH-1:0]    monitor_app_noc_data;
+    logic                       app_monitor_noc_rdy;
+    
+    logic                       monitor_sys_noc0_vveal;
+    logic   [`NOC_DATA_WIDTH-1:0]    monitor_sys_noc0_data;
+    logic                       sys_monitor_noc0_rdy;
+
+    logic                       sys_monitor_noc0_val;
+    logic   [`NOC_DATA_WIDTH-1:0]    sys_monitor_noc0_data;
+    logic                       monitor_sys_noc0_rdy;
+
+    logic                       monitor_sys_noc1_val;
+    logic   [`CTRL_NOC_DATA_W-1:0]    monitor_sys_noc1_data;
+    logic                       sys_monitor_noc1_rdy;
+
+    logic                       sys_monitor_noc1_val;
+    logic   [`CTRL_NOC_DATA_W-1:0]    sys_monitor_noc1_data;
+    logic                       monitor_sys_noc1_rdy;
    
     
     noc_router_block #(
@@ -233,14 +276,13 @@ print(router_wires)
 
     // merge NoC traffic for
     // - sending pkts to the IP engine
-    // - sending buffer read requests
-    // - responses to apps
+    // - things from the monitor
     beehive_noc_prio_merger #(
          .NOC_DATA_W        (`NOC_DATA_WIDTH    )
         ,.MSG_PAYLOAD_LEN   (`MSG_LENGTH_WIDTH  )
         ,.MSG_LEN_HI        (`MSG_LENGTH_HI     )
         ,.MSG_LEN_LO        (`MSG_LENGTH_LO     )
-        ,.num_sources       (1)
+        ,.num_sources       (2)
     ) merger (   
          .clk   (clk)
         ,.rst_n (~rst)
@@ -249,9 +291,9 @@ print(router_wires)
         ,.src0_merger_vr_noc_dat    (tcp_tx_out_merger_data_noc0_data       )
         ,.merger_src0_vr_noc_rdy    (merger_tcp_tx_out_data_noc0_rdy        )
     
-        ,.src1_merger_vr_noc_val    ('0)
-        ,.src1_merger_vr_noc_dat    ('0)
-        ,.merger_src1_vr_noc_rdy    ()
+        ,.src1_merger_vr_noc_val    (monitor_sys_noc0_val                   )
+        ,.src1_merger_vr_noc_dat    (monitor_sys_noc0_data                  )
+        ,.merger_src1_vr_noc_rdy    (sys_monitor_noc0_rdy                   )
     
         ,.src2_merger_vr_noc_val    ('0)
         ,.src2_merger_vr_noc_dat    ('0)
@@ -273,7 +315,7 @@ print(router_wires)
     // split NoC traffic between
     // - responses to buffer read requests
     // - requests from apps
-    beehive_noc_fbits_splitter #(
+    beehive_noc_fbits_splitter_catch #(
          .NOC_DATA_W        (`NOC_DATA_WIDTH    )
         ,.MSG_PAYLOAD_LEN   (`MSG_LENGTH_WIDTH  )
         ,.MSG_LEN_HI        (`MSG_LENGTH_HI     )
@@ -281,7 +323,7 @@ print(router_wires)
         ,.FBITS_HI          (`MSG_DST_FBITS_HI  )
         ,.FBITS_LO          (`MSG_DST_FBITS_LO  )
         ,.num_targets       (3'd1)
-        ,.fbits_type0       (TCP_TX_BUF_IF_FBITS        )
+        ,.fbits_type0       (PKT_IF_FBITS       )
     ) splitter (
          .clk   (clk    )
         ,.rst_n (~rst   )
@@ -290,9 +332,9 @@ print(router_wires)
         ,.src_splitter_vr_noc_dat   (ctovr_splitter_data_noc0_data          )
         ,.splitter_src_vr_noc_rdy   (splitter_ctovr_data_noc0_rdy           )
 
-        ,.splitter_dst0_vr_noc_val  (noc_in_payload_fifo_wr_val             )
-        ,.splitter_dst0_vr_noc_dat  (noc_in_payload_fifo_wr_data            )
-        ,.dst0_splitter_vr_noc_rdy  (payload_fifo_noc_in_wr_rdy             )
+        ,.splitter_dst0_vr_noc_val  ()
+        ,.splitter_dst0_vr_noc_dat  ()
+        ,.dst0_splitter_vr_noc_rdy  ('0)
 
         ,.splitter_dst1_vr_noc_val  ()
         ,.splitter_dst1_vr_noc_dat  ()
@@ -306,9 +348,9 @@ print(router_wires)
         ,.splitter_dst3_vr_noc_dat  ()
         ,.dst3_splitter_vr_noc_rdy  (1'b0)
 
-        ,.splitter_dst4_vr_noc_val  ()
-        ,.splitter_dst4_vr_noc_dat  ()
-        ,.dst4_splitter_vr_noc_rdy  (1'b0)
+        ,.splitter_catch_vr_noc_val (sys_monitor_noc0_val   )
+        ,.splitter_catch_vr_noc_dat (sys_monitor_noc0_data  )
+        ,.catch_splitter_vr_noc_rdy (monitor_sys_noc0_rdy   )
     );
     
     beehive_credit_to_valrdy #(
@@ -321,9 +363,48 @@ print(router_wires)
         ,.src_ctovr_val     (router_ctovr_ctrl_noc1_val     )
         ,.ctovr_src_yummy   (ctovr_router_ctrl_noc1_yummy   )
 
-        ,.ctovr_dst_data    (ctovr_ctd_ctrl_noc1_data       )
-        ,.ctovr_dst_val     (ctovr_ctd_ctrl_noc1_val        )
-        ,.dst_ctovr_rdy     (ctd_ctovr_ctrl_noc1_rdy        )
+        ,.ctovr_dst_data    (ctovr_splitter_ctrl_noc1_data       )
+        ,.ctovr_dst_val     (ctovr_splitter_ctrl_noc1_val        )
+        ,.dst_ctovr_rdy     (splitter_ctovr_ctrl_noc1_rdy        )
+    );
+    
+    beehive_noc_fbits_splitter_catch #(
+         .NOC_FBITS_W       (`NOC_FBITS_WIDTH       )
+        ,.NOC_DATA_W        (`CTRL_NOC1_DATA_W      )
+        ,.MSG_PAYLOAD_LEN   (`PAYLOAD_LEN           )
+        ,.MSG_LEN_HI        (`CTRL_MSG_LENGTH_HI    )
+        ,.MSG_LEN_LO        (`CTRL_MSG_LENGTH_LO    )
+        ,.FBITS_HI          (`CTRL_MSG_DST_FBITS_HI )
+        ,.FBITS_LO          (`CTRL_MSG_DST_FBITS_LO )
+        ,.num_targets       (1                      )
+        ,.fbits_type0       (TCP_TX_APP_PTR_IF_FBITS)
+    ) ctrl_beehive_noc_splitter (
+         .clk   (clk    )
+        ,.rst_n (~rst   )
+    
+        ,.src_splitter_vr_noc_val   (ctovr_splitter_ctrl_noc1_val           )
+        ,.src_splitter_vr_noc_dat   (ctovr_splitter_ctrl_noc1_data          )
+        ,.splitter_src_vr_noc_rdy   (splitter_ctovr_ctrl_noc1_rdy           )
+    
+        ,.splitter_dst0_vr_noc_val  (splitter_ctd_ctrl_noc1_val             )
+        ,.splitter_dst0_vr_noc_dat  (splitter_ctd_ctrl_noc1_data            )
+        ,.dst0_splitter_vr_noc_rdy  (ctd_splitter_ctrl_noc1_rdy             )
+    
+        ,.splitter_dst1_vr_noc_val  ()
+        ,.splitter_dst1_vr_noc_dat  ()
+        ,.dst1_splitter_vr_noc_rdy  ('0)
+    
+        ,.splitter_dst2_vr_noc_val  ()
+        ,.splitter_dst2_vr_noc_dat  ()
+        ,.dst2_splitter_vr_noc_rdy  ('0)
+    
+        ,.splitter_dst3_vr_noc_val  ()
+        ,.splitter_dst3_vr_noc_dat  ()
+        ,.dst3_splitter_vr_noc_rdy  ('0)
+    
+        ,.splitter_catch_vr_noc_val (sys_monitor_noc1_val                   )
+        ,.splitter_catch_vr_noc_dat (sys_monitor_noc1_data                  )
+        ,.catch_splitter_vr_noc_rdy (monitor_sys_noc1_rdy                   )
     );
     
     extra_hdr_noc_ctrl_to_data #(
@@ -332,13 +413,13 @@ print(router_wires)
          .clk   (clk    )
         ,.rst   (rst    )
         
-        ,.src_noc_ctd_val   (ctovr_ctd_ctrl_noc1_val    )
-        ,.src_noc_ctd_data  (ctovr_ctd_ctrl_noc1_data   )
-        ,.noc_ctd_src_rdy   (ctd_ctovr_ctrl_noc1_rdy    )
+        ,.src_noc_ctd_val   (splitter_ctd_ctrl_noc1_val     )
+        ,.src_noc_ctd_data  (splitter_ctd_ctrl_noc1_data    )
+        ,.noc_ctd_src_rdy   (ctd_splitter_ctrl_noc1_rdy     )
     
-        ,.noc_ctd_dst_val   (ctd_ptr_if_ctrl_noc1_val   )
-        ,.noc_ctd_dst_data  (ctd_ptr_if_ctrl_noc1_data  )
-        ,.dst_noc_ctd_rdy   (ptr_if_ctd_ctrl_noc1_rdy   )
+        ,.noc_ctd_dst_val   (ctd_ptr_if_ctrl_noc1_val       )
+        ,.noc_ctd_dst_data  (ctd_ptr_if_ctrl_noc1_data      )
+        ,.dst_noc_ctd_rdy   (ptr_if_ctd_ctrl_noc1_rdy       )
     );
     
     beehive_valrdy_to_credit #(
@@ -371,21 +452,6 @@ print(router_wires)
         ,.dst_noc_dtc_rdy   (merger_ptr_dtc_ctrl_noc1_rdy   )
     );
     
-    extra_hdr_noc_data_to_ctrl #(
-        .EXTRA_W    (DRAM_REQ_W )
-    ) dtc_mem_req (
-         .clk   (clk    )
-        ,.rst   (rst    )
-    
-        ,.src_noc_dtc_val   (mem_if_dtc_ctrl_noc1_val       )
-        ,.src_noc_dtc_data  (mem_if_dtc_ctrl_noc1_data      )
-        ,.noc_dtc_src_rdy   (dtc_mem_if_ctrl_noc1_rdy       )
-    
-        ,.noc_dtc_dst_val   (mem_dtc_merger_ctrl_noc1_val   )
-        ,.noc_dtc_dst_data  (mem_dtc_merger_ctrl_noc1_data  )
-        ,.dst_noc_dtc_rdy   (merger_mem_dtc_ctrl_noc1_rdy   )
-    );
-
 
     beehive_noc_prio_merger #(
          .NOC_DATA_W        (`CTRL_NOC1_DATA_W  )
@@ -400,9 +466,9 @@ print(router_wires)
         ,.src0_merger_vr_noc_dat    (ptr_dtc_merger_ctrl_noc1_data  )
         ,.merger_src0_vr_noc_rdy    (merger_ptr_dtc_ctrl_noc1_rdy   )
     
-        ,.src1_merger_vr_noc_val    (mem_dtc_merger_ctrl_noc1_val   )
-        ,.src1_merger_vr_noc_dat    (mem_dtc_merger_ctrl_noc1_data  )
-        ,.merger_src1_vr_noc_rdy    (merger_mem_dtc_ctrl_noc1_rdy   )
+        ,.src1_merger_vr_noc_val    (monitor_sys_noc1_val           )
+        ,.src1_merger_vr_noc_dat    (monitor_sys_noc1_data          )
+        ,.merger_src1_vr_noc_rdy    (sys_monitor_noc1_rdy           )
     
         ,.src2_merger_vr_noc_val    ()
         ,.src2_merger_vr_noc_dat    ()
@@ -421,25 +487,6 @@ print(router_wires)
         ,.dst_merger_vr_noc_rdy     (vrtoc_merger_ctrl_noc1_rdy     )
     );
 
-    bsg_fifo_1r1w_small #( 
-         .width_p   (`NOC_DATA_WIDTH    )
-        ,.els_p     (4                  )
-        ,.harden_p  (1                  )
-    ) noc_in_payload_fifo ( 
-         .clk_i     (clk    )
-        ,.reset_i   (rst    )
-    
-        ,.v_i       (noc_in_payload_fifo_wr_val )
-        ,.data_i    (noc_in_payload_fifo_wr_data)
-        ,.ready_o   (payload_fifo_noc_in_wr_rdy )
-    
-        ,.v_o       (payload_fifo_engine_rd_val )
-        ,.data_o    (payload_fifo_engine_rd_data)
-        ,.yumi_i    (engine_payload_fifo_rd_req )
-    );
-
-    assign engine_payload_fifo_rd_req = payload_fifo_engine_rd_val 
-                                        & engine_payload_fifo_rd_rdy;
 
     frontend_tx_payload_engine #( 
          .SRC_X     (SRC_X                  )
@@ -450,25 +497,24 @@ print(router_wires)
     ) tx_payload_engine (
          .clk   (clk)
         ,.rst   (rst)
-    
-        // I/O for the NoC
-        ,.tx_payload_noc0_val           (mem_if_dtc_ctrl_noc1_val           )
-        ,.tx_payload_noc0_data          (mem_if_dtc_ctrl_noc1_data          )
-        ,.noc0_tx_payload_rdy           (dtc_mem_if_ctrl_noc1_rdy           )
-                                                                
-        ,.noc0_tx_payload_val           (payload_fifo_engine_rd_val         )
-        ,.noc0_tx_payload_data          (payload_fifo_engine_rd_data        )
-        ,.tx_payload_noc0_rdy           (engine_payload_fifo_rd_rdy         )
-        
+
+        ,.tx_payload_monitor_val        (tx_payload_monitor_val             )
+        ,.tx_payload_monitor_data       (tx_payload_monitor_data            )
+        ,.monitor_tx_payload_rdy        (monitor_tx_payload_rdy             )
+
+        ,.monitor_tx_payload_val        (monitor_tx_payload_val             )
+        ,.monitor_tx_payload_data       (monitor_tx_payload_data            )
+        ,.tx_payload_monitor_rdy        (tx_payload_monitor_rdy             )
+
         // Read req
         ,.src_payload_tx_val            (send_dst_tx_val                    )
-        ,.src_payload_tx_flowid         (send_dst_tx_flowid                 )
+        ,.src_payload_tx_base_addr      (send_dst_tx_base_addr              )
         ,.src_payload_tx_src_ip         (send_dst_tx_src_ip                 )
         ,.src_payload_tx_dst_ip         (send_dst_tx_dst_ip                 )
         ,.src_payload_tx_tcp_hdr        (send_dst_tx_tcp_hdr                )
         ,.src_payload_tx_payload_entry  (send_dst_tx_payload                )
         ,.payload_src_tx_rdy            (dst_send_tx_rdy                    )
-     
+
         // Read resp
         ,.payload_dst_tx_hdr_val        (payload_chksum_tx_hdr_val          )
         ,.payload_dst_tx_src_ip         (payload_chksum_tx_src_ip           )
@@ -476,7 +522,7 @@ print(router_wires)
         ,.payload_dst_tx_payload_len    (payload_chksum_tx_payload_len      )
         ,.payload_dst_tx_tcp_hdr        (payload_chksum_tx_tcp_hdr          )
         ,.dst_payload_tx_hdr_rdy        (chksum_payload_tx_hdr_rdy          )
-        
+
         ,.payload_dst_tx_data_val       (payload_fifo_wr_val                )
         ,.payload_dst_tx_data           (payload_fifo_wr_data.data          )
         ,.payload_dst_tx_data_last      (payload_fifo_wr_data.last          )
@@ -607,4 +653,117 @@ print(router_wires)
         ,.app_sched_update_cmd              (app_sched_update_cmd           )
         ,.sched_app_update_rdy              (sched_app_update_rdy           )
     );
+    
+    beehive_noc_prio_merger #(
+         .NOC_DATA_W        (`NOC_DATA_WIDTH    )
+        ,.MSG_PAYLOAD_LEN   (`PAYLOAD_LEN       )
+        ,.MSG_LEN_HI        (`MSG_LENGTH_HI     )
+        ,.MSG_LEN_LO        (`MSG_LENGTH_LO     )
+        ,.num_sources    (2)
+    ) monitor_merger (   
+         .clk   (clk)
+        ,.rst_n (~rst)
+    
+        ,.src0_merger_vr_noc_val    (tx_monitor_noc_val         )
+        ,.src0_merger_vr_noc_dat    (tx_monitor_noc_data        )
+        ,.merger_src0_vr_noc_rdy    (monitor_tx_noc_rdy         )
+    
+        ,.src1_merger_vr_noc_val    (tx_payload_monitor_val     )
+        ,.src1_merger_vr_noc_dat    (tx_payload_monitor_data    )
+        ,.merger_src1_vr_noc_rdy    (monitor_tx_payload_rdy     )
+    
+        ,.src2_merger_vr_noc_val    ()
+        ,.src2_merger_vr_noc_dat    ()
+        ,.merger_src2_vr_noc_rdy    ()
+    
+        ,.src3_merger_vr_noc_val    ('0)
+        ,.src3_merger_vr_noc_dat    ('0)
+        ,.merger_src3_vr_noc_rdy    ()
+    
+        ,.src4_merger_vr_noc_val    ('0)
+        ,.src4_merger_vr_noc_dat    ('0)
+        ,.merger_src4_vr_noc_rdy    ()
+    
+        ,.merger_dst_vr_noc_val     (app_monitor_noc_val    )
+        ,.merger_dst_vr_noc_dat     (app_monitor_noc_data   )
+        ,.dst_merger_vr_noc_rdy     (monitor_app_noc_rdy    )
+    );
+    
+    beehive_noc_fbits_splitter #(
+         .NOC_FBITS_W       (`NOC_FBITS_WIDTH       )
+        ,.NOC_DATA_W        (`NOC_DATA_WIDTH        )
+        ,.MSG_PAYLOAD_LEN   (`MSG_LENGTH_WIDTH      )
+        ,.MSG_LEN_HI        (`CTRL_MSG_LENGTH_HI    )
+        ,.FBITS_HI          (`CTRL_MSG_DST_FBITS_HI )
+        ,.num_targets       (2                      )
+        ,.fbits_type0       (PKT_IF_FBITS           )
+        ,.fbits_type1       (TCP_TX_BUF_IF_FBITS    )
+    ) monitor_app_splitter (
+         .clk   (clk    )
+        ,.rst_n (~rst   )
+    
+        ,.src_splitter_vr_noc_val   (monitor_app_noc_val        )
+        ,.src_splitter_vr_noc_dat   (monitor_app_noc_data       )
+        ,.splitter_src_vr_noc_rdy   (app_monitor_noc_rdy        )
+    
+        ,.splitter_dst0_vr_noc_val  (monitor_tx_noc_val         )
+        ,.splitter_dst0_vr_noc_dat  (monitor_tx_noc_data        )
+        ,.dst0_splitter_vr_noc_rdy  (tx_monitor_noc_rdy         )
+    
+        ,.splitter_dst1_vr_noc_val  (monitor_tx_payload_val     )
+        ,.splitter_dst1_vr_noc_dat  (monitor_tx_payload_data    )
+        ,.dst1_splitter_vr_noc_rdy  (tx_payload_monitor_rdy     )
+    
+        ,.splitter_dst2_vr_noc_val  ()
+        ,.splitter_dst2_vr_noc_dat  ()
+        ,.dst2_splitter_vr_noc_rdy  ()
+    
+        ,.splitter_dst3_vr_noc_val  ()
+        ,.splitter_dst3_vr_noc_dat  ()
+        ,.dst3_splitter_vr_noc_rdy  ('0)
+    
+        ,.splitter_dst4_vr_noc_val  ()
+        ,.splitter_dst4_vr_noc_dat  ()
+        ,.dst4_splitter_vr_noc_rdy  ('0)
+    );
+
+    apiary_monitor #(
+         .DATA_NOC_W    (`NOC_DATA_WIDTH    )
+        ,.CTRL_NOC_W    (`CTRL_NOC_DATA_W   )
+        ,.SRC_X         (SRC_X)
+        ,.SRC_Y         (SRC_Y)
+        ,.MGMT_X        (MGMT_X             )
+        ,.MGMT_Y        (MGMT_Y             )
+        ,.FALAFEL_X     (FALAFEL_X          )
+        ,.FALAFEL_Y     (FALAFEL_Y          )
+    ) tx_monitor (
+         .clk   (clk    )
+        ,.rst   (rst    )
+
+        ,.app_monitor_noc_val   (app_monitor_noc_val    )
+        ,.app_monitor_noc_data  (app_monitor_noc_data   )
+        ,.monitor_app_noc_rdy   (monitor_app_noc_rdy    )
+
+        ,.monitor_app_noc_val   (monitor_app_noc_val    )
+        ,.monitor_app_noc_data  (monitor_app_noc_data   )
+        ,.app_monitor_noc_rdy   (app_monitor_noc_rdy    )
+
+        ,.monitor_sys_noc0_val  (monitor_sys_noc0_val   )
+        ,.monitor_sys_noc0_data (monitor_sys_noc0_data  )
+        ,.sys_monitor_noc0_rdy  (sys_monitor_noc0_rdy   )
+
+        ,.sys_monitor_noc0_val  (sys_monitor_noc0_val   )
+        ,.sys_monitor_noc0_data (sys_monitor_noc0_data  )
+        ,.monitor_sys_noc0_rdy  (monitor_sys_noc0_rdy   )
+
+        ,.monitor_sys_noc1_val  (monitor_sys_noc1_val   )
+        ,.monitor_sys_noc1_data (monitor_sys_noc1_data  )
+        ,.sys_monitor_noc1_rdy  (sys_monitor_noc1_rdy   )
+
+        ,.sys_monitor_noc1_val  (sys_monitor_noc1_val   )
+        ,.sys_monitor_noc1_data (sys_monitor_noc1_data  )
+        ,.monitor_sys_noc1_rdy  (monitor_sys_noc1_rdy   )
+    );
+
+
 endmodule

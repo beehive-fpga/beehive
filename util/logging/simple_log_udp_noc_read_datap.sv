@@ -1,5 +1,9 @@
-`include "simple_log_udp_noc_read_defs.svh"
-module simple_log_udp_noc_read_datap #(
+`include "noc_defs.vh"
+module simple_log_udp_noc_read_datap 
+import beehive_noc_msg::*;
+import beehive_udp_msg::*;
+import simple_log_udp_noc_read_pkg::*;
+#(
      parameter SRC_X = -1
     ,parameter SRC_Y = -1
     ,parameter ADDR_W = -1

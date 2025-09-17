@@ -1,0 +1,23 @@
+CAPI=2:
+name: uwcse:beehive:circ_buf_helpers:0.1
+description: Helper files for interacting with circular buffers
+
+filesets:
+    rtl:
+        files:
+            - rd_circ_buf_new.sv
+            - rd_circ_buf_ctrl_new.sv
+            - rd_circ_buf_datap_new.sv
+            - wr_circ_buf.sv
+            - wr_circ_buf_ctrl.sv
+            - wr_circ_buf_datapath.sv
+        depend:
+            - uwcse:beehive:common_inc
+            - uwcse:beehive:tcp_inc
+            - uwcse:beehive:noc_helpers
+            - uwcse:apiary:noc_adapters
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]

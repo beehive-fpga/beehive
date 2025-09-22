@@ -10,6 +10,7 @@ filesets:
             - ip_lb_parse.sv
         depend:
             - uwcse:beehive:common_inc
+            - uwcse:beehive:msgs
             - uwcse:beehive:fifo
             - uwcse:beehive:l4_hash
         file_type: systemVerilogSource

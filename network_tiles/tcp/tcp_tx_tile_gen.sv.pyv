@@ -82,6 +82,14 @@ import mem_msg_pkg::*;
     ,output                                 monitor_tx_noc_val
     ,output [MONITOR_DATA_W-1:0]            monitor_tx_noc_data
     ,input                                  tx_monitor_noc_rdy
+    
+    ,input                                  app_notif_tx_monitor_val
+    ,input  [MONITOR_DATA_W-1:0]            app_notif_tx_monitor_data
+    ,output                                 tx_monitor_app_notif_rdy
+
+    ,output                                 tx_monitor_app_notif_val
+    ,output [MONITOR_DATA_W-1:0]            tx_monitor_app_notif_data
+    ,input                                  app_notif_tx_monitor_rdy
 );
     
     typedef struct packed {
@@ -407,8 +415,9 @@ print(router_wires)
         ,.catch_splitter_vr_noc_rdy (monitor_sys_noc1_rdy                   )
     );
     
-    extra_hdr_noc_ctrl_to_data #(
-        .EXTRA_W    (TCP_EXTRA_W    )
+    noc_ctrl_to_data #(
+         .DATA_NOC_W    (`NOC_DATA_WIDTH    )
+        ,.CTRL_NOC_W    (`CTRL_NOC_DATA_W   )
     ) ptr_if_ctd (
          .clk   (clk    )
         ,.rst   (rst    )
@@ -437,8 +446,9 @@ print(router_wires)
 		,.dst_vrtoc_yummy   (router_vrtoc_ctrl_noc1_yummy   )
     );
     
-    extra_hdr_noc_data_to_ctrl #(
-        .EXTRA_W    (TCP_EXTRA_W    )
+    noc_data_to_ctrl #(
+         .DATA_NOC_W    (`NOC_DATA_WIDTH    )
+        ,.CTRL_NOC_W    (`CTRL_NOC_DATA_W   )
     ) ptr_if_dtc (
          .clk   (clk    )
         ,.rst   (rst    )
@@ -456,7 +466,7 @@ print(router_wires)
     beehive_noc_prio_merger #(
          .NOC_DATA_W        (`CTRL_NOC1_DATA_W  )
         ,.MSG_PAYLOAD_LEN   (`MSG_LENGTH_WIDTH  )
-        ,.MSG_LEN_HI        (CTRL_MSG_LEN_OFFSET)
+        ,.MSG_LEN_HI        (`CTRL_MSG_LENGTH_HI)
         ,.num_sources       (2)
     ) ctrl_noc1_merger (
          .clk       (clk    )
@@ -659,7 +669,7 @@ print(router_wires)
         ,.MSG_PAYLOAD_LEN   (`PAYLOAD_LEN       )
         ,.MSG_LEN_HI        (`MSG_LENGTH_HI     )
         ,.MSG_LEN_LO        (`MSG_LENGTH_LO     )
-        ,.num_sources    (2)
+        ,.num_sources    (3)
     ) monitor_merger (   
          .clk   (clk)
         ,.rst_n (~rst)
@@ -672,9 +682,9 @@ print(router_wires)
         ,.src1_merger_vr_noc_dat    (tx_payload_monitor_data    )
         ,.merger_src1_vr_noc_rdy    (monitor_tx_payload_rdy     )
     
-        ,.src2_merger_vr_noc_val    ()
-        ,.src2_merger_vr_noc_dat    ()
-        ,.merger_src2_vr_noc_rdy    ()
+        ,.src2_merger_vr_noc_val    (app_notif_tx_monitor_val   )
+        ,.src2_merger_vr_noc_dat    (app_notif_tx_monitor_data  )
+        ,.merger_src2_vr_noc_rdy    (tx_monitor_app_notif_rdy   )
     
         ,.src3_merger_vr_noc_val    ('0)
         ,.src3_merger_vr_noc_dat    ('0)
@@ -693,11 +703,12 @@ print(router_wires)
          .NOC_FBITS_W       (`NOC_FBITS_WIDTH       )
         ,.NOC_DATA_W        (`NOC_DATA_WIDTH        )
         ,.MSG_PAYLOAD_LEN   (`MSG_LENGTH_WIDTH      )
-        ,.MSG_LEN_HI        (`CTRL_MSG_LENGTH_HI    )
-        ,.FBITS_HI          (`CTRL_MSG_DST_FBITS_HI )
-        ,.num_targets       (2                      )
+        ,.MSG_LEN_HI        (`MSG_LENGTH_HI         )
+        ,.FBITS_HI          (`MSG_DST_FBITS_HI      )
+        ,.num_targets       (3                      )
         ,.fbits_type0       (PKT_IF_FBITS           )
         ,.fbits_type1       (TCP_TX_BUF_IF_FBITS    )
+        ,.fbits_type2       (TCP_RX_APP_NOTIF_FBITS )
     ) monitor_app_splitter (
          .clk   (clk    )
         ,.rst_n (~rst   )
@@ -714,9 +725,9 @@ print(router_wires)
         ,.splitter_dst1_vr_noc_dat  (monitor_tx_payload_data    )
         ,.dst1_splitter_vr_noc_rdy  (tx_payload_monitor_rdy     )
     
-        ,.splitter_dst2_vr_noc_val  ()
-        ,.splitter_dst2_vr_noc_dat  ()
-        ,.dst2_splitter_vr_noc_rdy  ()
+        ,.splitter_dst2_vr_noc_val  (tx_monitor_app_notif_val   )
+        ,.splitter_dst2_vr_noc_dat  (tx_monitor_app_notif_data  )
+        ,.dst2_splitter_vr_noc_rdy  (app_notif_tx_monitor_rdy   )
     
         ,.splitter_dst3_vr_noc_val  ()
         ,.splitter_dst3_vr_noc_dat  ()

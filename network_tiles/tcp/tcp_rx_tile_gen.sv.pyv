@@ -127,6 +127,14 @@ import mem_msg_pkg::*;
     ,output                                 monitor_rx_noc_val
     ,output [MONITOR_DATA_W-1:0]            monitor_rx_noc_data
     ,input                                  rx_monitor_noc_rdy
+    
+    ,output                                 app_notif_tx_monitor_val
+    ,output [MONITOR_DATA_W-1:0]            app_notif_tx_monitor_data
+    ,input                                  tx_monitor_app_notif_rdy
+
+    ,input                                  tx_monitor_app_notif_val
+    ,input  [MONITOR_DATA_W-1:0]            tx_monitor_app_notif_data
+    ,output                                 app_notif_tx_monitor_rdy
 );
     
 <%
@@ -382,8 +390,9 @@ print(router_wires)
         ,.dst_noc_ctd_rdy   (rx_payload_mem_resp_ctd_ctrl_noc1_rdy  )
     );
     
-    extra_hdr_noc_ctrl_to_data #(
-        .EXTRA_W    (TCP_EXTRA_W    )
+    noc_ctrl_to_data #(
+         .DATA_NOC_W    (`NOC_DATA_WIDTH    )
+        ,.CTRL_NOC_W    (`CTRL_NOC_DATA_W   )
     ) ptr_if_ctd (
          .clk   (clk    )
         ,.rst   (rst    )
@@ -446,8 +455,9 @@ print(router_wires)
         ,.dst_merger_vr_noc_rdy     (vrtoc_merger_ctrl_noc1_rdy )
     );
 
-    extra_hdr_noc_data_to_ctrl #(
-        .EXTRA_W    (TCP_EXTRA_W    )
+    noc_data_to_ctrl #(
+         .DATA_NOC_W    (`NOC_DATA_WIDTH    )
+        ,.CTRL_NOC_W    (`CTRL_NOC_DATA_W   )
     ) ptr_if_dtc (
          .clk   (clk    )
         ,.rst   (rst    )
@@ -468,7 +478,7 @@ print(router_wires)
         ,.MSG_PAYLOAD_LEN   (`PAYLOAD_LEN       )
         ,.MSG_LEN_HI        (`MSG_LENGTH_HI     )
         ,.MSG_LEN_LO        (`MSG_LENGTH_LO     )
-        ,.num_sources    (2)
+        ,.num_sources    (1)
     ) merger (   
          .clk   (clk)
         ,.rst_n (~rst)
@@ -477,9 +487,9 @@ print(router_wires)
         ,.src0_merger_vr_noc_dat    (monitor_sys_noc0_data                  )
         ,.merger_src0_vr_noc_rdy    (sys_monitor_noc0_rdy                   )
     
-        ,.src1_merger_vr_noc_val    (tcp_rx_notif_if_merger_data_noc0_val   )
-        ,.src1_merger_vr_noc_dat    (tcp_rx_notif_if_merger_data_noc0_data  )
-        ,.merger_src1_vr_noc_rdy    (merger_tcp_rx_notif_if_data_noc0_rdy   )
+        ,.src1_merger_vr_noc_val    ()
+        ,.src1_merger_vr_noc_dat    ()
+        ,.merger_src1_vr_noc_rdy    ()
     
         ,.src2_merger_vr_noc_val    ('0)
         ,.src2_merger_vr_noc_dat    ('0)
@@ -593,7 +603,7 @@ print(router_wires)
         ,.SRC_Y     (SRC_Y                  )
         ,.RX_DRAM_X (RX_DRAM_X              )
         ,.RX_DRAM_Y (RX_DRAM_Y              )
-        ,.FBITS     (TCP_RX_BUF_IF_FBITS    )
+        ,.FBITS     (MEM_FBITS              )
         ,.MONITOR_DATA_W    (`NOC_DATA_WIDTH    )
     ) store_buf (
          .clk   (clk)
@@ -654,46 +664,54 @@ print(router_wires)
          .clk   (clk)
         ,.rst   (rst)
 
-        ,.app_new_flow_notif_val            (app_new_flow_notif_val                 )
-        ,.app_new_flow_notif_info           (app_new_flow_notif_info                )
-        ,.app_new_flow_notif_rdy            (app_new_flow_notif_rdy                 )
+        ,.app_new_flow_notif_val            (app_new_flow_notif_val             )
+        ,.app_new_flow_notif_info           (app_new_flow_notif_info            )
+        ,.app_new_flow_notif_rdy            (app_new_flow_notif_rdy             )
 
-        ,.noc_tcp_rx_ptr_if_val             (ptr_if_ctd_rx_app_ctrl_noc1_val        )
-        ,.noc_tcp_rx_ptr_if_data            (ptr_if_ctd_rx_app_ctrl_noc1_data       )
-        ,.tcp_rx_ptr_if_noc_rdy             (rx_app_ptr_if_ctd_ctrl_noc1_rdy        )
+        ,.noc_tcp_rx_ptr_if_val             (ptr_if_ctd_rx_app_ctrl_noc1_val    )
+        ,.noc_tcp_rx_ptr_if_data            (ptr_if_ctd_rx_app_ctrl_noc1_data   )
+        ,.tcp_rx_ptr_if_noc_rdy             (rx_app_ptr_if_ctd_ctrl_noc1_rdy    )
 
-        ,.tcp_rx_ptr_if_noc_val             (rx_app_dtc_ctrl_noc1_val               )
-        ,.tcp_rx_ptr_if_noc_data            (rx_app_dtc_ctrl_noc1_data              )
-        ,.noc_tcp_rx_ptr_if_rdy             (dtc_rx_app_ctrl_noc1_rdy               )
+        ,.tcp_rx_ptr_if_noc_val             (rx_app_dtc_ctrl_noc1_val           )
+        ,.tcp_rx_ptr_if_noc_data            (rx_app_dtc_ctrl_noc1_data          )
+        ,.noc_tcp_rx_ptr_if_rdy             (dtc_rx_app_ctrl_noc1_rdy           )
 
-        ,.app_rx_head_ptr_wr_req_val        (app_rx_head_ptr_wr_req_val             )
-        ,.app_rx_head_ptr_wr_req_addr       (app_rx_head_ptr_wr_req_addr            )
-        ,.app_rx_head_ptr_wr_req_data       (app_rx_head_ptr_wr_req_data            )
-        ,.rx_head_ptr_app_wr_req_rdy        (rx_head_ptr_app_wr_req_rdy             )
+        ,.app_rx_head_ptr_wr_req_val        (app_rx_head_ptr_wr_req_val         )
+        ,.app_rx_head_ptr_wr_req_addr       (app_rx_head_ptr_wr_req_addr        )
+        ,.app_rx_head_ptr_wr_req_data       (app_rx_head_ptr_wr_req_data        )
+        ,.rx_head_ptr_app_wr_req_rdy        (rx_head_ptr_app_wr_req_rdy         )
 
-        ,.app_rx_head_ptr_rd_req_val        (app_rx_head_ptr_rd_req_val             )
-        ,.app_rx_head_ptr_rd_req_addr       (app_rx_head_ptr_rd_req_addr            )
-        ,.rx_head_ptr_app_rd_req_rdy        (rx_head_ptr_app_rd_req_rdy             )
+        ,.app_rx_head_ptr_rd_req_val        (app_rx_head_ptr_rd_req_val         )
+        ,.app_rx_head_ptr_rd_req_addr       (app_rx_head_ptr_rd_req_addr        )
+        ,.rx_head_ptr_app_rd_req_rdy        (rx_head_ptr_app_rd_req_rdy         )
 
-        ,.rx_head_ptr_app_rd_resp_val       (rx_head_ptr_app_rd_resp_val            )
-        ,.rx_head_ptr_app_rd_resp_data      (rx_head_ptr_app_rd_resp_data           )
-        ,.app_rx_head_ptr_rd_resp_rdy       (app_rx_head_ptr_rd_resp_rdy            )
+        ,.rx_head_ptr_app_rd_resp_val       (rx_head_ptr_app_rd_resp_val        )
+        ,.rx_head_ptr_app_rd_resp_data      (rx_head_ptr_app_rd_resp_data       )
+        ,.app_rx_head_ptr_rd_resp_rdy       (app_rx_head_ptr_rd_resp_rdy        )
 
-        ,.app_rx_commit_ptr_rd_req_val      (app_rx_commit_ptr_rd_req_val           )
-        ,.app_rx_commit_ptr_rd_req_addr     (app_rx_commit_ptr_rd_req_addr          )
-        ,.rx_commit_ptr_app_rd_req_rdy      (rx_commit_ptr_app_rd_req_rdy           )
+        ,.app_rx_commit_ptr_rd_req_val      (app_rx_commit_ptr_rd_req_val       )
+        ,.app_rx_commit_ptr_rd_req_addr     (app_rx_commit_ptr_rd_req_addr      )
+        ,.rx_commit_ptr_app_rd_req_rdy      (rx_commit_ptr_app_rd_req_rdy       )
 
-        ,.rx_commit_ptr_app_rd_resp_val     (rx_commit_ptr_app_rd_resp_val          )
-        ,.rx_commit_ptr_app_rd_resp_data    (rx_commit_ptr_app_rd_resp_data         )
-        ,.app_rx_commit_ptr_rd_resp_rdy     (app_rx_commit_ptr_rd_resp_rdy          )
+        ,.rx_commit_ptr_app_rd_resp_val     (rx_commit_ptr_app_rd_resp_val      )
+        ,.rx_commit_ptr_app_rd_resp_data    (rx_commit_ptr_app_rd_resp_data     )
+        ,.app_rx_commit_ptr_rd_resp_rdy     (app_rx_commit_ptr_rd_resp_rdy      )
 
-        ,.app_notif_monitor_noc_val         (app_notif_monitor_noc_val              )
-        ,.app_notif_monitor_noc_data        (app_notif_monitor_noc_data             )
-        ,.monitor_app_notif_noc_rdy         (monitor_app_notif_noc_rdy              )
+        ,.app_notif_monitor_noc_val         (app_notif_monitor_noc_val          )
+        ,.app_notif_monitor_noc_data        (app_notif_monitor_noc_data         )
+        ,.monitor_app_notif_noc_rdy         (monitor_app_notif_noc_rdy          )
 
-        ,.monitor_app_notif_noc_val         (monitor_app_notif_noc_val              )
-        ,.monitor_app_notif_noc_data        (monitor_app_notif_noc_data             )
-        ,.app_notif_monitor_noc_rdy         (app_notif_monitor_noc_rdy              )
+        ,.monitor_app_notif_noc_val         (monitor_app_notif_noc_val          )
+        ,.monitor_app_notif_noc_data        (monitor_app_notif_noc_data         )
+        ,.app_notif_monitor_noc_rdy         (app_notif_monitor_noc_rdy          )
+        
+        ,.app_notif_tx_monitor_val          (app_notif_tx_monitor_val           )
+        ,.app_notif_tx_monitor_data         (app_notif_tx_monitor_data          )
+        ,.tx_monitor_app_notif_rdy          (tx_monitor_app_notif_rdy           )
+
+        ,.tx_monitor_app_notif_val          (tx_monitor_app_notif_val           )
+        ,.tx_monitor_app_notif_data         (tx_monitor_app_notif_data          )
+        ,.app_notif_tx_monitor_rdy          (app_notif_tx_monitor_rdy           )
     );
     
     beehive_noc_prio_merger #(
@@ -735,12 +753,12 @@ print(router_wires)
          .NOC_FBITS_W       (`NOC_FBITS_WIDTH       )
         ,.NOC_DATA_W        (`NOC_DATA_WIDTH        )
         ,.MSG_PAYLOAD_LEN   (`MSG_LENGTH_WIDTH      )
-        ,.MSG_LEN_HI        (`CTRL_MSG_LENGTH_HI    )
-        ,.FBITS_HI          (`CTRL_MSG_DST_FBITS_HI )
+        ,.MSG_LEN_HI        (`MSG_LENGTH_HI         )
+        ,.FBITS_HI          (`MSG_DST_FBITS_HI      )
         ,.num_targets       (3                      )
         ,.fbits_type0       (PKT_IF_FBITS           )
         ,.fbits_type1       (TCP_RX_APP_NOTIF_FBITS )
-        ,.fbits_type2       (TCP_RX_BUF_IF_FBITS    )
+        ,.fbits_type2       (MEM_FBITS              )
     ) kernel_noc_splitter (
          .clk   (clk    )
         ,.rst_n (~rst   )

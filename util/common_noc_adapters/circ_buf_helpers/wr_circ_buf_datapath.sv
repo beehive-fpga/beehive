@@ -44,6 +44,7 @@ import mem_msg_pkg::*;
 
     vaddr_t base_addr_reg;
     vaddr_t base_addr_next;
+    vaddr_t base_addr_index;
     logic   [VADDR_W-1:0]   vaddr_cast;
    
     // store the bytes left to send
@@ -98,9 +99,12 @@ import mem_msg_pkg::*;
 
     assign bytes_to_end = {1'b1, {(BUF_PTR_W){1'b0}}} - curr_wr_req_ptr_reg;
 
-    assign vaddr_cast = base_addr_reg;
+    assign base_addr_index.index = base_addr_reg.index;
+    assign base_addr_index.offset = base_addr_reg.offset;
+
+    assign vaddr_cast = base_addr_index;
     assign mem_req.size = split_req ? bytes_to_end : curr_wr_req_rem_reg;
-    assign mem_req.addr = vaddr_cast + curr_wr_req_ptr_reg;
+    assign mem_req.addr = base_addr_index + curr_wr_req_ptr_reg;
 
     always_ff @(posedge clk) begin
         if (rst) begin

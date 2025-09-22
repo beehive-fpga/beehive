@@ -180,6 +180,14 @@ import mem_msg_pkg::*;
     logic   [MONITOR_DATA_W-1:0]                monitor_tx_noc_data;
     logic                                       tx_monitor_noc_rdy;
     
+    logic                                   app_notif_tx_monitor_val;
+    logic   [MONITOR_DATA_W-1:0]            app_notif_tx_monitor_data;
+    logic                                   tx_monitor_app_notif_rdy;
+
+    logic                                   tx_monitor_app_notif_val;
+    logic   [MONITOR_DATA_W-1:0]            tx_monitor_app_notif_data;
+    logic                                   app_notif_tx_monitor_rdy;
+    
     tcp_rx_tile #(
          .SRC_X     (TCP_RX_SRC_X   )
         ,.SRC_Y     (TCP_RX_SRC_Y   )
@@ -282,6 +290,14 @@ import mem_msg_pkg::*;
         ,.monitor_rx_noc_val                        (monitor_rx_noc_val                         )
         ,.monitor_rx_noc_data                       (monitor_rx_noc_data                        )
         ,.rx_monitor_noc_rdy                        (rx_monitor_noc_rdy                         )
+        
+        ,.app_notif_tx_monitor_val                  (app_notif_tx_monitor_val           )
+        ,.app_notif_tx_monitor_data                 (app_notif_tx_monitor_data          )
+        ,.tx_monitor_app_notif_rdy                  (tx_monitor_app_notif_rdy           )
+
+        ,.tx_monitor_app_notif_val                  (tx_monitor_app_notif_val           )
+        ,.tx_monitor_app_notif_data                 (tx_monitor_app_notif_data          )
+        ,.app_notif_tx_monitor_rdy                  (app_notif_tx_monitor_rdy           )
     );
 
     assign tcp_format_tmp_buf_rx_tcp_payload_len = tcp_format_tmp_buf_rx_tcp_tot_len - 
@@ -483,6 +499,14 @@ import mem_msg_pkg::*;
         ,.monitor_tx_noc_val                (monitor_tx_noc_val             )
         ,.monitor_tx_noc_data               (monitor_tx_noc_data            )
         ,.tx_monitor_noc_rdy                (tx_monitor_noc_rdy             )
+        
+        ,.app_notif_tx_monitor_val          (app_notif_tx_monitor_val           )
+        ,.app_notif_tx_monitor_data         (app_notif_tx_monitor_data          )
+        ,.tx_monitor_app_notif_rdy          (tx_monitor_app_notif_rdy           )
+
+        ,.tx_monitor_app_notif_val          (tx_monitor_app_notif_val           )
+        ,.tx_monitor_app_notif_data         (tx_monitor_app_notif_data          )
+        ,.app_notif_tx_monitor_rdy          (app_notif_tx_monitor_rdy           )
     );
 
 endmodule

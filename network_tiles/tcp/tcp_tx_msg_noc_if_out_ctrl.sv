@@ -9,11 +9,13 @@ module tcp_tx_msg_noc_if_out_ctrl (
     ,output logic                           noc_if_poller_msg_meta_rdy
 
     ,output logic                           ctrl_datap_store_inputs
+    ,output logic                           ctrl_datap_send_hdr_flit
 );
     
     typedef enum logic[1:0] {
         READY = 2'd0,
         HDR_FLIT = 2'd1,
+        BODY_FLIT = 2'd2,
         UND = 'X
     } state_e;
     
@@ -35,6 +37,7 @@ module tcp_tx_msg_noc_if_out_ctrl (
         tcp_tx_ptr_if_noc_val = 1'b0;
 
         ctrl_datap_store_inputs = 1'b0;
+        ctrl_datap_send_hdr_flit = 1'b0;
         
         state_next = state_reg;
         case (state_reg)
@@ -44,17 +47,19 @@ module tcp_tx_msg_noc_if_out_ctrl (
                 if (poller_msg_noc_if_meta_val) begin
                     state_next = HDR_FLIT;
                 end
-                else begin
-                    state_next = READY;
-                end
             end
             HDR_FLIT: begin
                 tcp_tx_ptr_if_noc_val = 1'b1;
+                ctrl_datap_send_hdr_flit = 1'b1;
+                if (noc_tcp_tx_ptr_if_rdy) begin
+                    state_next = BODY_FLIT;
+                end
+            end
+            BODY_FLIT: begin
+                tcp_tx_ptr_if_noc_val = 1'b1;
+
                 if (noc_tcp_tx_ptr_if_rdy) begin
                     state_next = READY;
-                end
-                else begin
-                    state_next = HDR_FLIT;
                 end
             end
             default: begin

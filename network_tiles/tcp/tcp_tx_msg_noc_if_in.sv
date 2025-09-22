@@ -28,6 +28,8 @@ module tcp_tx_msg_noc_if_in
     ,input  logic                           sched_app_update_rdy
 );
     logic                           ctrl_datap_store_hdr_flit;
+    logic                           ctrl_datap_store_body_flit;
+    logic   [`MSG_TYPE_WIDTH-1:0]   datap_ctrl_msg_type;
 
     tcp_tx_msg_noc_if_in_datap datap (
          .clk   (clk    )
@@ -45,8 +47,10 @@ module tcp_tx_msg_noc_if_in
         ,.app_tail_ptr_tx_wr_req_data   (app_tail_ptr_tx_wr_req_data    )
 
         ,.app_sched_update_cmd          (app_sched_update_cmd           )
-    
+
+        ,.ctrl_datap_store_body_flit    (ctrl_datap_store_body_flit     ) 
         ,.ctrl_datap_store_hdr_flit     (ctrl_datap_store_hdr_flit      )
+        ,.datap_ctrl_msg_type           (datap_ctrl_msg_type            )
     );
 
     tcp_tx_msg_noc_if_in_ctrl ctrl (
@@ -54,7 +58,6 @@ module tcp_tx_msg_noc_if_in
         ,.rst   (rst    )
         
         ,.noc_tcp_tx_ptr_if_val         (noc_tcp_tx_ptr_if_val          )
-        ,.noc_tcp_tx_ptr_if_data        (noc_tcp_tx_ptr_if_data         )
         ,.tcp_tx_ptr_if_noc_rdy         (tcp_tx_ptr_if_noc_rdy          )
                                                                         
         ,.noc_if_poller_msg_req_val     (noc_if_poller_msg_req_val      )
@@ -66,6 +69,8 @@ module tcp_tx_msg_noc_if_in
         ,.app_sched_update_val          (app_sched_update_val           )
         ,.sched_app_update_rdy          (sched_app_update_rdy           )
                                                                         
+        ,.ctrl_datap_store_body_flit    (ctrl_datap_store_body_flit     ) 
         ,.ctrl_datap_store_hdr_flit     (ctrl_datap_store_hdr_flit      )
+        ,.datap_ctrl_msg_type           (datap_ctrl_msg_type            )
     );
 endmodule

@@ -14,13 +14,21 @@ import tcp_pkg::*;
     ,input  app_new_flow_info               app_new_flow_notif_info
     ,output logic                           app_new_flow_notif_rdy
     
-    ,input                                  app_notif_monitor_noc_val
-    ,input  [MONITOR_DATA_W-1:0]            app_notif_monitor_noc_data
-    ,output                                 monitor_app_notif_noc_rdy
+    ,output                                 app_notif_monitor_noc_val
+    ,output [MONITOR_DATA_W-1:0]            app_notif_monitor_noc_data
+    ,input                                  monitor_app_notif_noc_rdy
 
-    ,output                                 monitor_app_notif_noc_val
-    ,output [MONITOR_DATA_W-1:0]            monitor_app_notif_noc_data
-    ,input                                  app_notif_monitor_noc_rdy
+    ,input                                  monitor_app_notif_noc_val
+    ,input  [MONITOR_DATA_W-1:0]            monitor_app_notif_noc_data
+    ,output                                 app_notif_monitor_noc_rdy
+    
+    ,output                                 app_notif_tx_monitor_val
+    ,output [MONITOR_DATA_W-1:0]            app_notif_tx_monitor_data
+    ,input                                  tx_monitor_app_notif_rdy
+
+    ,input                                  tx_monitor_app_notif_val
+    ,input  [MONITOR_DATA_W-1:0]            tx_monitor_app_notif_data
+    ,output                                 app_notif_tx_monitor_rdy
 );
 
     logic   ctrl_datap_store_inputs;
@@ -28,6 +36,7 @@ import tcp_pkg::*;
     logic                           ctrl_datap_store_op_resp;
     tcp_notif_mux_sel_e             ctrl_datap_op_mux_sel;
     cap_sel_e                       ctrl_datap_sel_cap;
+    logic                           ctrl_datap_do_tx;
     
     tcp_app_notif_ctrl ctrl (
          .clk   (clk)
@@ -40,13 +49,19 @@ import tcp_pkg::*;
         ,.ctrl_datap_read_cam               (ctrl_datap_read_cam            )
     
         ,.ctrl_datap_sel_cap                (ctrl_datap_sel_cap             )
+        ,.ctrl_datap_do_tx                  (ctrl_datap_do_tx               )
                                              
         ,.app_notif_monitor_noc_val         (app_notif_monitor_noc_val      )
         ,.monitor_app_notif_noc_rdy         (monitor_app_notif_noc_rdy      )
                                              
         ,.monitor_app_notif_noc_val         (monitor_app_notif_noc_val      )
         ,.app_notif_monitor_noc_rdy         (app_notif_monitor_noc_rdy      )
-
+    
+        ,.app_notif_tx_monitor_val          (app_notif_tx_monitor_val       )
+        ,.tx_monitor_app_notif_rdy          (tx_monitor_app_notif_rdy       )
+                                             
+        ,.tx_monitor_app_notif_val          (tx_monitor_app_notif_val       )
+        ,.app_notif_tx_monitor_rdy          (app_notif_tx_monitor_rdy       )
     );
 
     tcp_app_notif_datap #(
@@ -62,11 +77,15 @@ import tcp_pkg::*;
         ,.ctrl_datap_store_inputs       (ctrl_datap_store_inputs    )
         ,.ctrl_datap_read_cam           (ctrl_datap_read_cam        )
         ,.ctrl_datap_sel_cap            (ctrl_datap_sel_cap         )
+        ,.ctrl_datap_do_tx                  (ctrl_datap_do_tx               )
 
         ,.app_notif_monitor_noc_data    (app_notif_monitor_noc_data )
 
         ,.monitor_app_notif_noc_data    (monitor_app_notif_noc_data )
+    
+        ,.app_notif_tx_monitor_data     (app_notif_tx_monitor_data)
 
+        ,.tx_monitor_app_notif_data     (tx_monitor_app_notif_data)
     );
 
 endmodule

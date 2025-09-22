@@ -21,12 +21,15 @@ module tcp_rx_msg_noc_if_in (
     ,input  logic                               rx_head_ptr_app_wr_req_rdy
 );
 
+    logic                               ctrl_datap_store_hdr_flit;
+    logic                               ctrl_datap_store_body_flit;
+    logic   [`MSG_TYPE_WIDTH-1:0]       datap_ctrl_msg_type;
+
     tcp_rx_msg_noc_if_in_ctrl ctrl (
          .clk   (clk    )
         ,.rst   (rst    )
         
         ,.noc_tcp_rx_ptr_if_val         (noc_tcp_rx_ptr_if_val          )
-        ,.noc_tcp_rx_ptr_if_data        (noc_tcp_rx_ptr_if_data         )
         ,.tcp_rx_ptr_if_noc_rdy         (tcp_rx_ptr_if_noc_rdy          )
                                                                         
         ,.noc_if_poller_msg_req_val     (noc_if_poller_msg_req_val      )
@@ -36,6 +39,9 @@ module tcp_rx_msg_noc_if_in (
         ,.rx_head_ptr_app_wr_req_rdy    (rx_head_ptr_app_wr_req_rdy     )
                                                                         
         ,.ctrl_datap_store_hdr_flit     (ctrl_datap_store_hdr_flit      )
+        ,.ctrl_datap_store_body_flit    (ctrl_datap_store_body_flit     )
+
+        ,.datap_ctrl_msg_type           (datap_ctrl_msg_type            )
     );
 
     tcp_rx_msg_noc_if_in_datap datap (
@@ -54,5 +60,8 @@ module tcp_rx_msg_noc_if_in (
         ,.app_rx_head_ptr_wr_req_data   (app_rx_head_ptr_wr_req_data    )
                                                                         
         ,.ctrl_datap_store_hdr_flit     (ctrl_datap_store_hdr_flit      )
+        ,.ctrl_datap_store_body_flit    (ctrl_datap_store_body_flit     )
+        
+        ,.datap_ctrl_msg_type           (datap_ctrl_msg_type            )
     );
 endmodule

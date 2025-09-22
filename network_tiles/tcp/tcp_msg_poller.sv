@@ -76,6 +76,7 @@ module tcp_msg_poller #(
     // active bitvec stores which flows have requests outstanding
     valid_bitvector #(
          .BITVECTOR_SIZE    (MAX_FLOW_CNT)
+        ,.INIT_TO_ONE       (0)
     ) req_outstanding (
          .clk   (clk    )
         ,.rst   (rst    )

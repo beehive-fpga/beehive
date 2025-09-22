@@ -11,6 +11,7 @@ filesets:
             - to_ip_tx_noc_out_datap.sv
         depend:
             - uwcse:beehive:common_msgs
+            - uwcse:beehive:msgs
             - uwcse:beehive:openpiton_beehive_noc
             - uwcse:beehive:noc_gearbox
         file_type: systemVerilogSource

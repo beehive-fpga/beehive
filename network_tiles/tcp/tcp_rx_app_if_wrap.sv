@@ -49,6 +49,14 @@ module tcp_rx_app_if_wrap
     ,input                                  monitor_app_notif_noc_val
     ,input  [MONITOR_DATA_W-1:0]            monitor_app_notif_noc_data
     ,output                                 app_notif_monitor_noc_rdy
+    
+    ,output                                 app_notif_tx_monitor_val
+    ,output [MONITOR_DATA_W-1:0]            app_notif_tx_monitor_data
+    ,input                                  tx_monitor_app_notif_rdy
+
+    ,input                                  tx_monitor_app_notif_val
+    ,input  [MONITOR_DATA_W-1:0]            tx_monitor_app_notif_data
+    ,output                                 app_notif_tx_monitor_rdy
 );
     
     logic                           noc_if_poller_msg_req_val;
@@ -88,6 +96,14 @@ module tcp_rx_app_if_wrap
         ,.monitor_app_notif_noc_val         (monitor_app_notif_noc_val          )
         ,.monitor_app_notif_noc_data        (monitor_app_notif_noc_data         )
         ,.app_notif_monitor_noc_rdy         (app_notif_monitor_noc_rdy          )
+    
+        ,.app_notif_tx_monitor_val          (app_notif_tx_monitor_val           )
+        ,.app_notif_tx_monitor_data         (app_notif_tx_monitor_data          )
+        ,.tx_monitor_app_notif_rdy          (tx_monitor_app_notif_rdy           )
+                                             
+        ,.tx_monitor_app_notif_val          (tx_monitor_app_notif_val           )
+        ,.tx_monitor_app_notif_data         (tx_monitor_app_notif_data          )
+        ,.app_notif_tx_monitor_rdy          (app_notif_tx_monitor_rdy           )
     );
 
     tcp_rx_msg_noc_if #(

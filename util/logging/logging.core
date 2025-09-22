@@ -13,6 +13,7 @@ filesets:
         depend:
             - uwcse:beehive:common_inc
             - uwcse:beehive:msgs
+            - uwcse:beehive:tracker
         file_type: systemVerilogSource
 
 targets:

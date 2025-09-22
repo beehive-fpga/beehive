@@ -20,12 +20,21 @@ import apiary_noc_msg::*;
     ,input  logic                           ctrl_datap_store_inputs
     ,input  logic                           ctrl_datap_read_cam
     ,input  cap_sel_e                       ctrl_datap_sel_cap
+    ,input  logic                           ctrl_datap_do_tx
     
     ,output logic   [MONITOR_DATA_W-1:0]    app_notif_monitor_noc_data
 
     ,input  logic   [MONITOR_DATA_W-1:0]    monitor_app_notif_noc_data
+    
+    ,output [MONITOR_DATA_W-1:0]            app_notif_tx_monitor_data
+
+    ,input  [MONITOR_DATA_W-1:0]            tx_monitor_app_notif_data
 );
-    localparam REQ_CAP_LINE_PADDING = `NOC_DATA_WIDTH - APP_CAP_SEND_W_CAP_STRUCT - (2 * APP_CAP_SEND_CMD_STRUCT_W);
+    localparam REQ_CAP_LINE_PADDING = `NOC_DATA_WIDTH - APP_CAP_SEND_W_CAP_STRUCT - (APP_CAP_SEND_CMD_STRUCT_W);
+    localparam FLOW_NOTIF_PADDING = `NOC_DATA_WIDTH - TCP_NOTIF_FLOW_INFO_W;
+
+    tcp_notif_flow_info flow_info_cast;
+
     tcp_notif_cam_entry cam_dst;
 
     tcp_noc_hdr_flit tcp_hdr_flit;
@@ -47,12 +56,38 @@ import apiary_noc_msg::*;
                             ? app_new_flow_notif_info
                             : new_flow_info_reg;
 
-    assign req_cap_line = {req_cap_data, rx_cmd, tx_cmd, {REQ_CAP_LINE_PADDING{1'b0}}};
+    always_comb begin
+        if (ctrl_datap_do_tx) begin
+            req_cap_line = {req_cap_data, tx_cmd, {REQ_CAP_LINE_PADDING{1'b0}}};
+        end
+        else begin
+            req_cap_line = {req_cap_data, rx_cmd, {REQ_CAP_LINE_PADDING{1'b0}}};
+        end
+    end
+
+    always_comb begin
+        flow_info_cast.flowid = new_flow_info_reg.flowid;
+        if (ctrl_datap_do_tx) begin
+            flow_info_cast.buf_dir = TX;
+            flow_info_cast.size = new_flow_info_reg.tx_cap_buffer.size;
+            flow_info_cast.base_offset = new_flow_info_reg.tx_cap_buffer.addr.offset;
+        end
+        else begin
+            flow_info_cast.buf_dir = RX;
+            flow_info_cast.size = new_flow_info_reg.rx_cap_buffer.size;
+            flow_info_cast.base_offset = new_flow_info_reg.rx_cap_buffer.addr.offset;
+        end
+    end
+
+    assign app_notif_tx_monitor_data = app_notif_monitor_noc_data;
 
     always_comb begin
         app_notif_monitor_noc_data = req_hdr_flit;
         if (ctrl_datap_sel_cap == REQ) begin
             app_notif_monitor_noc_data = req_cap_line;
+        end
+        else if (ctrl_datap_sel_cap == NOTIF) begin
+            app_notif_monitor_noc_data = {flow_info_cast, {FLOW_NOTIF_PADDING{1'b0}}};
         end
     end
 
@@ -83,7 +118,7 @@ import apiary_noc_msg::*;
         req_cap_data.sendto_x = cam_dst.dst_x;
         req_cap_data.sendto_y = cam_dst.dst_y;
         req_cap_data.sendto_fbits = TCP_RX_APP_NOTIF_FBITS;
-        req_cap_data.num_cmds = 2;
+        req_cap_data.num_cmds = 1;
     end
 
     always_comb begin

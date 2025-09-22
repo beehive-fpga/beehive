@@ -21,6 +21,7 @@ module tcp_tx_msg_noc_if_out #(
 );
 
     logic   ctrl_datap_store_inputs;
+    logic   ctrl_datap_send_hdr_flit;
 
     tcp_tx_msg_noc_if_out_datap #(
          .SRC_X (SRC_X  )
@@ -39,6 +40,7 @@ module tcp_tx_msg_noc_if_out #(
         ,.poller_msg_noc_if_dst_fbits   (poller_msg_noc_if_dst_fbits    )
                                                                         
         ,.ctrl_datap_store_inputs       (ctrl_datap_store_inputs        )
+        ,.ctrl_datap_send_hdr_flit      (ctrl_datap_send_hdr_flit       )
     );
 
     tcp_tx_msg_noc_if_out_ctrl ctrl (
@@ -52,5 +54,6 @@ module tcp_tx_msg_noc_if_out #(
         ,.noc_if_poller_msg_meta_rdy    (noc_if_poller_msg_meta_rdy     )
                                                                         
         ,.ctrl_datap_store_inputs       (ctrl_datap_store_inputs        )
+        ,.ctrl_datap_send_hdr_flit      (ctrl_datap_send_hdr_flit       )
     );
 endmodule

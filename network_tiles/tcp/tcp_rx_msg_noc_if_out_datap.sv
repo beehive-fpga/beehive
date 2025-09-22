@@ -1,5 +1,9 @@
-`include "tcp_rx_tile_defs.svh"
-module tcp_rx_msg_noc_if_out_datap #(
+`include "noc_defs.vh"
+module tcp_rx_msg_noc_if_out_datap 
+import apiary_noc_msg::*;
+import tcp_pkg::*;
+import beehive_tcp_msg::*;
+#(
      parameter SRC_X = -1
     ,parameter SRC_Y = -1
 )(
@@ -16,6 +20,7 @@ module tcp_rx_msg_noc_if_out_datap #(
     ,input  logic   [`NOC_FBITS_WIDTH-1:0]  poller_msg_noc_if_dst_fbits
 
     ,input  logic                           ctrl_datap_store_inputs
+    ,input  logic                           ctrl_datap_send_hdr_flit
 );
 
     logic   [FLOWID_W-1:0]          flowid_reg;
@@ -32,18 +37,17 @@ module tcp_rx_msg_noc_if_out_datap #(
     logic   [`XY_WIDTH-1:0]         dst_y_next;
     logic   [`NOC_FBITS_WIDTH-1:0]  dst_fbits_next;
 
-    tcp_noc_hdr_flit    hdr_flit_cast;
+    apiary_hdr_flit    hdr_flit_cast;
+    tcp_noc_body_flit       body_flit_cast;
 
-    assign tcp_rx_ptr_if_noc_data = hdr_flit_cast;
+    assign tcp_rx_ptr_if_noc_data = ctrl_datap_send_hdr_flit
+                                ? hdr_flit_cast
+                                : body_flit_cast;
 
     always_ff @(posedge clk) begin
         if (rst) begin
-            flowid_reg <= '0;
             len_reg <= '0;
             head_ptr_reg <= '0;
-            dst_x_reg <= '0;
-            dst_y_reg <= '0;
-            dst_fbits_reg <= '0;
         end
         else begin
             flowid_reg <= flowid_next;
@@ -75,20 +79,24 @@ module tcp_rx_msg_noc_if_out_datap #(
     end
 
     always_comb begin
+        body_flit_cast = '0;
+        
+        body_flit_cast.flowid = flowid_reg;
+        body_flit_cast.head_ptr = head_ptr_reg;
+        body_flit_cast.length = len_reg;
+    end
+
+    always_comb begin
         hdr_flit_cast = '0;
 
         hdr_flit_cast.core.dst_x_coord = dst_x_reg;
         hdr_flit_cast.core.dst_y_coord = dst_y_reg;
         hdr_flit_cast.core.dst_fbits = dst_fbits_reg;
-        hdr_flit_cast.core.msg_len = '0;
+        hdr_flit_cast.core.msg_len = 1;
         hdr_flit_cast.core.msg_type = TCP_RX_MSG_RESP;
         hdr_flit_cast.core.src_x_coord = SRC_X[`MSG_SRC_X_WIDTH-1:0];
         hdr_flit_cast.core.src_y_coord = SRC_Y[`MSG_SRC_Y_WIDTH-1:0];
         hdr_flit_cast.core.src_fbits = TCP_RX_APP_PTR_IF_FBITS;
-        
-        hdr_flit_cast.inner.flowid = flowid_reg;
-        hdr_flit_cast.inner.head_ptr = head_ptr_reg;
-        hdr_flit_cast.inner.length = len_reg;
     end
 
 endmodule

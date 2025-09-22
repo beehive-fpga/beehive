@@ -18,6 +18,8 @@ filesets:
         depend:
             - uwcse:beehive:common_inc
             - uwcse:beehive:common_msgs
+            - uwcse:apiary:msg_api
+            - uwcse:beehive:tcp_engine
         file_type: systemVerilogSource
     sim:
         files:

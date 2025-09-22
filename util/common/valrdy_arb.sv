@@ -15,6 +15,8 @@ module valrdy_arb #(
 );
     logic   [NUM_ELS-1:0]   grants;
 
+    assign val_dst = |grants;
+
     bsg_mux_one_hot #(
          .width_p   (DATA_W )
         ,.els_p     (NUM_ELS)
@@ -23,6 +25,16 @@ module valrdy_arb #(
         ,.sel_one_hot_i (grants         )
         ,.data_o        (data_dst       )
     );
+
+    demux_one_hot #(
+         .NUM_OUTPUTS   (NUM_ELS)
+        ,.INPUT_WIDTH   (1)
+    ) rdy_demux (
+         .input_sel     (grants)
+        ,.data_input    (dst_rdy    )
+        ,.data_outputs  (rdys_src   )
+    );
+
 
     bsg_arb_round_robin #(
         .width_p    (NUM_ELS)

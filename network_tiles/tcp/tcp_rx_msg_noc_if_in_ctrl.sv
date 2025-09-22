@@ -1,10 +1,9 @@
-`include "tcp_rx_tile_defs.svh"
+`include "noc_defs.vh"
 module tcp_rx_msg_noc_if_in_ctrl (
      input clk
     ,input rst
     
     ,input  logic                           noc_tcp_rx_ptr_if_val
-    ,input  logic   [`NOC_DATA_WIDTH-1:0]   noc_tcp_rx_ptr_if_data
     ,output logic                           tcp_rx_ptr_if_noc_rdy
     
     ,output logic                           noc_if_poller_msg_req_val
@@ -14,10 +13,14 @@ module tcp_rx_msg_noc_if_in_ctrl (
     ,input  logic                           rx_head_ptr_app_wr_req_rdy
 
     ,output logic                           ctrl_datap_store_hdr_flit
+    ,output logic                           ctrl_datap_store_body_flit
+
+    ,input  logic   [`MSG_TYPE_WIDTH-1:0]   datap_ctrl_msg_type
 );
 
     typedef enum logic [2:0] {
         READY = 3'd0,
+        STORE_BODY = 3'd3,
         RX_REQ_MSG = 3'd1,
         RX_ADJUST_PTR = 3'd2,
         UND = 'X
@@ -26,10 +29,6 @@ module tcp_rx_msg_noc_if_in_ctrl (
     state_e state_reg;
     state_e state_next;
     
-    beehive_noc_hdr_flit hdr_flit_cast;
-
-    assign hdr_flit_cast = noc_tcp_rx_ptr_if_data;
-
     always_ff @(posedge clk) begin
         if (rst) begin
             state_reg <= READY;
@@ -47,6 +46,7 @@ module tcp_rx_msg_noc_if_in_ctrl (
         app_rx_head_ptr_wr_req_val = 1'b0;
 
         ctrl_datap_store_hdr_flit = 1'b0;
+        ctrl_datap_store_body_flit = 1'b0;
 
         state_next = state_reg;
         case (state_reg)
@@ -54,15 +54,19 @@ module tcp_rx_msg_noc_if_in_ctrl (
                 tcp_rx_ptr_if_noc_rdy  = 1'b1;
                 ctrl_datap_store_hdr_flit = 1'b1;
                 if (noc_tcp_rx_ptr_if_val) begin
-                    if (hdr_flit_cast.core.core.msg_type == TCP_RX_MSG_REQ) begin
+                    state_next = STORE_BODY;
+                end
+            end
+            STORE_BODY: begin
+                tcp_rx_ptr_if_noc_rdy  = 1'b1;
+                ctrl_datap_store_body_flit = 1'b1;
+                if (noc_tcp_rx_ptr_if_val) begin
+                    if (datap_ctrl_msg_type == TCP_RX_MSG_REQ) begin
                         state_next = RX_REQ_MSG;
                     end
                     else begin
                         state_next = RX_ADJUST_PTR;
                     end
-                end
-                else begin
-                    state_next = READY;
                 end
             end
             RX_REQ_MSG: begin

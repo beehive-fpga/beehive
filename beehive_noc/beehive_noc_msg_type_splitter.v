@@ -34,9 +34,9 @@ module beehive_noc_msg_type_splitter #(
     ,parameter                      NOC_DATA_W = 512
     ,parameter                      MSG_PAYLOAD_LEN = 22
     ,parameter                      MSG_LEN_HI = 477
-    ,parameter                      MSG_LEN_LO = MSG_LEN_HI - MSG_PAYLOAD_LEN - 2
+    ,parameter                      MSG_LEN_LO = MSG_LEN_HI - (MSG_PAYLOAD_LEN - 1)
     ,parameter                      MSG_TYPE_HI = 455
-    ,parameter                      MSG_TYPE_LO = MSG_TYPE_HI - MSG_TYPE_W - 2
+    ,parameter                      MSG_TYPE_LO = MSG_TYPE_HI - (MSG_TYPE_W - 1)
     ,parameter  [2:0]               num_targets = 3'd1
     ,parameter  [MSG_TYPE_W-1:0]    msg_type0 = 0    // Processor
     ,parameter  [MSG_TYPE_W-1:0]    msg_type1 = 0
@@ -73,15 +73,18 @@ module beehive_noc_msg_type_splitter #(
 
 );
 
-    localparam IDLE = 3'd0;
-    localparam COUNT_TYPE0 = 3'd1;
-    localparam COUNT_TYPE1 = 3'd2;
-    localparam COUNT_TYPE2 = 3'd3;
-    localparam COUNT_TYPE3 = 3'd4;
-    localparam COUNT_TYPE4 = 3'd5;
+    typedef enum logic[2:0] {
+        IDLE = 3'd0,
+        COUNT_TYPE0 = 3'd1,
+        COUNT_TYPE1 = 3'd2,
+        COUNT_TYPE2 = 3'd3,
+        COUNT_TYPE3 = 3'd4,
+        COUNT_TYPE4 = 3'd5
+    } state_e;
+
     
-    reg [2:0] state_reg;
-    reg [2:0] state_next;
+    state_e state_reg;
+    state_e state_next;
     
     reg [MSG_PAYLOAD_LEN-1:0] count_reg;
     reg [MSG_PAYLOAD_LEN-1:0] count_next;
@@ -104,6 +107,10 @@ module beehive_noc_msg_type_splitter #(
     assign splitter_dst2_vr_noc_dat = src_splitter_vr_noc_dat;
     assign splitter_dst3_vr_noc_dat = src_splitter_vr_noc_dat;
     assign splitter_dst4_vr_noc_dat = src_splitter_vr_noc_dat;
+
+    logic   [`MSG_TYPE_WIDTH-1:0] debug_msg_type;
+
+    assign debug_msg_type = src_splitter_vr_noc_dat[MSG_TYPE_HI:MSG_TYPE_LO];
     
     always @* begin
         splitter_dst0_vr_noc_val = 0;    

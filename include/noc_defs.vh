@@ -211,8 +211,8 @@
 `define MSG_SRC_NODEID_WIDTH    `NOC_NODEID_WIDTH
 
 //Memory requests from L2 to DRAM
-`define MSG_TYPE_LOAD_MEM           8'd19
-`define MSG_TYPE_STORE_MEM          8'd20
+`define MSG_TYPE_LOAD_MEM           8'd21
+`define MSG_TYPE_STORE_MEM          8'd22
 
 `define MSG_TYPE_LOAD_MEM_ACK       8'd24
 `define MSG_TYPE_STORE_MEM_ACK      8'd25

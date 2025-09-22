@@ -44,7 +44,7 @@ module masked_mem_wr_ctrl (
     logic   first_write_reg;
     logic   first_write_next;
 
-    assign wr_ctrl_wr_in_progress = (state_reg != READY);
+    assign wr_ctrl_wr_in_progress = (state_next != READY);
 
     assign wr_ctrl_datap_first_wr = first_write_reg;
 

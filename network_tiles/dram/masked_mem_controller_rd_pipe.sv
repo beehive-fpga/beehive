@@ -162,7 +162,7 @@ module masked_mem_controller_rd_pipe #(
          .clk   (clk    )
         ,.rst   (rst    )
     
-        ,.noc0_ctovr_controller_data    (noc0_ctovr_controller_data     )
+        ,.noc0_ctovr_controller_data    (noc0_datap_data                )
                                                                         
         ,.controller_noc0_vrtoc_data    (datap_noc0_data                )
                                                                         

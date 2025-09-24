@@ -1,0 +1,31 @@
+CAPI=2:
+name: uwcse:apiary:tcp_rs_encode:0.1
+description: Infrastructure for getting RS to interface with TCP
+filesets:
+    rtl:
+        files:
+          - include/tcp_rs_encode_pkg.sv
+          - rs_encode_mgr_in_ctrl.sv
+          - rs_encode_mgr_in_datap.sv
+          - rs_encode_mgr_in.sv
+          - rs_encode_mgr_out_ctrl.sv
+          - rs_encode_mgr_out_datap.sv
+          - rs_encode_mgr_out.sv
+          - rs_encode_wrap.sv
+        depend:
+            - uwcse:beehive:common_inc
+            - uwcse:beehive:tcp_inc
+            - uwcse:apiary:msg_api
+            - uwcse:apiary:hivebox
+            - uwcse:apiary:msg_api
+            - uwcse:apiary:tcp_app_common
+            - uwcse:beehive:openpiton_beehive_noc
+
+    default:
+        filesets: [rtl]
+        generate: [pyhp_generate]
+generate:
+    pyhp_generate:
+        generator: pyhp_gen
+        parameters:
+            process_me: [[rs_encode_tile_gen.sv.pyv, rs_encode_tile_gen.sv]]

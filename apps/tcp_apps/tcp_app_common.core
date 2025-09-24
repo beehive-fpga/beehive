@@ -1,0 +1,24 @@
+CAPI=2:
+name: uwcse:apiary:tcp_app_common:0.1
+description: Common infrastructure used by TCP apps
+filesets:
+    rtl:
+        files:
+            - include/msg_req_pkg.sv
+            - notif_mgr_ctrl.sv
+            - notif_mgr_datap.sv
+            - notif_mgr.sv
+            - tcp_context_mgmt.sv
+            - tcp_msg_req_ctrl.sv
+            - tcp_msg_req_datap.sv
+            - tcp_msg_req.sv
+        depend:
+            - uwcse:beehive:common_inc
+            - uwcse:beehive:tcp_inc
+            - uwcse:apiary:msg_api
+            - uwcse:beehive:openpiton_beehive_noc
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]

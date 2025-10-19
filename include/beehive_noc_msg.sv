@@ -9,6 +9,11 @@ package beehive_noc_msg;
     localparam MSG_TIMESTAMP_W = 64;
     localparam MAX_FLOWID_W = 20;
 
+    typedef struct packed {
+      logic [`XY_WIDTH-1:0]         x;
+      logic [`XY_WIDTH-1:0]         y;
+      logic [`NOC_FBITS_WIDTH-1:0]  fbits;
+    } noc_loc_info;
 
     // the base header flit. this should be a member of a larger flit structure
     typedef struct packed {

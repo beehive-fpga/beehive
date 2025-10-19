@@ -6,13 +6,11 @@
 `include "noc_defs.vh"
 module wr_mem_noc_module 
 import beehive_noc_msg::*;
-import mem_msg_pkg::*;
+import mem_noc_helper_pkg::*;
 #(
-     parameter SRC_X = 0
-    ,parameter SRC_Y = 0
-    ,parameter DST_DRAM_X = 0
-    ,parameter DST_DRAM_Y = 0
-    ,parameter FBITS = 0
+     parameter SRC_X = -1
+    ,parameter SRC_Y = -1
+    ,parameter SRC_FBITS = 0 
 ) (
      input clk
     ,input rst
@@ -26,7 +24,7 @@ import mem_msg_pkg::*;
     ,output logic                               wr_mem_noc_resp_noc0_rdy
     
     ,input  logic                               src_wr_mem_req_val
-    ,input  mem_req_struct                      src_wr_mem_req_entry
+    ,input  sys_mem_req_struct                  src_wr_mem_req_entry
     ,output logic                               wr_mem_src_req_rdy
     
     ,input  logic                               src_wr_mem_req_data_val
@@ -51,9 +49,9 @@ import mem_msg_pkg::*;
     states_e state_reg;
     states_e state_next;
 
-    mem_req_struct  req_entry_cast;
-    mem_req_struct  req_entry_reg;
-    mem_req_struct  req_entry_next;
+    sys_mem_req_struct  req_entry_cast;
+    sys_mem_req_struct  req_entry_reg;
+    sys_mem_req_struct  req_entry_next;
 
     dram_noc_hdr_flit   hdr_flit;
     dram_noc_hdr_flit   wr_resp_flit_cast;
@@ -102,9 +100,9 @@ import mem_msg_pkg::*;
 
                 if (src_wr_mem_req_val) begin
                     req_entry_next = src_wr_mem_req_entry;
-                    flits_to_send_next = req_entry_cast.size[`NOC_DATA_BYTES_W-1:0] == 0
-                              ? req_entry_cast.size >> `NOC_DATA_BYTES_W
-                              : (req_entry_cast.size >> `NOC_DATA_BYTES_W) + 1;
+                    flits_to_send_next = req_entry_cast.mem_req_size[`NOC_DATA_BYTES_W-1:0] == 0
+                              ? req_entry_cast.mem_req_size >> `NOC_DATA_BYTES_W
+                              : (req_entry_cast.mem_req_size >> `NOC_DATA_BYTES_W) + 1;
                     flits_sent_next = '0;
                     state_next = SEND_WR_HDR;
                 end
@@ -191,18 +189,18 @@ import mem_msg_pkg::*;
         hdr_flit = '0;
 
         hdr_flit.core.dst_chip_id = '0;
-        hdr_flit.core.dst_x_coord = DST_DRAM_X[`MSG_DST_X_WIDTH-1:0];
-        hdr_flit.core.dst_y_coord = DST_DRAM_Y[`MSG_DST_Y_WIDTH-1:0];
-        hdr_flit.core.dst_fbits = '0;
+        hdr_flit.core.dst_x_coord = req_entry_reg.mem_info.x;
+        hdr_flit.core.dst_y_coord = req_entry_reg.mem_info.y;
+        hdr_flit.core.dst_fbits = req_entry_reg.mem_info.fbits;
         hdr_flit.core.msg_len = flits_to_send_reg;
         hdr_flit.core.msg_type = `MSG_TYPE_STORE_MEM;
 
-        hdr_flit.req.addr = req_entry_reg.addr;
-        hdr_flit.req.data_size = req_entry_reg.size;
+        hdr_flit.req.addr = req_entry_reg.mem_req_addr;
+        hdr_flit.req.data_size = req_entry_reg.mem_req_size;
 
         hdr_flit.core.src_chip_id = '0;
         hdr_flit.core.src_x_coord = SRC_X[`MSG_SRC_X_WIDTH-1:0];
         hdr_flit.core.src_y_coord = SRC_Y[`MSG_SRC_Y_WIDTH-1:0];
-        hdr_flit.core.src_fbits = FBITS;
+        hdr_flit.core.src_fbits = SRC_FBITS;
     end
 endmodule

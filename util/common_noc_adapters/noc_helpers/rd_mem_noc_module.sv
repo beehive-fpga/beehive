@@ -5,14 +5,12 @@
  */
 `include "noc_defs.vh"
 module rd_mem_noc_module 
-import mem_msg_pkg::*;
+import mem_noc_helper_pkg::*;
 import beehive_noc_msg::*;
 #(
      parameter SRC_X = 0
     ,parameter SRC_Y = 0
-    ,parameter DST_DRAM_X = 0
-    ,parameter DST_DRAM_Y = 0
-    ,parameter FBITS = 0
+    ,parameter SRC_FBITS = 0
 ) (
      input clk
     ,input rst
@@ -26,7 +24,7 @@ import beehive_noc_msg::*;
     ,output logic                               rd_mem_noc_resp_noc_rdy
 
     ,input  logic                               src_rd_mem_req_val
-    ,input  mem_req_struct                      src_rd_mem_req_entry
+    ,input  sys_mem_req_struct                  src_rd_mem_req_entry
     ,output logic                               rd_mem_src_req_rdy
 
     ,output logic                               rd_mem_src_resp_val
@@ -47,8 +45,8 @@ import beehive_noc_msg::*;
     states_e state_reg;
     states_e state_next;
     
-    mem_req_struct  req_entry_next;
-    mem_req_struct  req_entry_reg;
+    sys_mem_req_struct  req_entry_next;
+    sys_mem_req_struct  req_entry_reg;
    
     dram_noc_hdr_flit                   hdr_flit;
     dram_noc_hdr_flit                   rd_req_flit;
@@ -62,9 +60,9 @@ import beehive_noc_msg::*;
     logic   [`NOC_PADBYTES_WIDTH-1:0]   last_padbytes;
 
     assign rd_resp_flit_cast = noc_rd_mem_resp_noc_data;
-    assign last_padbytes = req_entry_reg.size[`NOC_PADBYTES_WIDTH-1:0] == 0
+    assign last_padbytes = req_entry_reg.mem_req_size[`NOC_PADBYTES_WIDTH-1:0] == 0
                          ? '0
-                         : (`NOC_DATA_BYTES - req_entry_reg.size[`NOC_PADBYTES_WIDTH-1:0]);
+                         : (`NOC_DATA_BYTES - req_entry_reg.mem_req_size[`NOC_PADBYTES_WIDTH-1:0]);
 
     always_ff @(posedge clk) begin
         if (rst) begin
@@ -167,19 +165,19 @@ import beehive_noc_msg::*;
     always_comb begin
         hdr_flit = '0;
         hdr_flit.core.dst_chip_id = '0;
-        hdr_flit.core.dst_x_coord = DST_DRAM_X[`MSG_DST_X_WIDTH-1:0];
-        hdr_flit.core.dst_y_coord = DST_DRAM_Y[`MSG_DST_Y_WIDTH-1:0];
-        hdr_flit.core.dst_fbits = '0;
+        hdr_flit.core.dst_x_coord = req_entry_reg.mem_info.x;
+        hdr_flit.core.dst_y_coord = req_entry_reg.mem_info.y;
+        hdr_flit.core.dst_fbits = req_entry_reg.mem_info.fbits;
         hdr_flit.core.msg_len = '0;
         hdr_flit.core.msg_type = `MSG_TYPE_LOAD_MEM;
 
-        hdr_flit.req.addr = req_entry_reg.addr;
-        hdr_flit.req.data_size = req_entry_reg.size;
+        hdr_flit.req.addr = req_entry_reg.mem_req_addr;
+        hdr_flit.req.data_size = req_entry_reg.mem_req_size;
         
         hdr_flit.core.src_chip_id = 'b0;
         hdr_flit.core.src_x_coord = SRC_X[`MSG_SRC_X_WIDTH-1:0];
         hdr_flit.core.src_y_coord = SRC_Y[`MSG_SRC_Y_WIDTH-1:0];
-        hdr_flit.core.src_fbits = FBITS;
+        hdr_flit.core.src_fbits = SRC_FBITS;
     end
 
 endmodule

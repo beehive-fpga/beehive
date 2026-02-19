@@ -21,7 +21,7 @@ update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.9 1 && \
     update-alternatives --install /usr/bin/pip3 pip3 /usr/bin/pip3 1
 
 # install cocotb and testing dependencies
-pip3 install cocotb
+pip3 install "cocotb==1.9.2"
 pip3 install cocotb_bus
 pip3 install cocotb-test
 pip3 install scapy

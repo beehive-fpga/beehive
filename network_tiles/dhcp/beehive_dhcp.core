@@ -1,0 +1,31 @@
+CAPI=2:
+name: uwcse:beehive:dhcp_tile:0.1
+description: Beehive DHCP client tile
+
+filesets:
+    rtl:
+        files:
+            - include/dhcp_tile_pkg.sv
+            - include/dhcp_tile_defs.svh: {is_include_file: true}
+            - include/dhcp_pkt_defs.svh: {is_include_file: true}
+            - dhcp_tile.sv
+        depend:
+            - uwcse:beehive:common_inc
+            - uwcse:beehive:msgs
+            - uwcse:beehive:topology
+            - uwcse:beehive:pyhp_generator
+            - uwcse:beehive:app_udp_adapters
+            - uwcse:beehive:router_block
+            - uwcse:beehive:openpiton_beehive_noc
+        file_type: systemVerilogSource
+
+targets:
+    default:
+        filesets: [rtl]
+        generate: [pyhp_generate]
+
+generate:
+    pyhp_generate:
+        generator: pyhp_gen
+        parameters:
+            process_me: [[dhcp_tile_gen.sv.pyv, dhcp_tile_gen.sv]]

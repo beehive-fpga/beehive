@@ -13,6 +13,7 @@ transcript
 work/
 wave.do
 build/
+venv/
 
 # Python ignores
 # Byte-compiled / optimized / DLL files

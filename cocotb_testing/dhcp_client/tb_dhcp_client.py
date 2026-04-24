@@ -7,7 +7,7 @@ from cocotb.binary import BinaryValue
 from cocotb.clock import Clock
 from cocotb.log import SimLog
 from cocotb.result import SimTimeoutError
-from cocotb.triggers import RisingEdge, with_timeout
+from cocotb.triggers import ClockCycles, RisingEdge, with_timeout
 from scapy.layers.inet import IP, UDP
 from scapy.layers.l2 import Ether
 from scapy.packet import Raw
@@ -116,3 +116,114 @@ async def drops_non_port_68_udp(dut):
     except SimTimeoutError:
         return
     raise AssertionError("Unexpected egress frame for non-port-68 traffic")
+
+
+@cocotb.test()
+async def forwards_multiflit_port_68_udp(dut):
+    """Port-68 frame whose UDP payload spans several 64-byte flits."""
+    tb = TB(dut)
+    await test_prep(dut, tb)
+
+    payload = bytes([i & 0xFF for i in range(256)])
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, payload))
+
+    frame = await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    pkt = Ether(frame)
+    assert UDP in pkt
+    assert int(pkt[UDP].dport) == DHCP_CLIENT_PORT
+    assert bytes(pkt[Raw].load)[:len(payload)] == payload
+
+
+@cocotb.test()
+async def forwards_two_consecutive_frames(dut):
+    """FSM must return to WAIT_META cleanly between two back-to-back port-68 frames."""
+    tb = TB(dut)
+    await test_prep(dut, tb)
+
+    payloads = [bytes([0x11] * 40), bytes([0x22] * 40)]
+    for p in payloads:
+        await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, p))
+
+    for expected in payloads:
+        frame = await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+        pkt = Ether(frame)
+        assert UDP in pkt
+        assert int(pkt[UDP].dport) == DHCP_CLIENT_PORT
+        assert bytes(pkt[Raw].load)[:len(expected)] == expected
+
+
+@cocotb.test()
+async def drops_port_67_udp(dut):
+    """DHCP server port must be dropped (client tile only accepts port 68)."""
+    tb = TB(dut)
+    await test_prep(dut, tb)
+
+    await tb.input_op.xmit_frame(make_udp_frame(67, bytes([0xCC] * 32)))
+
+    try:
+        await with_timeout(tb.output_op.recv_frame(), 200_000, "ns")
+    except SimTimeoutError:
+        return
+    raise AssertionError("Unexpected egress frame for port-67 traffic")
+
+
+@cocotb.test()
+async def forwards_under_tx_backpressure(dut):
+    """Hold egress rdy low so backpressure propagates back through the pipeline;
+    then release rdy and verify the frame still arrives intact."""
+    tb = TB(dut)
+    await test_prep(dut, tb)
+
+    # Stall the egress before the frame is injected so the MAC-TX side
+    # back-pressures the whole tx pipeline (ip_tx/udp_tx/dhcp_tile/...).
+    dut.mac_engine_tx_rdy.value = 0
+
+    payload = bytes([i & 0xFF for i in range(64)])
+    xmit_task = cocotb.start_soon(
+        tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, payload))
+    )
+
+    # Hold backpressure for a meaningful window, then let recv_frame raise rdy.
+    await ClockCycles(dut.clk, 50)
+
+    frame = await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    await xmit_task
+
+    pkt = Ether(frame)
+    assert UDP in pkt
+    assert int(pkt[UDP].dport) == DHCP_CLIENT_PORT
+    assert bytes(pkt[Raw].load)[:len(payload)] == payload
+
+
+@cocotb.test()
+async def reset_mid_forward(dut):
+    """Pulse reset mid-frame, then verify a fresh frame is forwarded normally."""
+    tb = TB(dut)
+    await test_prep(dut, tb)
+
+    # Start a long frame, then reset before it can finish.
+    payload_a = bytes([0xAB] * 256)
+    xmit_task = cocotb.start_soon(
+        tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, payload_a))
+    )
+
+    await ClockCycles(dut.clk, 3)
+    xmit_task.kill()
+
+    dut.mac_engine_rx_val.setimmediatevalue(0)
+    dut.mac_engine_rx_startframe.setimmediatevalue(0)
+    dut.mac_engine_rx_endframe.setimmediatevalue(0)
+    dut.mac_engine_rx_data.setimmediatevalue(BinaryValue(value=0, n_bits=tb.MAC_W))
+
+    dut.rst.value = 1
+    await ClockCycles(dut.clk, 4)
+    dut.rst.value = 0
+    await ClockCycles(dut.clk, 4)
+
+    payload_b = bytes([0x5A] * 40)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, payload_b))
+    frame = await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    pkt = Ether(frame)
+    assert UDP in pkt
+    assert int(pkt[UDP].dport) == DHCP_CLIENT_PORT
+    assert bytes(pkt[Raw].load)[:len(payload_b)] == payload_b

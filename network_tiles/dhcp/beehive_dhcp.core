@@ -9,6 +9,8 @@ filesets:
             - include/dhcp_tile_defs.svh: {is_include_file: true}
             - include/dhcp_pkt_defs.svh: {is_include_file: true}
             - dhcp_tile.sv
+            - dhcp_tile_ctrl.sv
+            - dhcp_tile_datap.sv
         depend:
             - uwcse:beehive:common_inc
             - uwcse:beehive:msgs

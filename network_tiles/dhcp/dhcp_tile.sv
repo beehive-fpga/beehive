@@ -33,15 +33,8 @@ module dhcp_tile #(
     logic [NOC_DATA_W-1:0] to_udp_data;
     logic to_udp_data_rdy;
 
-    // Minimal step-1 behavior: only forward packets targeted to DHCP client port.
-    typedef enum logic [1:0] {
-        WAIT_META = 2'd0,
-        FORWARD_DATA = 2'd1,
-        DROP_DATA = 2'd2
-    } bridge_state_e;
-
-    bridge_state_e bridge_state_reg;
-    bridge_state_e bridge_state_next;
+    // ctrl <-> datap boundary
+    logic datap_ctrl_dst_port_is_client;
 
     from_udp #(
         .NOC_DATA_W(NOC_DATA_W)
@@ -61,6 +54,7 @@ module dhcp_tile #(
         .dst_fr_udp_data_rdy(fr_udp_data_rdy)
     );
 
+    // Client tile: replies always egress through udp_tx, so destination is fixed.
     to_udp #(
         .NOC_DATA_W(NOC_DATA_W),
         .SRC_X(SRC_X),
@@ -83,57 +77,33 @@ module dhcp_tile #(
         .src_to_udp_dst_fbits(PKT_IF_FBITS[`NOC_FBITS_WIDTH-1:0])
     );
 
-    always_ff @(posedge clk) begin
-        if (rst) begin
-            bridge_state_reg <= WAIT_META;
-        end else begin
-            bridge_state_reg <= bridge_state_next;
-        end
-    end
+    dhcp_tile_ctrl ctrl (
+        .clk(clk),
+        .rst(rst),
 
-    always_comb begin
-        to_udp_meta_val = 1'b0;
-        to_udp_meta_info = fr_udp_meta_info;
-        to_udp_data_val = 1'b0;
-        to_udp_data = fr_udp_data;
+        .fr_udp_meta_val(fr_udp_meta_val),
+        .fr_udp_meta_rdy(fr_udp_meta_rdy),
+        .fr_udp_data_val(fr_udp_data_val),
+        .fr_udp_data_last(fr_udp_data_last),
+        .fr_udp_data_rdy(fr_udp_data_rdy),
 
-        fr_udp_meta_rdy = 1'b0;
-        fr_udp_data_rdy = 1'b0;
+        .to_udp_meta_val(to_udp_meta_val),
+        .to_udp_meta_rdy(to_udp_meta_rdy),
+        .to_udp_data_val(to_udp_data_val),
+        .to_udp_data_rdy(to_udp_data_rdy),
 
-        bridge_state_next = bridge_state_reg;
+        .datap_ctrl_dst_port_is_client(datap_ctrl_dst_port_is_client)
+    );
 
-        case (bridge_state_reg)
-            WAIT_META: begin
-                if (fr_udp_meta_val) begin
-                    if (fr_udp_meta_info.dst_port == DHCP_CLIENT_PORT) begin
-                        to_udp_meta_val = 1'b1;
-                        fr_udp_meta_rdy = to_udp_meta_rdy;
-                        if (to_udp_meta_rdy) begin
-                            bridge_state_next = FORWARD_DATA;
-                        end
-                    end else begin
-                        // Consume and discard non-DHCP traffic.
-                        fr_udp_meta_rdy = 1'b1;
-                        bridge_state_next = DROP_DATA;
-                    end
-                end
-            end
-            FORWARD_DATA: begin
-                to_udp_data_val = fr_udp_data_val;
-                fr_udp_data_rdy = to_udp_data_rdy;
-                if (fr_udp_data_val && to_udp_data_rdy && fr_udp_data_last) begin
-                    bridge_state_next = WAIT_META;
-                end
-            end
-            DROP_DATA: begin
-                fr_udp_data_rdy = 1'b1;
-                if (fr_udp_data_val && fr_udp_data_last) begin
-                    bridge_state_next = WAIT_META;
-                end
-            end
-            default: begin
-                bridge_state_next = WAIT_META;
-            end
-        endcase
-    end
+    dhcp_tile_datap #(
+        .NOC_DATA_W(NOC_DATA_W)
+    ) datap (
+        .fr_udp_meta_info(fr_udp_meta_info),
+        .fr_udp_data(fr_udp_data),
+
+        .to_udp_meta_info(to_udp_meta_info),
+        .to_udp_data(to_udp_data),
+
+        .datap_ctrl_dst_port_is_client(datap_ctrl_dst_port_is_client)
+    );
 endmodule

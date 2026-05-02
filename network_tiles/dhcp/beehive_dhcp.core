@@ -11,6 +11,7 @@ filesets:
             - dhcp_tile.sv
             - dhcp_tile_ctrl.sv
             - dhcp_tile_datap.sv
+            - dhcp_parser.sv
         depend:
             - uwcse:beehive:common_inc
             - uwcse:beehive:msgs

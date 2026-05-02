@@ -106,4 +106,37 @@ module dhcp_tile #(
 
         .datap_ctrl_dst_port_is_client(datap_ctrl_dst_port_is_client)
     );
+
+    // Observe-only DHCP parser. Outputs are unused; visible via deep
+    // hierarchy so cocotb can verify field extraction before the lease
+    // FSM consumes them.
+    logic                          parser_parsed_val;
+    logic [`DHCP_OP_W-1:0]         parser_parsed_op;
+    logic [`DHCP_XID_W-1:0]        parser_parsed_xid;
+    logic [`IP_ADDR_W-1:0]         parser_parsed_yiaddr;
+    logic [`IP_ADDR_W-1:0]         parser_parsed_siaddr;
+    logic                          parser_parsed_cookie_valid;
+    logic [2:0]                    parser_parsed_msg_type_53;
+    logic [DHCP_LEASE_SECS_W-1:0]  parser_parsed_lease_secs;
+    logic [`IP_ADDR_W-1:0]         parser_parsed_srv_id;
+
+    dhcp_parser #(
+        .NOC_DATA_W(NOC_DATA_W)
+    ) parser (
+        .clk(clk),
+        .rst(rst),
+        .data_flit_val(fr_udp_data_val & fr_udp_data_rdy),
+        .data_flit_data(fr_udp_data),
+        .data_flit_last(fr_udp_data_last),
+
+        .parsed_val(parser_parsed_val),
+        .parsed_op(parser_parsed_op),
+        .parsed_xid(parser_parsed_xid),
+        .parsed_yiaddr(parser_parsed_yiaddr),
+        .parsed_siaddr(parser_parsed_siaddr),
+        .parsed_cookie_valid(parser_parsed_cookie_valid),
+        .parsed_msg_type_53(parser_parsed_msg_type_53),
+        .parsed_lease_secs(parser_parsed_lease_secs),
+        .parsed_srv_id(parser_parsed_srv_id)
+    );
 endmodule

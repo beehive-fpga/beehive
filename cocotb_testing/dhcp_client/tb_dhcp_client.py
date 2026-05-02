@@ -15,6 +15,12 @@ from scapy.packet import Raw
 import sys
 sys.path.append(str(Path(__file__).resolve().parent.parent / "common"))
 from beehive_bus import BeehiveBus, BeehiveBusSink, BeehiveBusSource
+from dhcp_pkts import (
+    build_dhcp_offer,
+    DHCP_MSG_OFFER,
+    DHCP_OP_BOOTREPLY,
+    DHCP_SERVER_PORT,
+)
 
 DHCP_CLIENT_PORT = 68
 OTHER_PORT = 65432
@@ -227,3 +233,43 @@ async def reset_mid_forward(dut):
     assert UDP in pkt
     assert int(pkt[UDP].dport) == DHCP_CLIENT_PORT
     assert bytes(pkt[Raw].load)[:len(payload_b)] == payload_b
+
+
+@cocotb.test()
+async def parser_extracts_offer_fields(dut):
+    """Send a constructed DHCP OFFER on port 68; verify the observe-only
+    parser registers the expected fields (peeked via deep hierarchy)."""
+    tb = TB(dut)
+    await test_prep(dut, tb)
+
+    xid = 0xDEADBEEF
+    yiaddr = 0xC0A8000A   # 192.168.0.10
+    siaddr = 0xC0A80001   # 192.168.0.1
+    lease_secs = 3600
+    payload = build_dhcp_offer(xid, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, payload))
+
+    frame = await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    pkt = Ether(frame)
+    assert UDP in pkt
+    assert int(pkt[UDP].dport) == DHCP_CLIENT_PORT
+
+    # Give the parser one extra cycle past the last data flit to register.
+    await ClockCycles(dut.clk, 4)
+
+    parser = dut.DHCP_TILE_3_0.tile.parser
+    assert int(parser.parsed_op.value) == DHCP_OP_BOOTREPLY, \
+        f"op {int(parser.parsed_op.value):#x} != BOOTREPLY"
+    assert int(parser.parsed_xid.value) == xid, \
+        f"xid {int(parser.parsed_xid.value):#x} != {xid:#x}"
+    assert int(parser.parsed_yiaddr.value) == yiaddr, \
+        f"yiaddr {int(parser.parsed_yiaddr.value):#x} != {yiaddr:#x}"
+    assert int(parser.parsed_siaddr.value) == siaddr, \
+        f"siaddr {int(parser.parsed_siaddr.value):#x} != {siaddr:#x}"
+    assert int(parser.parsed_cookie_valid.value) == 1, "cookie_valid != 1"
+    assert int(parser.parsed_msg_type_53.value) == DHCP_MSG_OFFER, \
+        f"msg_type_53 {int(parser.parsed_msg_type_53.value)} != OFFER"
+    assert int(parser.parsed_lease_secs.value) == lease_secs, \
+        f"lease_secs {int(parser.parsed_lease_secs.value)} != {lease_secs}"
+    assert int(parser.parsed_srv_id.value) == siaddr, \
+        f"srv_id {int(parser.parsed_srv_id.value):#x} != {siaddr:#x}"

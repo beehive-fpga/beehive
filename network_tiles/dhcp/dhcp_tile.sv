@@ -15,7 +15,7 @@ module dhcp_tile #(
     output logic [NOC_DATA_W-1:0] noc_dhcp_tx_data,
     input logic noc_dhcp_tx_rdy
 );
-    // UDP packet extracted from incoming NoC flits.
+    // RX path: from_udp -> drained by dhcp_tile_ctrl, observed by parser.
     logic fr_udp_meta_val;
     udp_info fr_udp_meta_info;
     logic fr_udp_meta_rdy;
@@ -25,16 +25,18 @@ module dhcp_tile #(
     logic [`NOC_DATA_BYTES_W-1:0] fr_udp_data_padbytes;
     logic fr_udp_data_rdy;
 
-    // UDP packet stream driven into the outgoing NoC path.
+    // TX path: dhcp_tx_datap drives meta+data, dhcp_tx_ctrl handshakes to_udp.
     logic to_udp_meta_val;
     udp_info to_udp_meta_info;
     logic to_udp_meta_rdy;
     logic to_udp_data_val;
     logic [NOC_DATA_W-1:0] to_udp_data;
     logic to_udp_data_rdy;
+    logic [1:0] tx_curr_flit_index;
 
-    // ctrl <-> datap boundary
-    logic datap_ctrl_dst_port_is_client;
+    // Hardcoded XID for the one-shot DISCOVER. Step 6 wires the lease FSM
+    // here and replaces the constant with a runtime-generated XID.
+    localparam logic [`DHCP_XID_W-1:0] DISCOVER_XID = 32'hDEAD_BEEF;
 
     from_udp #(
         .NOC_DATA_W(NOC_DATA_W)
@@ -80,31 +82,30 @@ module dhcp_tile #(
     dhcp_tile_ctrl ctrl (
         .clk(clk),
         .rst(rst),
-
         .fr_udp_meta_val(fr_udp_meta_val),
         .fr_udp_meta_rdy(fr_udp_meta_rdy),
         .fr_udp_data_val(fr_udp_data_val),
         .fr_udp_data_last(fr_udp_data_last),
-        .fr_udp_data_rdy(fr_udp_data_rdy),
+        .fr_udp_data_rdy(fr_udp_data_rdy)
+    );
 
+    dhcp_tx_ctrl tx_ctrl (
+        .clk(clk),
+        .rst(rst),
         .to_udp_meta_val(to_udp_meta_val),
         .to_udp_meta_rdy(to_udp_meta_rdy),
         .to_udp_data_val(to_udp_data_val),
         .to_udp_data_rdy(to_udp_data_rdy),
-
-        .datap_ctrl_dst_port_is_client(datap_ctrl_dst_port_is_client)
+        .curr_flit_index(tx_curr_flit_index)
     );
 
-    dhcp_tile_datap #(
+    dhcp_tx_datap #(
         .NOC_DATA_W(NOC_DATA_W)
-    ) datap (
-        .fr_udp_meta_info(fr_udp_meta_info),
-        .fr_udp_data(fr_udp_data),
-
+    ) tx_datap (
+        .xid(DISCOVER_XID),
+        .curr_flit_index(tx_curr_flit_index),
         .to_udp_meta_info(to_udp_meta_info),
-        .to_udp_data(to_udp_data),
-
-        .datap_ctrl_dst_port_is_client(datap_ctrl_dst_port_is_client)
+        .to_udp_data(to_udp_data)
     );
 
     // Observe-only DHCP parser. Outputs are unused; visible via deep

@@ -10,7 +10,8 @@ filesets:
             - include/dhcp_pkt_defs.svh: {is_include_file: true}
             - dhcp_tile.sv
             - dhcp_tile_ctrl.sv
-            - dhcp_tile_datap.sv
+            - dhcp_tx_ctrl.sv
+            - dhcp_tx_datap.sv
             - dhcp_parser.sv
         depend:
             - uwcse:beehive:common_inc

@@ -1,13 +1,14 @@
-"""Step-1 CI tests for minimal DHCP port-68 UDP bridge."""
+"""Step-5 CI tests: tile auto-emits a DHCP DISCOVER on reset; parser still
+observes inbound replies."""
 import logging
+import struct
 from pathlib import Path
 
 import cocotb
 from cocotb.binary import BinaryValue
 from cocotb.clock import Clock
 from cocotb.log import SimLog
-from cocotb.result import SimTimeoutError
-from cocotb.triggers import ClockCycles, RisingEdge, with_timeout
+from cocotb.triggers import RisingEdge, with_timeout
 from scapy.layers.inet import IP, UDP
 from scapy.layers.l2 import Ether
 from scapy.packet import Raw
@@ -17,13 +18,20 @@ sys.path.append(str(Path(__file__).resolve().parent.parent / "common"))
 from beehive_bus import BeehiveBus, BeehiveBusSink, BeehiveBusSource
 from dhcp_pkts import (
     build_dhcp_offer,
+    DHCP_CLIENT_PORT,
+    DHCP_COOKIE,
+    DHCP_MSG_DISCOVER,
     DHCP_MSG_OFFER,
     DHCP_OP_BOOTREPLY,
+    DHCP_OP_BOOTREQUEST,
+    DHCP_OPT_MSG_TYPE,
+    DHCP_OPTIONS_O,
     DHCP_SERVER_PORT,
 )
 
-DHCP_CLIENT_PORT = 68
-OTHER_PORT = 65432
+# Hardcoded XID baked into dhcp_tile.sv for the one-shot DISCOVER. Lifted out
+# in step 6 once the lease FSM owns XID generation.
+DISCOVER_XID = 0xDEADBEEF
 
 
 async def reset(dut):
@@ -95,167 +103,64 @@ async def test_prep(dut, tb):
     await reset(dut)
 
 
+async def _wait_parser_val(dut):
+    while True:
+        await RisingEdge(dut.clk)
+        if int(dut.DHCP_TILE_3_0.tile.parser.parsed_val.value) == 1:
+            return
+
+
 @cocotb.test()
-async def forwards_port_68_udp(dut):
+async def post_reset_emits_discover(dut):
+    """After reset deassert the tile auto-emits one well-formed DHCP DISCOVER."""
     tb = TB(dut)
     await test_prep(dut, tb)
-
-    payload = bytes([0x11, 0x22, 0x33, 0x44] * 16)
-    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, payload))
 
     frame = await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
     pkt = Ether(frame)
-    assert UDP in pkt
-    assert int(pkt[UDP].dport) == DHCP_CLIENT_PORT
-    assert bytes(pkt[Raw].load)[:len(payload)] == payload
+    assert UDP in pkt, "egress is not UDP"
+    assert int(pkt[UDP].sport) == DHCP_CLIENT_PORT, \
+        f"sport {int(pkt[UDP].sport)} != {DHCP_CLIENT_PORT}"
+    assert int(pkt[UDP].dport) == DHCP_SERVER_PORT, \
+        f"dport {int(pkt[UDP].dport)} != {DHCP_SERVER_PORT}"
 
+    payload = bytes(pkt[Raw].load)
+    # tile sends DHCP_MIN_PAYLOAD_BYTES=253; padding may extend it.
+    assert len(payload) >= 253, f"DHCP payload too short: {len(payload)}"
 
-@cocotb.test()
-async def drops_non_port_68_udp(dut):
-    tb = TB(dut)
-    await test_prep(dut, tb)
+    # BOOTP fixed header
+    assert payload[0] == DHCP_OP_BOOTREQUEST, \
+        f"op {payload[0]} != BOOTREQUEST"
+    assert payload[1] == 1, f"htype {payload[1]} != 1"
+    assert payload[2] == 6, f"hlen {payload[2]} != 6"
+    xid = struct.unpack(">I", payload[4:8])[0]
+    assert xid == DISCOVER_XID, f"xid {xid:#x} != {DISCOVER_XID:#x}"
 
-    await tb.input_op.xmit_frame(make_udp_frame(OTHER_PORT, bytes([0xAA] * 32)))
-
-    try:
-        await with_timeout(tb.output_op.recv_frame(), 200_000, "ns")
-    except SimTimeoutError:
-        return
-    raise AssertionError("Unexpected egress frame for non-port-68 traffic")
-
-
-@cocotb.test()
-async def forwards_multiflit_port_68_udp(dut):
-    """Port-68 frame whose UDP payload spans several 64-byte flits."""
-    tb = TB(dut)
-    await test_prep(dut, tb)
-
-    payload = bytes([i & 0xFF for i in range(256)])
-    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, payload))
-
-    frame = await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
-    pkt = Ether(frame)
-    assert UDP in pkt
-    assert int(pkt[UDP].dport) == DHCP_CLIENT_PORT
-    assert bytes(pkt[Raw].load)[:len(payload)] == payload
-
-
-@cocotb.test()
-async def forwards_two_consecutive_frames(dut):
-    """FSM must return to WAIT_META cleanly between two back-to-back port-68 frames."""
-    tb = TB(dut)
-    await test_prep(dut, tb)
-
-    payloads = [bytes([0x11] * 40), bytes([0x22] * 40)]
-    for p in payloads:
-        await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, p))
-
-    for expected in payloads:
-        frame = await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
-        pkt = Ether(frame)
-        assert UDP in pkt
-        assert int(pkt[UDP].dport) == DHCP_CLIENT_PORT
-        assert bytes(pkt[Raw].load)[:len(expected)] == expected
-
-
-@cocotb.test()
-async def drops_port_67_udp(dut):
-    """DHCP server port must be dropped (client tile only accepts port 68)."""
-    tb = TB(dut)
-    await test_prep(dut, tb)
-
-    await tb.input_op.xmit_frame(make_udp_frame(67, bytes([0xCC] * 32)))
-
-    try:
-        await with_timeout(tb.output_op.recv_frame(), 200_000, "ns")
-    except SimTimeoutError:
-        return
-    raise AssertionError("Unexpected egress frame for port-67 traffic")
-
-
-@cocotb.test()
-async def forwards_under_tx_backpressure(dut):
-    """Hold egress rdy low so backpressure propagates back through the pipeline;
-    then release rdy and verify the frame still arrives intact."""
-    tb = TB(dut)
-    await test_prep(dut, tb)
-
-    # Stall the egress before the frame is injected so the MAC-TX side
-    # back-pressures the whole tx pipeline (ip_tx/udp_tx/dhcp_tile/...).
-    dut.mac_engine_tx_rdy.value = 0
-
-    payload = bytes([i & 0xFF for i in range(64)])
-    xmit_task = cocotb.start_soon(
-        tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, payload))
-    )
-
-    # Hold backpressure for a meaningful window, then let recv_frame raise rdy.
-    await ClockCycles(dut.clk, 50)
-
-    frame = await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
-    await xmit_task
-
-    pkt = Ether(frame)
-    assert UDP in pkt
-    assert int(pkt[UDP].dport) == DHCP_CLIENT_PORT
-    assert bytes(pkt[Raw].load)[:len(payload)] == payload
-
-
-@cocotb.test()
-async def reset_mid_forward(dut):
-    """Pulse reset mid-frame, then verify a fresh frame is forwarded normally."""
-    tb = TB(dut)
-    await test_prep(dut, tb)
-
-    # Start a long frame, then reset before it can finish.
-    payload_a = bytes([0xAB] * 256)
-    xmit_task = cocotb.start_soon(
-        tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, payload_a))
-    )
-
-    await ClockCycles(dut.clk, 3)
-    xmit_task.kill()
-
-    dut.mac_engine_rx_val.setimmediatevalue(0)
-    dut.mac_engine_rx_startframe.setimmediatevalue(0)
-    dut.mac_engine_rx_endframe.setimmediatevalue(0)
-    dut.mac_engine_rx_data.setimmediatevalue(BinaryValue(value=0, n_bits=tb.MAC_W))
-
-    dut.rst.value = 1
-    await ClockCycles(dut.clk, 4)
-    dut.rst.value = 0
-    await ClockCycles(dut.clk, 4)
-
-    payload_b = bytes([0x5A] * 40)
-    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, payload_b))
-    frame = await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
-    pkt = Ether(frame)
-    assert UDP in pkt
-    assert int(pkt[UDP].dport) == DHCP_CLIENT_PORT
-    assert bytes(pkt[Raw].load)[:len(payload_b)] == payload_b
+    # Magic cookie + option 53 = DISCOVER
+    assert payload[DHCP_OPTIONS_O:DHCP_OPTIONS_O + 4] == DHCP_COOKIE, \
+        f"cookie missing at offset {DHCP_OPTIONS_O}"
+    assert payload[240] == DHCP_OPT_MSG_TYPE, \
+        f"opt53 tag {payload[240]} != {DHCP_OPT_MSG_TYPE}"
+    assert payload[241] == 1, f"opt53 len {payload[241]} != 1"
+    assert payload[242] == DHCP_MSG_DISCOVER, \
+        f"opt53 value {payload[242]} != DISCOVER"
 
 
 @cocotb.test()
 async def parser_extracts_offer_fields(dut):
-    """Send a constructed DHCP OFFER on port 68; verify the observe-only
-    parser registers the expected fields (peeked via deep hierarchy)."""
+    """Inject a DHCP OFFER on port 68; observe-only parser snapshots fields.
+    The tile no longer echoes RX traffic; we sync on parser.parsed_val."""
     tb = TB(dut)
     await test_prep(dut, tb)
 
-    xid = 0xDEADBEEF
+    xid = 0xCAFEF00D
     yiaddr = 0xC0A8000A   # 192.168.0.10
     siaddr = 0xC0A80001   # 192.168.0.1
     lease_secs = 3600
     payload = build_dhcp_offer(xid, yiaddr, siaddr, lease_secs)
     await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, payload))
 
-    frame = await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
-    pkt = Ether(frame)
-    assert UDP in pkt
-    assert int(pkt[UDP].dport) == DHCP_CLIENT_PORT
-
-    # Give the parser one extra cycle past the last data flit to register.
-    await ClockCycles(dut.clk, 4)
+    await with_timeout(_wait_parser_val(dut), 2_000_000_000, "ns")
 
     parser = dut.DHCP_TILE_3_0.tile.parser
     assert int(parser.parsed_op.value) == DHCP_OP_BOOTREPLY, \

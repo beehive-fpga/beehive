@@ -25,18 +25,24 @@ module dhcp_tile #(
     logic [`NOC_DATA_BYTES_W-1:0] fr_udp_data_padbytes;
     logic fr_udp_data_rdy;
 
-    // TX path: dhcp_tx_datap drives meta+data, dhcp_tx_ctrl handshakes to_udp.
+    // TX boundary between lease FSM (in ctrl), tx_ctrl, and tx_datap.
+    logic                   tx_start;
+    dhcp_tx_msg_type_e      tx_msg_type;       // FSM -> tx_ctrl
+    dhcp_tx_msg_type_e      tx_msg_type_reg;   // tx_ctrl -> tx_datap (latched)
+    logic                   tx_done;
+    logic [`DHCP_XID_W-1:0] current_xid;
+    logic [`IP_ADDR_W-1:0]  lease_yiaddr;
+    logic [`IP_ADDR_W-1:0]  lease_siaddr;
+    logic [2:0]             tx_curr_flit_index;
+    dhcp_client_state_e     lease_state_dbg;
+
+    // Outbound to to_udp.
     logic to_udp_meta_val;
     udp_info to_udp_meta_info;
     logic to_udp_meta_rdy;
     logic to_udp_data_val;
     logic [NOC_DATA_W-1:0] to_udp_data;
     logic to_udp_data_rdy;
-    logic [1:0] tx_curr_flit_index;
-
-    // Hardcoded XID for the one-shot DISCOVER. Step 6 wires the lease FSM
-    // here and replaces the constant with a runtime-generated XID.
-    localparam logic [`DHCP_XID_W-1:0] DISCOVER_XID = 32'hDEAD_BEEF;
 
     from_udp #(
         .NOC_DATA_W(NOC_DATA_W)
@@ -79,38 +85,8 @@ module dhcp_tile #(
         .src_to_udp_dst_fbits(PKT_IF_FBITS[`NOC_FBITS_WIDTH-1:0])
     );
 
-    dhcp_tile_ctrl ctrl (
-        .clk(clk),
-        .rst(rst),
-        .fr_udp_meta_val(fr_udp_meta_val),
-        .fr_udp_meta_rdy(fr_udp_meta_rdy),
-        .fr_udp_data_val(fr_udp_data_val),
-        .fr_udp_data_last(fr_udp_data_last),
-        .fr_udp_data_rdy(fr_udp_data_rdy)
-    );
-
-    dhcp_tx_ctrl tx_ctrl (
-        .clk(clk),
-        .rst(rst),
-        .to_udp_meta_val(to_udp_meta_val),
-        .to_udp_meta_rdy(to_udp_meta_rdy),
-        .to_udp_data_val(to_udp_data_val),
-        .to_udp_data_rdy(to_udp_data_rdy),
-        .curr_flit_index(tx_curr_flit_index)
-    );
-
-    dhcp_tx_datap #(
-        .NOC_DATA_W(NOC_DATA_W)
-    ) tx_datap (
-        .xid(DISCOVER_XID),
-        .curr_flit_index(tx_curr_flit_index),
-        .to_udp_meta_info(to_udp_meta_info),
-        .to_udp_data(to_udp_data)
-    );
-
-    // Observe-only DHCP parser. Outputs are unused; visible via deep
-    // hierarchy so cocotb can verify field extraction before the lease
-    // FSM consumes them.
+    // Observe-only DHCP parser. Outputs feed the lease FSM via ctrl below
+    // and remain visible via deep hierarchy for parser-only tests.
     logic                          parser_parsed_val;
     logic [`DHCP_OP_W-1:0]         parser_parsed_op;
     logic [`DHCP_XID_W-1:0]        parser_parsed_xid;
@@ -139,5 +115,61 @@ module dhcp_tile #(
         .parsed_msg_type_53(parser_parsed_msg_type_53),
         .parsed_lease_secs(parser_parsed_lease_secs),
         .parsed_srv_id(parser_parsed_srv_id)
+    );
+
+    dhcp_tile_ctrl ctrl (
+        .clk(clk),
+        .rst(rst),
+
+        .fr_udp_meta_val(fr_udp_meta_val),
+        .fr_udp_meta_rdy(fr_udp_meta_rdy),
+        .fr_udp_data_val(fr_udp_data_val),
+        .fr_udp_data_last(fr_udp_data_last),
+        .fr_udp_data_rdy(fr_udp_data_rdy),
+
+        .parser_parsed_val(parser_parsed_val),
+        .parser_parsed_cookie_valid(parser_parsed_cookie_valid),
+        .parser_parsed_msg_type_53(parser_parsed_msg_type_53),
+        .parser_parsed_xid(parser_parsed_xid),
+        .parser_parsed_yiaddr(parser_parsed_yiaddr),
+        .parser_parsed_siaddr(parser_parsed_siaddr),
+
+        .tx_done(tx_done),
+        .tx_start(tx_start),
+        .tx_msg_type(tx_msg_type),
+        .current_xid(current_xid),
+        .lease_yiaddr(lease_yiaddr),
+        .lease_siaddr(lease_siaddr),
+
+        .lease_state_dbg(lease_state_dbg)
+    );
+
+    dhcp_tx_ctrl tx_ctrl (
+        .clk(clk),
+        .rst(rst),
+
+        .tx_start(tx_start),
+        .tx_msg_type(tx_msg_type),
+        .tx_msg_type_reg(tx_msg_type_reg),
+
+        .to_udp_meta_val(to_udp_meta_val),
+        .to_udp_meta_rdy(to_udp_meta_rdy),
+        .to_udp_data_val(to_udp_data_val),
+        .to_udp_data_rdy(to_udp_data_rdy),
+
+        .curr_flit_index(tx_curr_flit_index),
+        .tx_done(tx_done)
+    );
+
+    dhcp_tx_datap #(
+        .NOC_DATA_W(NOC_DATA_W)
+    ) tx_datap (
+        .tx_msg_type(tx_msg_type_reg),
+        .xid(current_xid),
+        .lease_yiaddr(lease_yiaddr),
+        .lease_siaddr(lease_siaddr),
+        .curr_flit_index(tx_curr_flit_index),
+        .to_udp_meta_info(to_udp_meta_info),
+        .to_udp_data(to_udp_data)
     );
 endmodule

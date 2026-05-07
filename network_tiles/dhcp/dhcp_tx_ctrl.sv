@@ -1,50 +1,79 @@
 `include "dhcp_tile_defs.svh"
 
-// One-shot DHCP DISCOVER transmit FSM. Coming out of reset the tile sends
-// exactly one DISCOVER (meta + 4 data flits) into to_udp and then idles in
-// DONE forever. Step 6 will replace this with the lease FSM that retriggers
-// on lease events.
+// DHCP TX framing FSM. Triggered by a one-cycle `tx_start` from the lease
+// FSM (in dhcp_tile_ctrl) with the message type to send. Latches msg_type
+// at the IDLE -> SEND_META edge so the datapath sees a stable selector
+// across the whole burst, then walks through SEND_META + N data flits and
+// pulses `tx_done` for one cycle as the last data flit handshakes.
 module dhcp_tx_ctrl (
     input  logic clk,
     input  logic rst,
+
+    input  logic              tx_start,
+    input  dhcp_tx_msg_type_e tx_msg_type,
+    output dhcp_tx_msg_type_e tx_msg_type_reg,
 
     output logic       to_udp_meta_val,
     input  logic       to_udp_meta_rdy,
     output logic       to_udp_data_val,
     input  logic       to_udp_data_rdy,
 
-    output logic [1:0] curr_flit_index
+    output logic [2:0] curr_flit_index,
+    output logic       tx_done
 );
-    localparam logic [1:0] NUM_DATA_FLITS = 2'd3;  // index of the last flit (0..3)
-
     typedef enum logic [1:0] {
-        SEND_META = 2'd0,
-        SEND_DATA = 2'd1,
-        DONE      = 2'd2,
+        IDLE      = 2'd0,
+        SEND_META = 2'd1,
+        SEND_DATA = 2'd2,
         UND       = 'X
     } tx_state_e;
 
     tx_state_e state_reg, state_next;
-    logic [1:0] flit_idx_reg, flit_idx_next;
+    logic [2:0] flit_idx_reg, flit_idx_next;
+    dhcp_tx_msg_type_e msg_type_reg, msg_type_next;
+    logic [2:0] num_data_flits;
+
+    assign tx_msg_type_reg = msg_type_reg;
+
+    // DISCOVER = 253 B = 4 flits; REQUEST_* = 265 B = 5 flits.
+    always_comb begin
+        case (msg_type_reg)
+            DISCOVER:      num_data_flits = 3'd4;
+            REQUEST_INIT:  num_data_flits = 3'd5;
+            REQUEST_RENEW: num_data_flits = 3'd5;
+            default:       num_data_flits = 3'd4;
+        endcase
+    end
 
     always_ff @(posedge clk) begin
         if (rst) begin
-            state_reg    <= SEND_META;
+            state_reg    <= IDLE;
             flit_idx_reg <= '0;
+            msg_type_reg <= DISCOVER;
         end else begin
             state_reg    <= state_next;
             flit_idx_reg <= flit_idx_next;
+            msg_type_reg <= msg_type_next;
         end
     end
 
     always_comb begin
         state_next      = state_reg;
         flit_idx_next   = flit_idx_reg;
+        msg_type_next   = msg_type_reg;
         to_udp_meta_val = 1'b0;
         to_udp_data_val = 1'b0;
         curr_flit_index = flit_idx_reg;
+        tx_done         = 1'b0;
 
         case (state_reg)
+            IDLE: begin
+                if (tx_start) begin
+                    msg_type_next = tx_msg_type;
+                    flit_idx_next = '0;
+                    state_next    = SEND_META;
+                end
+            end
             SEND_META: begin
                 to_udp_meta_val = 1'b1;
                 if (to_udp_meta_rdy) begin
@@ -55,15 +84,13 @@ module dhcp_tx_ctrl (
             SEND_DATA: begin
                 to_udp_data_val = 1'b1;
                 if (to_udp_data_rdy) begin
-                    if (flit_idx_reg == NUM_DATA_FLITS) begin
-                        state_next = DONE;
+                    if (flit_idx_reg + 1'b1 == num_data_flits) begin
+                        tx_done    = 1'b1;
+                        state_next = IDLE;
                     end else begin
                         flit_idx_next = flit_idx_reg + 1'b1;
                     end
                 end
-            end
-            DONE: begin
-                // Latched: stay here until the lease FSM (step 6) drives more sends.
             end
             default: begin
                 state_next = UND;

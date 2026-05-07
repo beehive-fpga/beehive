@@ -17,17 +17,24 @@ import sys
 sys.path.append(str(Path(__file__).resolve().parent.parent / "common"))
 from beehive_bus import BeehiveBus, BeehiveBusSink, BeehiveBusSource
 from dhcp_pkts import (
+    build_dhcp_ack,
     build_dhcp_offer,
     DHCP_CLIENT_PORT,
     DHCP_COOKIE,
     DHCP_MSG_DISCOVER,
     DHCP_MSG_OFFER,
+    DHCP_MSG_REQUEST,
     DHCP_OP_BOOTREPLY,
     DHCP_OP_BOOTREQUEST,
     DHCP_OPT_MSG_TYPE,
+    DHCP_OPT_REQ_IP,
+    DHCP_OPT_SERVER_ID,
     DHCP_OPTIONS_O,
     DHCP_SERVER_PORT,
 )
+
+# dhcp_client_state_e value for BOUND (matches dhcp_tile_pkg.sv).
+LEASE_STATE_BOUND = 3
 
 # Hardcoded XID baked into dhcp_tile.sv for the one-shot DISCOVER. Lifted out
 # in step 6 once the lease FSM owns XID generation.
@@ -110,6 +117,13 @@ async def _wait_parser_val(dut):
             return
 
 
+async def _wait_lease_state(dut, target):
+    while True:
+        await RisingEdge(dut.clk)
+        if int(dut.DHCP_TILE_3_0.tile.ctrl.lease_state_dbg.value) == target:
+            return
+
+
 @cocotb.test()
 async def post_reset_emits_discover(dut):
     """After reset deassert the tile auto-emits one well-formed DHCP DISCOVER."""
@@ -178,3 +192,61 @@ async def parser_extracts_offer_fields(dut):
         f"lease_secs {int(parser.parsed_lease_secs.value)} != {lease_secs}"
     assert int(parser.parsed_srv_id.value) == siaddr, \
         f"srv_id {int(parser.parsed_srv_id.value):#x} != {siaddr:#x}"
+
+
+@cocotb.test()
+async def discover_request_ack(dut):
+    """Cooperative-server DORA happy path. After reset the lease FSM walks
+    INIT -> SELECTING -> REQUESTING -> BOUND while the testbench impersonates
+    a DHCP server: catch DISCOVER, inject OFFER, catch REQUEST, inject ACK,
+    poll lease_state_dbg until BOUND."""
+    tb = TB(dut)
+    await test_prep(dut, tb)
+
+    yiaddr = 0xC0A8000A   # 192.168.0.10
+    siaddr = 0xC0A80001   # 192.168.0.1
+    lease_secs = 3600
+
+    # 1. Catch DISCOVER egress.
+    frame = await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    pkt = Ether(frame)
+    assert UDP in pkt, "first egress not UDP"
+    assert int(pkt[UDP].dport) == DHCP_SERVER_PORT
+    payload = bytes(pkt[Raw].load)
+    assert payload[242] == DHCP_MSG_DISCOVER, \
+        f"first egress is not DISCOVER (opt53={payload[242]})"
+
+    # 2. Inject OFFER (matching xid).
+    offer = build_dhcp_offer(DISCOVER_XID, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, offer))
+
+    # 3. Catch REQUEST egress with the right options.
+    frame = await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    pkt = Ether(frame)
+    assert UDP in pkt, "second egress not UDP"
+    assert int(pkt[UDP].dport) == DHCP_SERVER_PORT
+    payload = bytes(pkt[Raw].load)
+    assert payload[242] == DHCP_MSG_REQUEST, \
+        f"second egress is not REQUEST (opt53={payload[242]})"
+
+    # Option 50: requested IP = offered yiaddr.
+    assert payload[252] == DHCP_OPT_REQ_IP, \
+        f"opt50 tag {payload[252]} != {DHCP_OPT_REQ_IP}"
+    assert payload[253] == 4, f"opt50 len {payload[253]} != 4"
+    req_ip = struct.unpack(">I", payload[254:258])[0]
+    assert req_ip == yiaddr, f"req_ip {req_ip:#x} != {yiaddr:#x}"
+
+    # Option 54: server identifier = offered siaddr.
+    assert payload[258] == DHCP_OPT_SERVER_ID, \
+        f"opt54 tag {payload[258]} != {DHCP_OPT_SERVER_ID}"
+    assert payload[259] == 4, f"opt54 len {payload[259]} != 4"
+    srv_id = struct.unpack(">I", payload[260:264])[0]
+    assert srv_id == siaddr, f"srv_id {srv_id:#x} != {siaddr:#x}"
+
+    # 4. Inject ACK.
+    ack = build_dhcp_ack(DISCOVER_XID, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, ack))
+
+    # 5. Lease FSM should land in BOUND.
+    await with_timeout(_wait_lease_state(dut, LEASE_STATE_BOUND),
+                       2_000_000_000, "ns")

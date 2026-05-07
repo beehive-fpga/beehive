@@ -3,12 +3,14 @@
 // Tile-level control: drains the RX UDP stream so the parser can observe
 // inbound replies, and runs the DHCP lease FSM.
 //
-// Step 6a scope: cooperative-server DORA happy path. INIT -> SELECTING ->
-// REQUESTING -> BOUND with no timer and no NAK / wrong-xid handling. The
-// internal `*_WAIT_TX` micro-states park while a previously-strobed
-// `tx_start` walks through dhcp_tx_ctrl, so `tx_start` stays a clean
-// one-cycle pulse.
-module dhcp_tile_ctrl (
+// Step 6b scope: cooperative-server DORA happy path + auto-retransmit on
+// silence in SELECTING / REQUESTING. NAK and wrong-xid filtering still
+// land in 6c. The internal `*_WAIT_TX` micro-states park while a
+// previously-strobed `tx_start` walks through dhcp_tx_ctrl, so `tx_start`
+// stays a clean one-cycle pulse.
+module dhcp_tile_ctrl #(
+    parameter int CLK_HZ = 100_000_000
+) (
     input  logic clk,
     input  logic rst,
 
@@ -55,11 +57,35 @@ module dhcp_tile_ctrl (
     logic [`IP_ADDR_W-1:0] yiaddr_reg, yiaddr_next;
     logic [`IP_ADDR_W-1:0] siaddr_reg, siaddr_next;
 
-    // Hardcoded XID for 6a; step 6c swaps to a re-rolling LFSR.
+    // Hardcoded XID for 6a/6b; step 6c swaps to a re-rolling LFSR.
     localparam logic [`DHCP_XID_W-1:0] FIXED_XID = 32'hDEAD_BEEF;
     assign current_xid  = FIXED_XID;
     assign lease_yiaddr = yiaddr_reg;
     assign lease_siaddr = siaddr_reg;
+
+    // -- Retransmit timer ----------------------------------------------------
+    // Counts only while the FSM is waiting for an OFFER (SELECTING) or an
+    // ACK (REQUESTING); resets the moment we leave those states. Threshold
+    // is `DHCP_RETRANSMIT_SEC` seconds at the configured CLK_HZ.
+    localparam int RETRANSMIT_CYCLES = CLK_HZ * DHCP_RETRANSMIT_SEC;
+    localparam int CYC_W = (RETRANSMIT_CYCLES <= 1) ? 1 : $clog2(RETRANSMIT_CYCLES);
+
+    logic [CYC_W-1:0] timeout_cnt_reg, timeout_cnt_next;
+    logic timer_active;
+    logic timer_expired;
+
+    assign timer_active  = (state_reg == ST_SELECTING) || (state_reg == ST_REQUESTING);
+    assign timer_expired = timer_active &&
+                           (timeout_cnt_reg == CYC_W'(RETRANSMIT_CYCLES - 1));
+
+    always_comb begin
+        if (!timer_active || timer_expired) begin
+            timeout_cnt_next = '0;
+        end else begin
+            timeout_cnt_next = timeout_cnt_reg + 1'b1;
+        end
+    end
+    // ------------------------------------------------------------------------
 
     // Map internal sub-states onto the public lease enum cocotb peeks.
     always_comb begin
@@ -74,13 +100,15 @@ module dhcp_tile_ctrl (
 
     always_ff @(posedge clk) begin
         if (rst) begin
-            state_reg  <= ST_INIT;
-            yiaddr_reg <= '0;
-            siaddr_reg <= '0;
+            state_reg       <= ST_INIT;
+            yiaddr_reg      <= '0;
+            siaddr_reg      <= '0;
+            timeout_cnt_reg <= '0;
         end else begin
-            state_reg  <= state_next;
-            yiaddr_reg <= yiaddr_next;
-            siaddr_reg <= siaddr_next;
+            state_reg       <= state_next;
+            yiaddr_reg      <= yiaddr_next;
+            siaddr_reg      <= siaddr_next;
+            timeout_cnt_reg <= timeout_cnt_next;
         end
     end
 
@@ -109,6 +137,10 @@ module dhcp_tile_ctrl (
                     tx_start    = 1'b1;
                     tx_msg_type = REQUEST_INIT;
                     state_next  = ST_REQ_WAIT_TX;
+                end else if (timer_expired) begin
+                    tx_start    = 1'b1;
+                    tx_msg_type = DISCOVER;
+                    state_next  = ST_INIT_WAIT_TX;
                 end
             end
             ST_REQ_WAIT_TX: begin
@@ -119,6 +151,10 @@ module dhcp_tile_ctrl (
                     && parser_parsed_cookie_valid
                     && parser_parsed_msg_type_53 == 3'd5 /* ACK */) begin
                     state_next = ST_BOUND;
+                end else if (timer_expired) begin
+                    tx_start    = 1'b1;
+                    tx_msg_type = REQUEST_INIT;
+                    state_next  = ST_REQ_WAIT_TX;
                 end
             end
             ST_BOUND: begin

@@ -250,3 +250,75 @@ async def discover_request_ack(dut):
     # 5. Lease FSM should land in BOUND.
     await with_timeout(_wait_lease_state(dut, LEASE_STATE_BOUND),
                        2_000_000_000, "ns")
+
+
+@cocotb.test()
+async def retransmit_discover(dut):
+    """No OFFER injected. The lease FSM sits in SELECTING and re-emits a
+    DISCOVER once the retransmit timer (DHCP_RETRANSMIT_SEC * CLK_HZ
+    cycles) expires. Harness CLK_HZ=1000 so timeout is ~5000 cycles."""
+    tb = TB(dut)
+    await test_prep(dut, tb)
+
+    # First DISCOVER (right after reset).
+    frame = await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    pkt = Ether(frame)
+    payload = bytes(pkt[Raw].load)
+    assert payload[242] == DHCP_MSG_DISCOVER, \
+        f"first egress not DISCOVER (opt53={payload[242]})"
+    xid_first = struct.unpack(">I", payload[4:8])[0]
+    assert xid_first == DISCOVER_XID
+
+    # Second DISCOVER after retransmit timer. CLK_HZ=1000 * 5 = 5000 cycles
+    # at 4 ns/cyc = 20 us; give a generous 100 us window.
+    frame = await with_timeout(tb.output_op.recv_frame(), 100_000, "ns")
+    pkt = Ether(frame)
+    payload = bytes(pkt[Raw].load)
+    assert payload[242] == DHCP_MSG_DISCOVER, \
+        f"retransmit not DISCOVER (opt53={payload[242]})"
+    xid_second = struct.unpack(">I", payload[4:8])[0]
+    assert xid_second == DISCOVER_XID, \
+        f"retransmit xid {xid_second:#x} != first xid {xid_first:#x}"
+
+
+@cocotb.test()
+async def retransmit_request(dut):
+    """OFFER injected once, no ACK. The lease FSM sits in REQUESTING and
+    re-emits a REQUEST_INIT with the same lease info on timer expiry."""
+    tb = TB(dut)
+    await test_prep(dut, tb)
+
+    yiaddr = 0xC0A8000A
+    siaddr = 0xC0A80001
+    lease_secs = 3600
+
+    # Catch DISCOVER.
+    frame = await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    pkt = Ether(frame)
+    assert bytes(pkt[Raw].load)[242] == DHCP_MSG_DISCOVER
+
+    # Inject OFFER.
+    offer = build_dhcp_offer(DISCOVER_XID, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, offer))
+
+    # Catch first REQUEST.
+    frame = await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    pkt = Ether(frame)
+    payload = bytes(pkt[Raw].load)
+    assert payload[242] == DHCP_MSG_REQUEST, \
+        f"first egress after OFFER not REQUEST (opt53={payload[242]})"
+    req_ip_first = struct.unpack(">I", payload[254:258])[0]
+    assert req_ip_first == yiaddr
+
+    # No ACK -- catch retransmitted REQUEST.
+    frame = await with_timeout(tb.output_op.recv_frame(), 100_000, "ns")
+    pkt = Ether(frame)
+    payload = bytes(pkt[Raw].load)
+    assert payload[242] == DHCP_MSG_REQUEST, \
+        f"retransmit not REQUEST (opt53={payload[242]})"
+    req_ip_second = struct.unpack(">I", payload[254:258])[0]
+    assert req_ip_second == yiaddr, \
+        f"retransmit req_ip {req_ip_second:#x} != {yiaddr:#x}"
+    srv_id_second = struct.unpack(">I", payload[260:264])[0]
+    assert srv_id_second == siaddr, \
+        f"retransmit srv_id {srv_id_second:#x} != {siaddr:#x}"

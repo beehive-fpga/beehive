@@ -4,7 +4,8 @@ module dhcp_tile #(
     parameter SRC_X = -1,
     parameter SRC_Y = -1,
     parameter SRC_FBITS = PKT_IF_FBITS,
-    parameter NOC_DATA_W = `NOC_DATA_WIDTH
+    parameter NOC_DATA_W = `NOC_DATA_WIDTH,
+    parameter int CLK_HZ = 100_000_000
 ) (
     input logic clk,
     input logic rst,
@@ -117,7 +118,9 @@ module dhcp_tile #(
         .parsed_srv_id(parser_parsed_srv_id)
     );
 
-    dhcp_tile_ctrl ctrl (
+    dhcp_tile_ctrl #(
+        .CLK_HZ(CLK_HZ)
+    ) ctrl (
         .clk(clk),
         .rst(rst),
 

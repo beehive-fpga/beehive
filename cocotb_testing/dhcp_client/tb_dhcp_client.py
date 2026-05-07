@@ -8,7 +8,7 @@ import cocotb
 from cocotb.binary import BinaryValue
 from cocotb.clock import Clock
 from cocotb.log import SimLog
-from cocotb.triggers import RisingEdge, with_timeout
+from cocotb.triggers import ClockCycles, RisingEdge, with_timeout
 from scapy.layers.inet import IP, UDP
 from scapy.layers.l2 import Ether
 from scapy.packet import Raw
@@ -18,6 +18,7 @@ sys.path.append(str(Path(__file__).resolve().parent.parent / "common"))
 from beehive_bus import BeehiveBus, BeehiveBusSink, BeehiveBusSource
 from dhcp_pkts import (
     build_dhcp_ack,
+    build_dhcp_nak,
     build_dhcp_offer,
     DHCP_CLIENT_PORT,
     DHCP_COOKIE,
@@ -33,8 +34,11 @@ from dhcp_pkts import (
     DHCP_SERVER_PORT,
 )
 
-# dhcp_client_state_e value for BOUND (matches dhcp_tile_pkg.sv).
-LEASE_STATE_BOUND = 3
+# dhcp_client_state_e values (match dhcp_tile_pkg.sv).
+LEASE_STATE_INIT       = 0
+LEASE_STATE_SELECTING  = 1
+LEASE_STATE_REQUESTING = 2
+LEASE_STATE_BOUND      = 3
 
 # Hardcoded XID baked into dhcp_tile.sv for the one-shot DISCOVER. Lifted out
 # in step 6 once the lease FSM owns XID generation.
@@ -322,3 +326,85 @@ async def retransmit_request(dut):
     srv_id_second = struct.unpack(">I", payload[260:264])[0]
     assert srv_id_second == siaddr, \
         f"retransmit srv_id {srv_id_second:#x} != {siaddr:#x}"
+
+
+@cocotb.test()
+async def ignore_wrong_xid_offer(dut):
+    """An OFFER whose xid does not match the in-flight DISCOVER's xid is
+    silently dropped: the FSM stays in SELECTING. A subsequent matching
+    OFFER then drives the normal SELECTING -> REQUESTING transition."""
+    tb = TB(dut)
+    await test_prep(dut, tb)
+
+    # Catch the auto-emitted DISCOVER (xid = DISCOVER_XID).
+    frame = await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    pkt = Ether(frame)
+    assert bytes(pkt[Raw].load)[242] == DHCP_MSG_DISCOVER
+
+    yiaddr = 0xC0A8000A
+    siaddr = 0xC0A80001
+    lease_secs = 3600
+
+    # Wrong-xid OFFER -- parser observes it but FSM must ignore.
+    bad_offer = build_dhcp_offer(0xBADBADBA, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, bad_offer))
+
+    await with_timeout(_wait_parser_val(dut), 2_000_000_000, "ns")
+    # Let the FSM react (or not) on the next clock edge.
+    await ClockCycles(dut.clk, 2)
+    state_val = int(dut.DHCP_TILE_3_0.tile.ctrl.lease_state_dbg.value)
+    assert state_val == LEASE_STATE_SELECTING, \
+        f"FSM moved out of SELECTING on wrong-xid OFFER (state={state_val})"
+
+    # Correct OFFER -- normal path resumes.
+    good_offer = build_dhcp_offer(DISCOVER_XID, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, good_offer))
+
+    frame = await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    pkt = Ether(frame)
+    payload = bytes(pkt[Raw].load)
+    assert payload[242] == DHCP_MSG_REQUEST, \
+        f"egress after good OFFER not REQUEST (opt53={payload[242]})"
+
+
+@cocotb.test()
+async def nak_restart(dut):
+    """NAK in REQUESTING returns the lease FSM to INIT with a fresh xid;
+    the subsequent DISCOVER must carry an xid different from the first."""
+    tb = TB(dut)
+    await test_prep(dut, tb)
+
+    yiaddr = 0xC0A8000A
+    siaddr = 0xC0A80001
+    lease_secs = 3600
+
+    # Catch first DISCOVER (xid = DISCOVER_XID).
+    frame = await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    pkt = Ether(frame)
+    payload = bytes(pkt[Raw].load)
+    assert payload[242] == DHCP_MSG_DISCOVER
+    xid_first = struct.unpack(">I", payload[4:8])[0]
+    assert xid_first == DISCOVER_XID
+
+    # Inject matching OFFER, catch REQUEST.
+    offer = build_dhcp_offer(xid_first, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, offer))
+
+    frame = await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    pkt = Ether(frame)
+    assert bytes(pkt[Raw].load)[242] == DHCP_MSG_REQUEST
+
+    # Inject NAK with the same xid -- should kick the FSM back to INIT
+    # and roll the xid before the next DISCOVER.
+    nak = build_dhcp_nak(xid_first)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, nak))
+
+    # Catch the post-NAK DISCOVER.
+    frame = await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    pkt = Ether(frame)
+    payload = bytes(pkt[Raw].load)
+    assert payload[242] == DHCP_MSG_DISCOVER, \
+        f"post-NAK egress not DISCOVER (opt53={payload[242]})"
+    xid_second = struct.unpack(">I", payload[4:8])[0]
+    assert xid_second != xid_first, \
+        f"xid not re-rolled after NAK ({xid_second:#x} == {xid_first:#x})"

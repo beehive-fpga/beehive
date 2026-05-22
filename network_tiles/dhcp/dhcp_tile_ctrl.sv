@@ -3,14 +3,14 @@
 // Tile-level control: drains the RX UDP stream so the parser can observe
 // inbound replies, and runs the DHCP lease FSM.
 //
-// Step 6c scope: cooperative-server DORA happy path + auto-retransmit on
-// silence in SELECTING / REQUESTING + NAK restart with a fresh xid +
-// dropping any OFFER/ACK/NAK whose xid does not match the one we sent.
-// The internal `*_WAIT_TX` micro-states park while a previously-strobed
-// `tx_start` walks through dhcp_tx_ctrl, so `tx_start` stays a clean
-// one-cycle pulse.
+// Step 8a scope: cooperative-server DORA + auto-retransmit + NAK/xid
+// filtering + push-on-bind, plus the BOUND -> RENEWING -> BOUND lease
+// renewal loop driven by T1 (lease_secs/2). REBINDING (step 8b) and
+// EXPIRY (step 8c) land on top of the lease counter machinery added
+// here.
 module dhcp_tile_ctrl #(
-    parameter int CLK_HZ = 100_000_000
+    parameter int CLK_HZ        = 100_000_000,
+    parameter int MAX_LEASE_SEC = 86_400
 ) (
     input  logic clk,
     input  logic rst,
@@ -29,6 +29,7 @@ module dhcp_tile_ctrl #(
     input  logic [`DHCP_XID_W-1:0]        parser_parsed_xid,
     input  logic [`IP_ADDR_W-1:0]         parser_parsed_yiaddr,
     input  logic [`IP_ADDR_W-1:0]         parser_parsed_siaddr,
+    input  logic [DHCP_LEASE_SECS_W-1:0]  parser_parsed_lease_secs,
 
     // TX boundary toward dhcp_tx_ctrl + dhcp_tx_datap.
     input  logic                   tx_done,
@@ -38,9 +39,7 @@ module dhcp_tile_ctrl #(
     output logic [`IP_ADDR_W-1:0]  lease_yiaddr,
     output logic [`IP_ADDR_W-1:0]  lease_siaddr,
 
-    // Notify boundary toward dhcp_notify_tx. `notify_start` strobes for
-    // one cycle on REQUESTING -> BOUND. `notify_done` is observed for
-    // future use (e.g. parking transitions).
+    // Notify boundary toward dhcp_notify_tx.
     output logic                          notify_start,
     output logic [`MSG_TYPE_WIDTH-1:0]    notify_msg_type,
     input  logic                          notify_done,
@@ -52,18 +51,21 @@ module dhcp_tile_ctrl #(
     assign fr_udp_data_rdy = 1'b1;
 
     typedef enum logic [2:0] {
-        ST_INIT         = 3'd0,
-        ST_INIT_WAIT_TX = 3'd1,
-        ST_SELECTING    = 3'd2,
-        ST_REQ_WAIT_TX  = 3'd3,
-        ST_REQUESTING   = 3'd4,
-        ST_BOUND        = 3'd5
+        ST_INIT          = 3'd0,
+        ST_INIT_WAIT_TX  = 3'd1,
+        ST_SELECTING     = 3'd2,
+        ST_REQ_WAIT_TX   = 3'd3,
+        ST_REQUESTING    = 3'd4,
+        ST_BOUND         = 3'd5,
+        ST_RENEW_WAIT_TX = 3'd6,
+        ST_RENEWING      = 3'd7
     } lease_internal_e;
 
     lease_internal_e state_reg, state_next;
 
-    logic [`IP_ADDR_W-1:0] yiaddr_reg, yiaddr_next;
-    logic [`IP_ADDR_W-1:0] siaddr_reg, siaddr_next;
+    logic [`IP_ADDR_W-1:0]        yiaddr_reg, yiaddr_next;
+    logic [`IP_ADDR_W-1:0]        siaddr_reg, siaddr_next;
+    logic [DHCP_LEASE_SECS_W-1:0] lease_secs_reg, lease_secs_next;
 
     // XID is held across the whole lease cycle (DISCOVER + REQUEST share
     // it). Re-rolled on NAK -> INIT via a 32-bit Fibonacci LFSR step
@@ -87,9 +89,10 @@ module dhcp_tile_ctrl #(
     end
 
     // -- Retransmit timer ----------------------------------------------------
-    // Counts only while the FSM is waiting for an OFFER (SELECTING) or an
-    // ACK (REQUESTING); resets the moment we leave those states. Threshold
-    // is `DHCP_RETRANSMIT_SEC` seconds at the configured CLK_HZ.
+    // Counts only while the FSM is waiting for an OFFER (SELECTING), an
+    // ACK after the initial REQUEST (REQUESTING), or an ACK after a
+    // REQUEST_RENEW (RENEWING). Threshold is `DHCP_RETRANSMIT_SEC`
+    // seconds at the configured CLK_HZ.
     localparam int RETRANSMIT_CYCLES = CLK_HZ * DHCP_RETRANSMIT_SEC;
     localparam int CYC_W = (RETRANSMIT_CYCLES <= 1) ? 1 : $clog2(RETRANSMIT_CYCLES);
 
@@ -97,7 +100,9 @@ module dhcp_tile_ctrl #(
     logic timer_active;
     logic timer_expired;
 
-    assign timer_active  = (state_reg == ST_SELECTING) || (state_reg == ST_REQUESTING);
+    assign timer_active  = (state_reg == ST_SELECTING)
+                        || (state_reg == ST_REQUESTING)
+                        || (state_reg == ST_RENEWING);
     assign timer_expired = timer_active &&
                            (timeout_cnt_reg == CYC_W'(RETRANSMIT_CYCLES - 1));
 
@@ -110,14 +115,48 @@ module dhcp_tile_ctrl #(
     end
     // ------------------------------------------------------------------------
 
+    // -- Lease counter (T1 / T2 / EXPIRY) ------------------------------------
+    // Counts continuously across BOUND -> RENEWING (-> REBINDING in 8b).
+    // Resets on every fresh lease (REQUESTING -> BOUND, RENEWING -> BOUND).
+    // T1 = lease_secs * CLK_HZ / 2.
+    localparam longint MAX_LEASE_CYCLES_LL = longint'(MAX_LEASE_SEC) * longint'(CLK_HZ);
+    localparam int LEASE_CNT_W = $clog2(MAX_LEASE_CYCLES_LL + 1);
+
+    logic [LEASE_CNT_W-1:0] lease_cnt_reg, lease_cnt_next;
+    logic lease_cnt_active;
+    logic lease_cnt_reset;
+
+    // 64-bit intermediate so the multiplication never narrows for any
+    // sane (lease_secs, CLK_HZ) pair. Then truncate to the counter width.
+    logic [63:0] lease_cycles_full;
+    assign lease_cycles_full = {32'd0, lease_secs_reg} * 64'(CLK_HZ);
+
+    logic [LEASE_CNT_W-1:0] t1_threshold;
+    assign t1_threshold = lease_cycles_full[LEASE_CNT_W:1];  // = full / 2
+
+    logic t1_expired;
+    assign t1_expired = (state_reg == ST_BOUND) && (lease_cnt_reg >= t1_threshold);
+
+    assign lease_cnt_active = (state_reg == ST_BOUND)
+                           || (state_reg == ST_RENEW_WAIT_TX)
+                           || (state_reg == ST_RENEWING);
+
+    always_comb begin
+        if (lease_cnt_reset)       lease_cnt_next = '0;
+        else if (lease_cnt_active) lease_cnt_next = lease_cnt_reg + 1'b1;
+        else                       lease_cnt_next = lease_cnt_reg;
+    end
+    // ------------------------------------------------------------------------
+
     // Map internal sub-states onto the public lease enum cocotb peeks.
     always_comb begin
         case (state_reg)
-            ST_INIT, ST_INIT_WAIT_TX:        lease_state_dbg = INIT;
-            ST_SELECTING:                    lease_state_dbg = SELECTING;
-            ST_REQ_WAIT_TX, ST_REQUESTING:   lease_state_dbg = REQUESTING;
-            ST_BOUND:                        lease_state_dbg = BOUND;
-            default:                         lease_state_dbg = INIT;
+            ST_INIT, ST_INIT_WAIT_TX:           lease_state_dbg = INIT;
+            ST_SELECTING:                       lease_state_dbg = SELECTING;
+            ST_REQ_WAIT_TX, ST_REQUESTING:      lease_state_dbg = REQUESTING;
+            ST_BOUND:                           lease_state_dbg = BOUND;
+            ST_RENEW_WAIT_TX, ST_RENEWING:      lease_state_dbg = RENEWING;
+            default:                            lease_state_dbg = INIT;
         endcase
     end
 
@@ -126,13 +165,17 @@ module dhcp_tile_ctrl #(
             state_reg       <= ST_INIT;
             yiaddr_reg      <= '0;
             siaddr_reg      <= '0;
+            lease_secs_reg  <= '0;
             timeout_cnt_reg <= '0;
+            lease_cnt_reg   <= '0;
             xid_reg         <= XID_SEED;
         end else begin
             state_reg       <= state_next;
             yiaddr_reg      <= yiaddr_next;
             siaddr_reg      <= siaddr_next;
+            lease_secs_reg  <= lease_secs_next;
             timeout_cnt_reg <= timeout_cnt_next;
+            lease_cnt_reg   <= lease_cnt_next;
             xid_reg         <= xid_next;
         end
     end
@@ -150,11 +193,13 @@ module dhcp_tile_ctrl #(
         state_next      = state_reg;
         yiaddr_next     = yiaddr_reg;
         siaddr_next     = siaddr_reg;
+        lease_secs_next = lease_secs_reg;
         tx_start        = 1'b0;
         tx_msg_type     = DISCOVER;
         xid_step        = 1'b0;
         notify_start    = 1'b0;
         notify_msg_type = DHCP_IP_BIND;
+        lease_cnt_reset = 1'b0;
 
         case (state_reg)
             ST_INIT: begin
@@ -185,8 +230,13 @@ module dhcp_tile_ctrl #(
             ST_REQUESTING: begin
                 if (parsed_match
                     && parser_parsed_msg_type_53 == 3'd5 /* ACK */) begin
+                    // Capture the authoritative lease info from the ACK.
+                    yiaddr_next     = parser_parsed_yiaddr;
+                    siaddr_next     = parser_parsed_siaddr;
+                    lease_secs_next = parser_parsed_lease_secs;
                     notify_start    = 1'b1;
                     notify_msg_type = DHCP_IP_BIND;
+                    lease_cnt_reset = 1'b1;
                     state_next      = ST_BOUND;
                 end else if (parsed_match
                     && parser_parsed_msg_type_53 == 3'd6 /* NAK */) begin
@@ -199,7 +249,32 @@ module dhcp_tile_ctrl #(
                 end
             end
             ST_BOUND: begin
-                // Step 8 re-arms transitions on T1/T2.
+                if (t1_expired) begin
+                    tx_start    = 1'b1;
+                    tx_msg_type = REQUEST_RENEW;
+                    state_next  = ST_RENEW_WAIT_TX;
+                end
+            end
+            ST_RENEW_WAIT_TX: begin
+                if (tx_done) state_next = ST_RENEWING;
+            end
+            ST_RENEWING: begin
+                if (parsed_match
+                    && parser_parsed_msg_type_53 == 3'd5 /* ACK */) begin
+                    yiaddr_next     = parser_parsed_yiaddr;
+                    siaddr_next     = parser_parsed_siaddr;
+                    lease_secs_next = parser_parsed_lease_secs;
+                    notify_start    = 1'b1;
+                    notify_msg_type = DHCP_IP_BIND;
+                    lease_cnt_reset = 1'b1;
+                    state_next      = ST_BOUND;
+                end else if (timer_expired) begin
+                    tx_start    = 1'b1;
+                    tx_msg_type = REQUEST_RENEW;
+                    state_next  = ST_RENEW_WAIT_TX;
+                end
+                // Step 8b: T2 -> ST_REBINDING.
+                // Step 8c: EXPIRY -> ST_INIT (+ DHCP_IP_EXPIRE).
             end
             default: begin
                 state_next = ST_INIT;

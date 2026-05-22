@@ -1,5 +1,5 @@
-"""Step-5 CI tests: tile auto-emits a DHCP DISCOVER on reset; parser still
-observes inbound replies."""
+"""Cocotb tests for the DHCP client tile."""
+import ipaddress
 import logging
 import struct
 from pathlib import Path
@@ -39,6 +39,7 @@ LEASE_STATE_INIT       = 0
 LEASE_STATE_SELECTING  = 1
 LEASE_STATE_REQUESTING = 2
 LEASE_STATE_BOUND      = 3
+LEASE_STATE_RENEWING   = 4
 
 # Notify msg type (match dhcp_tile_pkg.sv).
 DHCP_IP_BIND_MSG_TYPE = 64
@@ -504,3 +505,90 @@ async def bind_pushed_to_subscribers(dut):
     yiaddr_obs = get_field(data, DATA_YIADDR_MSB, DATA_YIADDR_W)
     assert yiaddr_obs == yiaddr, \
         f"bind yiaddr {yiaddr_obs:#x} != {yiaddr:#x}"
+
+
+@cocotb.test()
+async def renew_ack_returns_to_bound(dut):
+    """T1 (lease_secs/2) fires in BOUND, the tile unicasts a REQUEST_RENEW
+    (ciaddr=yiaddr, src=yiaddr, dst=siaddr, no opt 50/54). On matching
+    ACK the FSM returns to BOUND and re-emits DHCP_IP_BIND for the
+    renewed lease."""
+    tb = TB(dut)
+    await test_prep(dut, tb)
+
+    yiaddr = 0xC0A8000A
+    siaddr = 0xC0A80001
+    # Short lease so T1 fires fast in sim: 4 s * CLK_HZ(1000) / 2 = 2000 cyc = 8 us.
+    lease_secs = 4
+
+    # Capture every NoC TX handshake so we can count bind notifications.
+    captured = []
+    async def monitor():
+        while True:
+            await RisingEdge(dut.clk)
+            if int(dut.DHCP_TILE_3_0.tile.noc_dhcp_tx_val.value) == 1 and \
+               int(dut.DHCP_TILE_3_0.tile.noc_dhcp_tx_rdy.value) == 1:
+                captured.append(int(dut.DHCP_TILE_3_0.tile.noc_dhcp_tx_data.value))
+    monitor_task = cocotb.start_soon(monitor())
+
+    # --- DORA --------------------------------------------------------------
+    # DISCOVER
+    frame = await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    pkt = Ether(frame)
+    assert bytes(pkt[Raw].load)[242] == DHCP_MSG_DISCOVER
+
+    # OFFER
+    offer = build_dhcp_offer(DISCOVER_XID, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, offer))
+
+    # REQUEST_INIT (broadcast)
+    frame = await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    pkt = Ether(frame)
+    assert bytes(pkt[Raw].load)[242] == DHCP_MSG_REQUEST
+
+    # ACK -> BOUND
+    ack = build_dhcp_ack(DISCOVER_XID, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, ack))
+    await with_timeout(_wait_lease_state(dut, LEASE_STATE_BOUND),
+                       2_000_000_000, "ns")
+
+    # --- Renewal loop ------------------------------------------------------
+    # T1 = lease_secs * CLK_HZ / 2 = 2000 cyc = 8 us. Allow 50 us window.
+    frame = await with_timeout(tb.output_op.recv_frame(), 50_000, "ns")
+    pkt = Ether(frame)
+    payload = bytes(pkt[Raw].load)
+    assert payload[242] == DHCP_MSG_REQUEST, \
+        f"post-T1 egress not REQUEST (opt53={payload[242]})"
+
+    # ciaddr = yiaddr (RFC: REQUEST in RENEWING identifies the client via ciaddr).
+    ciaddr = struct.unpack(">I", payload[12:16])[0]
+    assert ciaddr == yiaddr, f"ciaddr {ciaddr:#x} != yiaddr {yiaddr:#x}"
+
+    # No opt 50 / opt 54 (renew omits them); END follows opt 61 at offset 252.
+    assert payload[252] == 0xFF, \
+        f"renew payload[252] = {payload[252]:#x} != OPT_END"
+
+    # Unicast: src IP = yiaddr, dst IP = siaddr.
+    expected_src = str(ipaddress.IPv4Address(yiaddr))
+    expected_dst = str(ipaddress.IPv4Address(siaddr))
+    assert pkt[IP].src == expected_src, \
+        f"renew IP.src {pkt[IP].src} != {expected_src}"
+    assert pkt[IP].dst == expected_dst, \
+        f"renew IP.dst {pkt[IP].dst} != {expected_dst}"
+
+    # Server ACKs the renew -> FSM returns to BOUND with refreshed lease.
+    ack2 = build_dhcp_ack(DISCOVER_XID, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, ack2))
+    await with_timeout(_wait_lease_state(dut, LEASE_STATE_BOUND),
+                       50_000, "ns")
+
+    # Give the second bind notification a window to walk + parse the stream.
+    await ClockCycles(dut.clk, 50)
+    monitor_task.kill()
+
+    bind_count = sum(
+        1 for f in captured
+        if get_field(f, HDR_MSG_TYPE_MSB, HDR_MSG_TYPE_W) == DHCP_IP_BIND_MSG_TYPE
+    )
+    assert bind_count == 2, \
+        f"expected 2 DHCP_IP_BIND notifications (initial + renewal), got {bind_count}"

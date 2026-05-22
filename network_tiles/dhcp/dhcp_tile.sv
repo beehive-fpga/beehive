@@ -6,6 +6,7 @@ module dhcp_tile #(
     parameter SRC_FBITS = PKT_IF_FBITS,
     parameter NOC_DATA_W = `NOC_DATA_WIDTH,
     parameter int CLK_HZ = 100_000_000,
+    parameter int MAX_LEASE_SEC = 86_400,
 
     // Single subscriber for IP-bind push notifications. Default routes
     // the bind to the IP RX tile -- step 8 (or later) extends this to a
@@ -144,7 +145,8 @@ module dhcp_tile #(
     );
 
     dhcp_tile_ctrl #(
-        .CLK_HZ(CLK_HZ)
+        .CLK_HZ(CLK_HZ),
+        .MAX_LEASE_SEC(MAX_LEASE_SEC)
     ) ctrl (
         .clk(clk),
         .rst(rst),
@@ -161,6 +163,7 @@ module dhcp_tile #(
         .parser_parsed_xid(parser_parsed_xid),
         .parser_parsed_yiaddr(parser_parsed_yiaddr),
         .parser_parsed_siaddr(parser_parsed_siaddr),
+        .parser_parsed_lease_secs(parser_parsed_lease_secs),
 
         .tx_done(tx_done),
         .tx_start(tx_start),

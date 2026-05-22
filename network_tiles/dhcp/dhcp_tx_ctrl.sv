@@ -35,12 +35,13 @@ module dhcp_tx_ctrl (
 
     assign tx_msg_type_reg = msg_type_reg;
 
-    // DISCOVER = 253 B = 4 flits; REQUEST_* = 265 B = 5 flits.
+    // DISCOVER = REQUEST_RENEW = 253 B = 4 flits (no opt 50/54 in either).
+    // REQUEST_INIT = 265 B = 5 flits (carries opt 50 + opt 54).
     always_comb begin
         case (msg_type_reg)
             DISCOVER:      num_data_flits = 3'd4;
             REQUEST_INIT:  num_data_flits = 3'd5;
-            REQUEST_RENEW: num_data_flits = 3'd5;
+            REQUEST_RENEW: num_data_flits = 3'd4;
             default:       num_data_flits = 3'd4;
         endcase
     end

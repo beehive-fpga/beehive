@@ -1,12 +1,19 @@
 `include "dhcp_tile_defs.svh"
 
-// Builds the static payload + udp_info meta for either a DHCP DISCOVER
-// (253 B / 4 flits) or DHCP REQUEST_INIT (265 B / 5 flits) selected by
-// the latched `tx_msg_type` from dhcp_tx_ctrl. `xid`, `lease_yiaddr`,
-// `lease_siaddr` are owned by the lease FSM in dhcp_tile_ctrl.
+// Builds the static payload + udp_info meta for one of three DHCP TX
+// messages, selected by the latched `tx_msg_type` from dhcp_tx_ctrl:
 //
-// Bytes are serialised MSB-first to match what `to_udp` expects (byte 0
-// of the payload at the most-significant byte of the flit).
+//   DISCOVER       253 B / 4 flits, src=0, dst=broadcast, ciaddr=0
+//   REQUEST_INIT   265 B / 5 flits, src=0, dst=broadcast, ciaddr=0,
+//                  carries opt 50 (requested IP) + opt 54 (server id)
+//   REQUEST_RENEW  253 B / 4 flits, src=yiaddr, dst=siaddr (unicast),
+//                  ciaddr=yiaddr, no opt 50 / 54 (we already know our
+//                  address; the server identifies us via ciaddr)
+//
+// `xid`, `lease_yiaddr`, `lease_siaddr` are owned by the lease FSM in
+// dhcp_tile_ctrl. Bytes serialise MSB-first to match what `to_udp`
+// expects (byte 0 of the payload at the most-significant byte of the
+// flit).
 module dhcp_tx_datap #(
     parameter NOC_DATA_W = `NOC_DATA_WIDTH
 ) (
@@ -25,10 +32,14 @@ module dhcp_tx_datap #(
 
     logic [7:0] payload [0:MAX_PAYLOAD_BYTES-1];
     logic [7:0] opt53_val;
+    logic [`IP_ADDR_W-1:0] ciaddr_val;
+    logic                  is_renew;
 
+    assign is_renew  = (tx_msg_type == REQUEST_RENEW);
     assign opt53_val = (tx_msg_type == DISCOVER)
         ? `DHCP_MSG_DISCOVER
         : `DHCP_MSG_REQUEST;
+    assign ciaddr_val = is_renew ? lease_yiaddr : '0;
 
     integer b;
     always_comb begin
@@ -42,10 +53,13 @@ module dhcp_tx_datap #(
         payload[5]  = xid[23:16];
         payload[6]  = xid[15:8];
         payload[7]  = xid[7:0];
-        // ciaddr (12-15) and yiaddr (16-19) stay 0 in client-originated
-        // SELECTING/REQUESTING messages.
-        // siaddr (20-23) -- 0 for DISCOVER (lease_siaddr=0), server's IP
-        // for REQUEST_INIT after we've captured the OFFER.
+        // ciaddr (12-15): set to yiaddr only in REQUEST_RENEW.
+        payload[12] = ciaddr_val[31:24];
+        payload[13] = ciaddr_val[23:16];
+        payload[14] = ciaddr_val[15:8];
+        payload[15] = ciaddr_val[7:0];
+        // yiaddr (16-19) stays 0 in client-originated messages.
+        // siaddr (20-23) -- 0 for DISCOVER, server's IP otherwise.
         payload[20] = lease_siaddr[31:24];
         payload[21] = lease_siaddr[23:16];
         payload[22] = lease_siaddr[15:8];
@@ -70,9 +84,7 @@ module dhcp_tx_datap #(
         payload[250] = 8'd0;
         payload[251] = 8'd0;
 
-        if (tx_msg_type == DISCOVER) begin
-            payload[252] = `DHCP_OPT_END;
-        end else begin
+        if (tx_msg_type == REQUEST_INIT) begin
             // Option 50 - requested IP = offered yiaddr
             payload[252] = `DHCP_OPT_REQ_IP;
             payload[253] = 8'd4;
@@ -88,18 +100,21 @@ module dhcp_tx_datap #(
             payload[262] = lease_siaddr[15:8];
             payload[263] = lease_siaddr[7:0];
             payload[264] = `DHCP_OPT_END;
+        end else begin
+            // DISCOVER + REQUEST_RENEW: END right after opt 61.
+            payload[252] = `DHCP_OPT_END;
         end
     end
 
     always_comb begin
         to_udp_meta_info             = '0;
-        to_udp_meta_info.src_ip      = '0;
-        to_udp_meta_info.dst_ip      = {`IP_ADDR_W{1'b1}};
+        to_udp_meta_info.src_ip      = is_renew ? lease_yiaddr : '0;
+        to_udp_meta_info.dst_ip      = is_renew ? lease_siaddr : {`IP_ADDR_W{1'b1}};
         to_udp_meta_info.src_port    = DHCP_CLIENT_PORT;
         to_udp_meta_info.dst_port    = DHCP_SERVER_PORT;
-        to_udp_meta_info.data_length = (tx_msg_type == DISCOVER)
-            ? DHCP_MIN_PAYLOAD_BYTES[`UDP_LENGTH_W-1:0]
-            : DHCP_REQUEST_PAYLOAD_BYTES[`UDP_LENGTH_W-1:0];
+        to_udp_meta_info.data_length = (tx_msg_type == REQUEST_INIT)
+            ? DHCP_REQUEST_PAYLOAD_BYTES[`UDP_LENGTH_W-1:0]
+            : DHCP_MIN_PAYLOAD_BYTES[`UDP_LENGTH_W-1:0];
     end
 
     integer j;

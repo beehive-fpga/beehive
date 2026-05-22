@@ -3,12 +3,12 @@
 // Tile-level control: drains the RX UDP stream so the parser can observe
 // inbound replies, and runs the DHCP lease FSM.
 //
-// Step 8b scope: cooperative-server DORA + auto-retransmit + NAK/xid
-// filtering + push-on-bind + the BOUND -> RENEWING -> BOUND lease
-// renewal loop driven by T1 (lease_secs/2), plus the RENEWING ->
-// REBINDING -> BOUND broadcast-renew fallback driven by T2
-// (lease_secs * 7/8). EXPIRY (step 8c) lands on top of the lease
-// counter machinery already in place.
+// Step 8c scope (full 6-state DHCP client): cooperative-server DORA +
+// auto-retransmit + NAK/xid filtering + push-on-bind + the BOUND ->
+// RENEWING -> BOUND lease renewal loop driven by T1 (lease_secs/2) +
+// the RENEWING -> REBINDING -> BOUND broadcast-renew fallback driven
+// by T2 (lease_secs * 7/8) + lease EXPIRY in REBINDING which pushes
+// DHCP_IP_EXPIRE and restarts DORA with a fresh xid.
 module dhcp_tile_ctrl #(
     parameter int CLK_HZ        = 100_000_000,
     parameter int MAX_LEASE_SEC = 86_400
@@ -153,8 +153,10 @@ module dhcp_tile_ctrl #(
 
     logic t1_expired;
     logic t2_expired;
-    assign t1_expired = (state_reg == ST_BOUND)     && (lease_cnt_reg >= t1_threshold);
-    assign t2_expired = (state_reg == ST_RENEWING)  && (lease_cnt_reg >= t2_threshold);
+    logic lease_expired;
+    assign t1_expired    = (state_reg == ST_BOUND)     && (lease_cnt_reg >= t1_threshold);
+    assign t2_expired    = (state_reg == ST_RENEWING)  && (lease_cnt_reg >= t2_threshold);
+    assign lease_expired = (state_reg == ST_REBINDING) && (lease_cnt_reg >= lease_cycles_w);
 
     assign lease_cnt_active = (state_reg == ST_BOUND)
                            || (state_reg == ST_RENEW_WAIT_TX)
@@ -317,12 +319,21 @@ module dhcp_tile_ctrl #(
                     notify_msg_type = DHCP_IP_BIND;
                     lease_cnt_reset = 1'b1;
                     state_next      = ST_BOUND;
+                end else if (lease_expired) begin
+                    // Full lease elapsed: push DHCP_IP_EXPIRE (carrying
+                    // the expiring yiaddr via notify_yiaddr = yiaddr_next
+                    // = yiaddr_reg since we don't update it here), roll
+                    // the xid, and restart DORA from ST_INIT.
+                    notify_start    = 1'b1;
+                    notify_msg_type = DHCP_IP_EXPIRE;
+                    xid_step        = 1'b1;
+                    lease_cnt_reset = 1'b1;
+                    state_next      = ST_INIT;
                 end else if (timer_expired) begin
                     tx_start    = 1'b1;
                     tx_msg_type = REQUEST_REBIND;
                     state_next  = ST_REBIND_WAIT_TX;
                 end
-                // Step 8c: EXPIRY -> ST_INIT (+ DHCP_IP_EXPIRE).
             end
             default: begin
                 state_next = ST_INIT;

@@ -42,8 +42,9 @@ LEASE_STATE_BOUND      = 3
 LEASE_STATE_RENEWING   = 4
 LEASE_STATE_REBINDING  = 5
 
-# Notify msg type (match dhcp_tile_pkg.sv).
-DHCP_IP_BIND_MSG_TYPE = 64
+# Notify msg types (match dhcp_tile_pkg.sv).
+DHCP_IP_BIND_MSG_TYPE   = 64
+DHCP_IP_EXPIRE_MSG_TYPE = 65
 
 # beehive_noc_hdr_flit bit layout for the 512-bit NoC TX flit. Packed
 # struct order (declared MSB-first in beehive_noc_msg.sv):
@@ -733,3 +734,79 @@ async def rebind_ack_returns_to_bound(dut):
     yiaddr_obs = get_field(captured[second_data_idx], DATA_YIADDR_MSB, DATA_YIADDR_W)
     assert yiaddr_obs == yiaddr_second, \
         f"rebind notification yiaddr {yiaddr_obs:#x} != {yiaddr_second:#x}"
+
+
+@cocotb.test()
+async def rebind_expiry_goes_to_init(dut):
+    """When REBINDING gets no ACK either, the full lease eventually
+    expires. The tile pushes a DHCP_IP_EXPIRE notification carrying
+    the expiring yiaddr, re-rolls the xid, and restarts DORA from
+    INIT with a fresh DISCOVER."""
+    tb = TB(dut)
+    await test_prep(dut, tb)
+
+    yiaddr = 0xC0A8000A
+    siaddr = 0xC0A80001
+    # 8 s lease: T1 ~16 us, T2 ~28 us, EXPIRY ~32 us at CLK_HZ=1000.
+    lease_secs = 8
+
+    # Capture every NoC TX flit handshake so we can find DHCP_IP_EXPIRE.
+    captured = []
+    async def monitor():
+        while True:
+            await RisingEdge(dut.clk)
+            if int(dut.DHCP_TILE_3_0.tile.noc_dhcp_tx_val.value) == 1 and \
+               int(dut.DHCP_TILE_3_0.tile.noc_dhcp_tx_rdy.value) == 1:
+                captured.append(int(dut.DHCP_TILE_3_0.tile.noc_dhcp_tx_data.value))
+    monitor_task = cocotb.start_soon(monitor())
+
+    # --- DORA -> BOUND ----------------------------------------------------
+    await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    offer = build_dhcp_offer(DISCOVER_XID, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, offer))
+    await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    ack = build_dhcp_ack(DISCOVER_XID, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, ack))
+    await with_timeout(_wait_lease_state(dut, LEASE_STATE_BOUND),
+                       2_000_000_000, "ns")
+
+    # --- Burn T1 (RENEW, no ACK) and T2 (REBIND, no ACK) ------------------
+    await with_timeout(tb.output_op.recv_frame(), 50_000, "ns")  # RENEW
+    await with_timeout(tb.output_op.recv_frame(), 50_000, "ns")  # REBIND
+    await with_timeout(_wait_lease_state(dut, LEASE_STATE_REBINDING),
+                       50_000, "ns")
+
+    # --- Wait for EXPIRY -> INIT ------------------------------------------
+    # ST_INIT only sits for 1 cycle before ST_INIT_WAIT_TX (still maps to
+    # INIT in lease_state_dbg). Poll for INIT.
+    await with_timeout(_wait_lease_state(dut, LEASE_STATE_INIT),
+                       50_000, "ns")
+
+    # --- Fresh DISCOVER must follow with a re-rolled xid ------------------
+    frame = await with_timeout(tb.output_op.recv_frame(), 50_000, "ns")
+    pkt = Ether(frame)
+    payload = bytes(pkt[Raw].load)
+    assert payload[242] == DHCP_MSG_DISCOVER, \
+        f"post-expiry egress not DISCOVER (opt53={payload[242]})"
+    xid_post = struct.unpack(">I", payload[4:8])[0]
+    assert xid_post != DISCOVER_XID, \
+        f"xid not re-rolled on expiry ({xid_post:#x} == {DISCOVER_XID:#x})"
+
+    # Give any pending notify a window to walk + parse the stream.
+    await ClockCycles(dut.clk, 50)
+    monitor_task.kill()
+
+    # Exactly one DHCP_IP_EXPIRE notification carrying the expiring yiaddr.
+    expire_headers = [
+        i for i, f in enumerate(captured)
+        if get_field(f, HDR_MSG_TYPE_MSB, HDR_MSG_TYPE_W) == DHCP_IP_EXPIRE_MSG_TYPE
+    ]
+    assert len(expire_headers) == 1, \
+        f"expected 1 DHCP_IP_EXPIRE notification, got {len(expire_headers)}"
+
+    expire_data_idx = expire_headers[0] + 1
+    assert expire_data_idx < len(captured), \
+        "expire header captured but data flit missing"
+    yiaddr_obs = get_field(captured[expire_data_idx], DATA_YIADDR_MSB, DATA_YIADDR_W)
+    assert yiaddr_obs == yiaddr, \
+        f"expire notification yiaddr {yiaddr_obs:#x} != {yiaddr:#x}"

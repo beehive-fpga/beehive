@@ -40,6 +40,29 @@ LEASE_STATE_SELECTING  = 1
 LEASE_STATE_REQUESTING = 2
 LEASE_STATE_BOUND      = 3
 
+# Notify msg type (match dhcp_tile_pkg.sv).
+DHCP_IP_BIND_MSG_TYPE = 64
+
+# beehive_noc_hdr_flit bit layout for the 512-bit NoC TX flit. Packed
+# struct order (declared MSB-first in beehive_noc_msg.sv):
+#   dst_chip_id [14] | dst_x [8] | dst_y [8] | dst_fbits [4]
+#   | msg_len [22] | msg_type [8] | src_chip_id [14] | src_x [8]
+#   | src_y [8] | src_fbits [4] | metadata_flits [8] | ...
+NOC_DATA_W_BITS    = 512
+HDR_MSG_TYPE_MSB   = 511 - (14 + 8 + 8 + 4 + 22)  # = 455
+HDR_MSG_TYPE_W     = 8
+HDR_DST_X_MSB      = 511 - 14                      # = 497
+HDR_DST_Y_MSB      = HDR_DST_X_MSB - 8             # = 489
+XY_BITS            = 8
+DATA_YIADDR_MSB    = NOC_DATA_W_BITS - 1           # = 511
+DATA_YIADDR_W      = 32
+
+
+def get_field(flit_int, msb, width):
+    """Extract `width` bits ending at bit `msb` (inclusive) from `flit_int`."""
+    lsb = msb - width + 1
+    return (flit_int >> lsb) & ((1 << width) - 1)
+
 # Hardcoded XID baked into dhcp_tile.sv for the one-shot DISCOVER. Lifted out
 # in step 6 once the lease FSM owns XID generation.
 DISCOVER_XID = 0xDEADBEEF
@@ -408,3 +431,76 @@ async def nak_restart(dut):
     xid_second = struct.unpack(">I", payload[4:8])[0]
     assert xid_second != xid_first, \
         f"xid not re-rolled after NAK ({xid_second:#x} == {xid_first:#x})"
+
+
+@cocotb.test()
+async def bind_pushed_to_subscribers(dut):
+    """After ACK lands, the dhcp_tile pushes a DHCP_IP_BIND NoC msg
+    carrying the bound yiaddr to its subscriber. Test peeks the tile's
+    noc_dhcp_tx wires and decodes the header flit to verify msg_type +
+    destination, then the data flit to verify yiaddr."""
+    tb = TB(dut)
+    await test_prep(dut, tb)
+
+    yiaddr = 0xC0A8000A
+    siaddr = 0xC0A80001
+    lease_secs = 3600
+
+    # 1. DISCOVER egress.
+    frame = await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    pkt = Ether(frame)
+    assert bytes(pkt[Raw].load)[242] == DHCP_MSG_DISCOVER
+
+    # 2. OFFER injection.
+    offer = build_dhcp_offer(DISCOVER_XID, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, offer))
+
+    # 3. REQUEST egress.
+    frame = await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    pkt = Ether(frame)
+    assert bytes(pkt[Raw].load)[242] == DHCP_MSG_REQUEST
+
+    # 4. Capture every NoC TX handshake from now on; the bind notification
+    #    will land here once the FSM enters BOUND.
+    captured = []
+    async def monitor():
+        while True:
+            await RisingEdge(dut.clk)
+            if int(dut.DHCP_TILE_3_0.tile.noc_dhcp_tx_val.value) == 1 and \
+               int(dut.DHCP_TILE_3_0.tile.noc_dhcp_tx_rdy.value) == 1:
+                captured.append(int(dut.DHCP_TILE_3_0.tile.noc_dhcp_tx_data.value))
+    monitor_task = cocotb.start_soon(monitor())
+
+    # 5. ACK injection -> BOUND -> bind notification.
+    ack = build_dhcp_ack(DISCOVER_XID, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, ack))
+
+    await with_timeout(_wait_lease_state(dut, LEASE_STATE_BOUND),
+                       2_000_000_000, "ns")
+    # Give the notify FSM a generous window to walk header + data.
+    await ClockCycles(dut.clk, 50)
+    monitor_task.kill()
+
+    # 6. Find the DHCP_IP_BIND header flit; the very next captured flit
+    #    must be its data flit with yiaddr at the MSB.
+    bind_idx = None
+    for i, flit in enumerate(captured):
+        if get_field(flit, HDR_MSG_TYPE_MSB, HDR_MSG_TYPE_W) == DHCP_IP_BIND_MSG_TYPE:
+            bind_idx = i
+            break
+    assert bind_idx is not None, \
+        f"no DHCP_IP_BIND header in captured NoC TX (got {len(captured)} flits)"
+
+    hdr = captured[bind_idx]
+    dst_x = get_field(hdr, HDR_DST_X_MSB, XY_BITS)
+    dst_y = get_field(hdr, HDR_DST_Y_MSB, XY_BITS)
+    # Default subscriber wired in dhcp_tile.sv is IP_RX_TILE.
+    # IP_RX_TILE = (1, 0) per cocotb_testing/dhcp_client/tile_config.xml.
+    assert dst_x == 1, f"bind dst_x {dst_x} != IP_RX_TILE_X (1)"
+    assert dst_y == 0, f"bind dst_y {dst_y} != IP_RX_TILE_Y (0)"
+
+    assert bind_idx + 1 < len(captured), "bind header captured but data flit missing"
+    data = captured[bind_idx + 1]
+    yiaddr_obs = get_field(data, DATA_YIADDR_MSB, DATA_YIADDR_W)
+    assert yiaddr_obs == yiaddr, \
+        f"bind yiaddr {yiaddr_obs:#x} != {yiaddr:#x}"

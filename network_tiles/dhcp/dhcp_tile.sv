@@ -5,7 +5,14 @@ module dhcp_tile #(
     parameter SRC_Y = -1,
     parameter SRC_FBITS = PKT_IF_FBITS,
     parameter NOC_DATA_W = `NOC_DATA_WIDTH,
-    parameter int CLK_HZ = 100_000_000
+    parameter int CLK_HZ = 100_000_000,
+
+    // Single subscriber for IP-bind push notifications. Default routes
+    // the bind to the IP RX tile -- step 8 (or later) extends this to a
+    // multi-subscriber walk once IP RX/TX learn DHCP_IP_BIND.
+    parameter logic [`MSG_DST_X_WIDTH-1:0]     SUB_X     = IP_RX_TILE_X,
+    parameter logic [`MSG_DST_Y_WIDTH-1:0]     SUB_Y     = IP_RX_TILE_Y,
+    parameter logic [`MSG_DST_FBITS_WIDTH-1:0] SUB_FBITS = PKT_IF_FBITS
 ) (
     input logic clk,
     input logic rst,
@@ -37,7 +44,25 @@ module dhcp_tile #(
     logic [2:0]             tx_curr_flit_index;
     dhcp_client_state_e     lease_state_dbg;
 
-    // Outbound to to_udp.
+    // Bind notify boundary.
+    logic                          notify_start;
+    logic [`MSG_TYPE_WIDTH-1:0]    notify_msg_type;
+    logic                          notify_done;
+
+    // UDP-side NoC TX (from to_udp) and notify-side NoC TX (from
+    // dhcp_notify_tx) feed a priority mux below. After BOUND the lease
+    // FSM keeps to_udp idle, so the mux's notify-priority choice cannot
+    // truncate an in-flight UDP burst in step 7. Step 8 needs a real
+    // arbiter once REQUEST_RENEW shares the path with binds.
+    logic                  udp_noc_val;
+    logic [NOC_DATA_W-1:0] udp_noc_data;
+    logic                  udp_noc_rdy;
+
+    logic                  notify_noc_val;
+    logic [NOC_DATA_W-1:0] notify_noc_data;
+    logic                  notify_noc_rdy;
+
+    // udp side feeds to_udp_meta/data through to to_udp adapter.
     logic to_udp_meta_val;
     udp_info to_udp_meta_info;
     logic to_udp_meta_rdy;
@@ -78,9 +103,9 @@ module dhcp_tile #(
         .src_to_udp_data_val(to_udp_data_val),
         .src_to_udp_data(to_udp_data),
         .to_udp_src_data_rdy(to_udp_data_rdy),
-        .to_udp_noc_vrtoc_val(noc_dhcp_tx_val),
-        .to_udp_noc_vrtoc_data(noc_dhcp_tx_data),
-        .noc_vrtoc_to_udp_rdy(noc_dhcp_tx_rdy),
+        .to_udp_noc_vrtoc_val(udp_noc_val),
+        .to_udp_noc_vrtoc_data(udp_noc_data),
+        .noc_vrtoc_to_udp_rdy(udp_noc_rdy),
         .src_to_udp_dst_x(UDP_TX_TILE_X[`XY_WIDTH-1:0]),
         .src_to_udp_dst_y(UDP_TX_TILE_Y[`XY_WIDTH-1:0]),
         .src_to_udp_dst_fbits(PKT_IF_FBITS[`NOC_FBITS_WIDTH-1:0])
@@ -144,6 +169,10 @@ module dhcp_tile #(
         .lease_yiaddr(lease_yiaddr),
         .lease_siaddr(lease_siaddr),
 
+        .notify_start(notify_start),
+        .notify_msg_type(notify_msg_type),
+        .notify_done(notify_done),
+
         .lease_state_dbg(lease_state_dbg)
     );
 
@@ -175,4 +204,43 @@ module dhcp_tile #(
         .to_udp_meta_info(to_udp_meta_info),
         .to_udp_data(to_udp_data)
     );
+
+    dhcp_notify_tx #(
+        .NOC_DATA_W(NOC_DATA_W),
+        .SRC_X(SRC_X[`MSG_DST_X_WIDTH-1:0]),
+        .SRC_Y(SRC_Y[`MSG_DST_Y_WIDTH-1:0]),
+        .SRC_FBITS(SRC_FBITS),
+        .SUB_X(SUB_X),
+        .SUB_Y(SUB_Y),
+        .SUB_FBITS(SUB_FBITS)
+    ) notify (
+        .clk(clk),
+        .rst(rst),
+
+        .notify_start(notify_start),
+        .notify_msg_type(notify_msg_type),
+        .notify_yiaddr(lease_yiaddr),
+
+        .noc_val(notify_noc_val),
+        .noc_data(notify_noc_data),
+        .noc_rdy(notify_noc_rdy),
+
+        .notify_done(notify_done)
+    );
+
+    // Priority mux: notify wins when active. Safe in step 7 because the
+    // lease FSM keeps to_udp quiescent across BOUND -> notify -> BOUND.
+    always_comb begin
+        if (notify_noc_val) begin
+            noc_dhcp_tx_val  = 1'b1;
+            noc_dhcp_tx_data = notify_noc_data;
+            notify_noc_rdy   = noc_dhcp_tx_rdy;
+            udp_noc_rdy      = 1'b0;
+        end else begin
+            noc_dhcp_tx_val  = udp_noc_val;
+            noc_dhcp_tx_data = udp_noc_data;
+            udp_noc_rdy      = noc_dhcp_tx_rdy;
+            notify_noc_rdy   = 1'b0;
+        end
+    end
 endmodule

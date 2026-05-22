@@ -38,6 +38,13 @@ module dhcp_tile_ctrl #(
     output logic [`IP_ADDR_W-1:0]  lease_yiaddr,
     output logic [`IP_ADDR_W-1:0]  lease_siaddr,
 
+    // Notify boundary toward dhcp_notify_tx. `notify_start` strobes for
+    // one cycle on REQUESTING -> BOUND. `notify_done` is observed for
+    // future use (e.g. parking transitions).
+    output logic                          notify_start,
+    output logic [`MSG_TYPE_WIDTH-1:0]    notify_msg_type,
+    input  logic                          notify_done,
+
     // Cocotb peek for tests.
     output dhcp_client_state_e     lease_state_dbg
 );
@@ -140,12 +147,14 @@ module dhcp_tile_ctrl #(
                        && (parser_parsed_xid == xid_reg);
 
     always_comb begin
-        state_next  = state_reg;
-        yiaddr_next = yiaddr_reg;
-        siaddr_next = siaddr_reg;
-        tx_start    = 1'b0;
-        tx_msg_type = DISCOVER;
-        xid_step    = 1'b0;
+        state_next      = state_reg;
+        yiaddr_next     = yiaddr_reg;
+        siaddr_next     = siaddr_reg;
+        tx_start        = 1'b0;
+        tx_msg_type     = DISCOVER;
+        xid_step        = 1'b0;
+        notify_start    = 1'b0;
+        notify_msg_type = DHCP_IP_BIND;
 
         case (state_reg)
             ST_INIT: begin
@@ -176,7 +185,9 @@ module dhcp_tile_ctrl #(
             ST_REQUESTING: begin
                 if (parsed_match
                     && parser_parsed_msg_type_53 == 3'd5 /* ACK */) begin
-                    state_next = ST_BOUND;
+                    notify_start    = 1'b1;
+                    notify_msg_type = DHCP_IP_BIND;
+                    state_next      = ST_BOUND;
                 end else if (parsed_match
                     && parser_parsed_msg_type_53 == 3'd6 /* NAK */) begin
                     xid_step   = 1'b1;

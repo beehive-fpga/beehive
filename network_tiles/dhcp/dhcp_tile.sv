@@ -48,6 +48,7 @@ module dhcp_tile #(
     // Bind notify boundary.
     logic                          notify_start;
     logic [`MSG_TYPE_WIDTH-1:0]    notify_msg_type;
+    logic [`IP_ADDR_W-1:0]         notify_yiaddr;
     logic                          notify_done;
 
     // UDP-side NoC TX (from to_udp) and notify-side NoC TX (from
@@ -174,6 +175,7 @@ module dhcp_tile #(
 
         .notify_start(notify_start),
         .notify_msg_type(notify_msg_type),
+        .notify_yiaddr(notify_yiaddr),
         .notify_done(notify_done),
 
         .lease_state_dbg(lease_state_dbg)
@@ -222,7 +224,7 @@ module dhcp_tile #(
 
         .notify_start(notify_start),
         .notify_msg_type(notify_msg_type),
-        .notify_yiaddr(lease_yiaddr),
+        .notify_yiaddr(notify_yiaddr),
 
         .noc_val(notify_noc_val),
         .noc_data(notify_noc_data),

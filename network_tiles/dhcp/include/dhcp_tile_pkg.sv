@@ -31,11 +31,12 @@ package dhcp_tile_pkg;
         UND_STATE = 'X
     } dhcp_client_state_e;
 
-    typedef enum logic [1:0] {
-        DISCOVER = 2'd0,
-        REQUEST_INIT = 2'd1,
-        REQUEST_RENEW = 2'd2,
-        UND_TX = 'X
+    typedef enum logic [2:0] {
+        DISCOVER       = 3'd0,
+        REQUEST_INIT   = 3'd1,
+        REQUEST_RENEW  = 3'd2,
+        REQUEST_REBIND = 3'd3,
+        UND_TX         = 'X
     } dhcp_tx_msg_type_e;
 
     typedef enum logic [1:0] {

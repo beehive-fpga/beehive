@@ -40,6 +40,7 @@ LEASE_STATE_SELECTING  = 1
 LEASE_STATE_REQUESTING = 2
 LEASE_STATE_BOUND      = 3
 LEASE_STATE_RENEWING   = 4
+LEASE_STATE_REBINDING  = 5
 
 # Notify msg type (match dhcp_tile_pkg.sv).
 DHCP_IP_BIND_MSG_TYPE = 64
@@ -592,3 +593,143 @@ async def renew_ack_returns_to_bound(dut):
     )
     assert bind_count == 2, \
         f"expected 2 DHCP_IP_BIND notifications (initial + renewal), got {bind_count}"
+
+
+@cocotb.test()
+async def renewing_to_rebinding_when_no_ack(dut):
+    """When the unicast REQUEST_RENEW gets no ACK, T2 (lease_secs * 7/8)
+    eventually fires and the tile broadcasts a REQUEST_REBIND. The renew
+    payload stays identical (ciaddr=yiaddr, no opt 50/54) but dst_ip
+    flips from siaddr to 255.255.255.255."""
+    tb = TB(dut)
+    await test_prep(dut, tb)
+
+    yiaddr = 0xC0A8000A
+    siaddr = 0xC0A80001
+    # 8 s lease: T1 ~16 us, T2 ~28 us at CLK_HZ=1000. Retransmit (5 s
+    # = 20 us from RENEWING entry) lands well past T2 so it can't beat
+    # the rebind transition.
+    lease_secs = 8
+
+    # --- DORA --------------------------------------------------------------
+    frame = await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    assert bytes(Ether(frame)[Raw].load)[242] == DHCP_MSG_DISCOVER
+
+    offer = build_dhcp_offer(DISCOVER_XID, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, offer))
+
+    frame = await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    assert bytes(Ether(frame)[Raw].load)[242] == DHCP_MSG_REQUEST
+
+    ack = build_dhcp_ack(DISCOVER_XID, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, ack))
+    await with_timeout(_wait_lease_state(dut, LEASE_STATE_BOUND),
+                       2_000_000_000, "ns")
+
+    # --- T1: unicast REQUEST_RENEW (we don't ACK) --------------------------
+    frame = await with_timeout(tb.output_op.recv_frame(), 50_000, "ns")
+    pkt = Ether(frame)
+    payload = bytes(pkt[Raw].load)
+    assert payload[242] == DHCP_MSG_REQUEST, \
+        f"post-T1 egress not REQUEST (opt53={payload[242]})"
+    assert pkt[IP].dst == str(ipaddress.IPv4Address(siaddr)), \
+        f"renew IP.dst {pkt[IP].dst} != siaddr"
+
+    # --- T2: broadcast REQUEST_REBIND --------------------------------------
+    frame = await with_timeout(tb.output_op.recv_frame(), 50_000, "ns")
+    pkt = Ether(frame)
+    payload = bytes(pkt[Raw].load)
+    assert payload[242] == DHCP_MSG_REQUEST, \
+        f"post-T2 egress not REQUEST (opt53={payload[242]})"
+
+    # Same shape as RENEW: ciaddr=yiaddr, no opt 50/54.
+    ciaddr = struct.unpack(">I", payload[12:16])[0]
+    assert ciaddr == yiaddr, f"rebind ciaddr {ciaddr:#x} != yiaddr {yiaddr:#x}"
+    assert payload[252] == 0xFF, \
+        f"rebind payload[252] = {payload[252]:#x} != OPT_END"
+
+    # Broadcast: IP.src still yiaddr (we're bound), IP.dst == 255.255.255.255.
+    assert pkt[IP].src == str(ipaddress.IPv4Address(yiaddr)), \
+        f"rebind IP.src {pkt[IP].src} != yiaddr"
+    assert pkt[IP].dst == "255.255.255.255", \
+        f"rebind IP.dst {pkt[IP].dst} != 255.255.255.255"
+
+    # FSM should now be in REBINDING.
+    state_val = int(dut.DHCP_TILE_3_0.tile.ctrl.lease_state_dbg.value)
+    assert state_val == LEASE_STATE_REBINDING, \
+        f"FSM not in REBINDING after T2 (state={state_val})"
+
+
+@cocotb.test()
+async def rebind_ack_returns_to_bound(dut):
+    """ACK received in REBINDING (potentially from a different server)
+    refreshes the lease and returns the FSM to BOUND with a fresh
+    DHCP_IP_BIND notification."""
+    tb = TB(dut)
+    await test_prep(dut, tb)
+
+    yiaddr_first  = 0xC0A8000A   # 192.168.0.10 -- initial lease
+    siaddr_first  = 0xC0A80001   # 192.168.0.1
+    yiaddr_second = 0xC0A8000B   # 192.168.0.11 -- second server hands out new IP
+    siaddr_second = 0xC0A80002   # 192.168.0.2
+    lease_secs    = 8
+
+    # Capture every NoC TX handshake so we can count bind notifications.
+    captured = []
+    async def monitor():
+        while True:
+            await RisingEdge(dut.clk)
+            if int(dut.DHCP_TILE_3_0.tile.noc_dhcp_tx_val.value) == 1 and \
+               int(dut.DHCP_TILE_3_0.tile.noc_dhcp_tx_rdy.value) == 1:
+                captured.append(int(dut.DHCP_TILE_3_0.tile.noc_dhcp_tx_data.value))
+    monitor_task = cocotb.start_soon(monitor())
+
+    # --- DORA --------------------------------------------------------------
+    await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    offer = build_dhcp_offer(DISCOVER_XID, yiaddr_first, siaddr_first, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, offer))
+    await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    ack = build_dhcp_ack(DISCOVER_XID, yiaddr_first, siaddr_first, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, ack))
+    await with_timeout(_wait_lease_state(dut, LEASE_STATE_BOUND),
+                       2_000_000_000, "ns")
+
+    # --- Burn through T1 (no ACK) and T2 to reach REBINDING ---------------
+    await with_timeout(tb.output_op.recv_frame(), 50_000, "ns")  # RENEW
+    await with_timeout(tb.output_op.recv_frame(), 50_000, "ns")  # REBIND
+    await with_timeout(_wait_lease_state(dut, LEASE_STATE_REBINDING),
+                       50_000, "ns")
+
+    # --- ACK from a different server, with a new yiaddr -------------------
+    ack2 = build_dhcp_ack(DISCOVER_XID, yiaddr_second, siaddr_second, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, ack2))
+    await with_timeout(_wait_lease_state(dut, LEASE_STATE_BOUND),
+                       50_000, "ns")
+
+    # Lease registers should reflect the rebind's new server / IP.
+    assert int(dut.DHCP_TILE_3_0.tile.ctrl.lease_yiaddr.value) == yiaddr_second, \
+        "lease_yiaddr not refreshed by REBIND ACK"
+    assert int(dut.DHCP_TILE_3_0.tile.ctrl.lease_siaddr.value) == siaddr_second, \
+        "lease_siaddr not refreshed by REBIND ACK"
+
+    # Give the second bind notification a window to walk.
+    await ClockCycles(dut.clk, 50)
+    monitor_task.kill()
+
+    # Two binds total: one on initial DORA-ACK, one on rebind-ACK. Each
+    # bind has a header + data flit, so 2 headers carry DHCP_IP_BIND.
+    bind_headers = [
+        i for i, f in enumerate(captured)
+        if get_field(f, HDR_MSG_TYPE_MSB, HDR_MSG_TYPE_W) == DHCP_IP_BIND_MSG_TYPE
+    ]
+    assert len(bind_headers) == 2, \
+        f"expected 2 DHCP_IP_BIND notifications, got {len(bind_headers)}"
+
+    # The second bind's data flit (next entry after the header) carries
+    # the refreshed yiaddr.
+    second_data_idx = bind_headers[1] + 1
+    assert second_data_idx < len(captured), \
+        "second bind header captured but data flit missing"
+    yiaddr_obs = get_field(captured[second_data_idx], DATA_YIADDR_MSB, DATA_YIADDR_W)
+    assert yiaddr_obs == yiaddr_second, \
+        f"rebind notification yiaddr {yiaddr_obs:#x} != {yiaddr_second:#x}"

@@ -1,14 +1,16 @@
 `include "dhcp_tile_defs.svh"
 
-// Builds the static payload + udp_info meta for one of three DHCP TX
+// Builds the static payload + udp_info meta for one of four DHCP TX
 // messages, selected by the latched `tx_msg_type` from dhcp_tx_ctrl:
 //
-//   DISCOVER       253 B / 4 flits, src=0, dst=broadcast, ciaddr=0
-//   REQUEST_INIT   265 B / 5 flits, src=0, dst=broadcast, ciaddr=0,
-//                  carries opt 50 (requested IP) + opt 54 (server id)
-//   REQUEST_RENEW  253 B / 4 flits, src=yiaddr, dst=siaddr (unicast),
-//                  ciaddr=yiaddr, no opt 50 / 54 (we already know our
-//                  address; the server identifies us via ciaddr)
+//   DISCOVER        253 B / 4 flits, src=0, dst=broadcast, ciaddr=0
+//   REQUEST_INIT    265 B / 5 flits, src=0, dst=broadcast, ciaddr=0,
+//                   carries opt 50 (requested IP) + opt 54 (server id)
+//   REQUEST_RENEW   253 B / 4 flits, src=yiaddr, dst=siaddr (unicast),
+//                   ciaddr=yiaddr, no opt 50 / 54 (we already know our
+//                   address; the server identifies us via ciaddr)
+//   REQUEST_REBIND  same as REQUEST_RENEW but dst=broadcast (T2 has
+//                   fired; any server may answer)
 //
 // `xid`, `lease_yiaddr`, `lease_siaddr` are owned by the lease FSM in
 // dhcp_tile_ctrl. Bytes serialise MSB-first to match what `to_udp`
@@ -33,13 +35,16 @@ module dhcp_tx_datap #(
     logic [7:0] payload [0:MAX_PAYLOAD_BYTES-1];
     logic [7:0] opt53_val;
     logic [`IP_ADDR_W-1:0] ciaddr_val;
-    logic                  is_renew;
+    logic                  is_renew_or_rebind; // we are bound: src/ciaddr = yiaddr
+    logic                  is_unicast_renew;   // RENEW only: dst = siaddr
 
-    assign is_renew  = (tx_msg_type == REQUEST_RENEW);
-    assign opt53_val = (tx_msg_type == DISCOVER)
+    assign is_renew_or_rebind = (tx_msg_type == REQUEST_RENEW)
+                             || (tx_msg_type == REQUEST_REBIND);
+    assign is_unicast_renew   = (tx_msg_type == REQUEST_RENEW);
+    assign opt53_val          = (tx_msg_type == DISCOVER)
         ? `DHCP_MSG_DISCOVER
         : `DHCP_MSG_REQUEST;
-    assign ciaddr_val = is_renew ? lease_yiaddr : '0;
+    assign ciaddr_val         = is_renew_or_rebind ? lease_yiaddr : '0;
 
     integer b;
     always_comb begin
@@ -108,8 +113,9 @@ module dhcp_tx_datap #(
 
     always_comb begin
         to_udp_meta_info             = '0;
-        to_udp_meta_info.src_ip      = is_renew ? lease_yiaddr : '0;
-        to_udp_meta_info.dst_ip      = is_renew ? lease_siaddr : {`IP_ADDR_W{1'b1}};
+        to_udp_meta_info.src_ip      = is_renew_or_rebind ? lease_yiaddr : '0;
+        to_udp_meta_info.dst_ip      = is_unicast_renew   ? lease_siaddr
+                                                          : {`IP_ADDR_W{1'b1}};
         to_udp_meta_info.src_port    = DHCP_CLIENT_PORT;
         to_udp_meta_info.dst_port    = DHCP_SERVER_PORT;
         to_udp_meta_info.data_length = (tx_msg_type == REQUEST_INIT)

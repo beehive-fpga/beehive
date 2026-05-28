@@ -29,7 +29,6 @@ module ip_tx_tile
     //   0  passthrough -- meta.src_ip is written into the IP header as-is.
     //   1  substitute meta.src_ip with the DHCP-bound IP whenever a
     //      lease is held; fall back to the operator's src_ip otherwise.
-    //   2  substitute when bound; drop the whole burst when unbound.
     ,parameter SRC_IP_POLICY = 0
 )(
      input clk

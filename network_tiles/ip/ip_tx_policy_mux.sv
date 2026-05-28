@@ -4,20 +4,19 @@
 // ip_hdr_assembler_pipe's meta + data inputs. Implements SRC_IP_POLICY
 // for outgoing IP packets:
 //
-//   0  passthrough -- meta + data forwarded unchanged. No substitution,
-//      no drop. (This module isn't instantiated when DHCP_BIND_LISTEN=0,
-//      so this branch only fires for policy=0 with the listener on.)
+//   0  passthrough -- meta + data forwarded unchanged. No substitution.
+//      (This module isn't instantiated when DHCP_BIND_LISTEN=0, so this
+//      branch only fires for policy=0 with the listener on.)
 //   1  substitute when bound; otherwise fall back to the operator's
-//      udp_info.src_ip. Useful as the default DHCP-aware mode for any
-//      tile that wants the bound IP without caring about pre-bind.
-//   2  substitute when bound; otherwise DROP the entire burst. Meta and
-//      data flits are still drained locally (upstream noc_in unblocks)
-//      but never forwarded toward hdr_assembler, so no IP packet ever
-//      egresses. Strict mode for callers that must never leak src=0.
+//      udp_info.src_ip. The DHCP-aware mode for any tile that wants the
+//      bound IP without caring about pre-bind. The "fallback" path
+//      means src_ip flows through verbatim when unbound -- the sender
+//      remains responsible for picking a sane src (0.0.0.0, a static
+//      fallback IP, or its own gate on "should I send pre-bind").
 //
-// The substitute-vs-drop decision is latched at the meta-flit handshake
-// so dhcp_bound_valid flipping mid-burst can't corrupt a burst that's
-// already started forwarding (or already started draining).
+// The substitute decision is latched at the meta-flit handshake so
+// dhcp_bound_valid flipping mid-burst can't corrupt a burst that's
+// already started forwarding.
 module ip_tx_policy_mux
     import tracker_pkg::*;
 #(
@@ -58,11 +57,9 @@ module ip_tx_policy_mux
     output logic                            dbg_substitute_now,
     output logic [`IP_ADDR_W-1:0]           dbg_substituted_src_ip
 );
-    typedef enum logic [1:0] {
-        IDLE    = 2'd0,
-        FORWARD = 2'd1,
-        DROP    = 2'd2,
-        UND     = 'X
+    typedef enum logic [0:0] {
+        IDLE    = 1'd0,
+        FORWARD = 1'd1
     } state_e;
 
     state_e state_reg, state_next;
@@ -72,10 +69,9 @@ module ip_tx_policy_mux
         else     state_reg <= state_next;
     end
 
-    // Substitution logic: pull from cache when policy >= 1 AND bound.
+    // Substitution logic: pull from cache when policy=1 AND bound.
     logic substitute_now;
-    assign substitute_now =
-        ((SRC_IP_POLICY == 1) || (SRC_IP_POLICY == 2)) && dhcp_bound_valid;
+    assign substitute_now = (SRC_IP_POLICY == 1) && dhcp_bound_valid;
 
     logic [`IP_ADDR_W-1:0] substituted_src_ip;
     assign substituted_src_ip = substitute_now
@@ -84,10 +80,6 @@ module ip_tx_policy_mux
 
     assign dbg_substitute_now     = substitute_now;
     assign dbg_substituted_src_ip = substituted_src_ip;
-
-    // Drop iff policy=2 AND unbound -- otherwise forward.
-    logic would_drop;
-    assign would_drop = (SRC_IP_POLICY == 2) && !dhcp_bound_valid;
 
     // Rebuild the meta_flit struct with the (possibly substituted) src.
     ip_tx_metadata_flit modified_meta;
@@ -99,7 +91,7 @@ module ip_tx_policy_mux
     always_comb begin
         state_next         = state_reg;
 
-        // Defaults: not forwarding, not draining.
+        // Defaults: not forwarding.
         dst_meta_val       = 1'b0;
         dst_meta_flit      = modified_meta;
         dst_meta_timestamp = src_meta_timestamp;
@@ -116,17 +108,11 @@ module ip_tx_policy_mux
                 // Drive src_meta_rdy unconditionally so upstream
                 // ip_tx_tile_noc_in (which only asserts meta_val on a
                 // cycle when meta_rdy is already high) can fire.
-                src_meta_rdy = would_drop ? 1'b1 : dst_meta_rdy;
+                src_meta_rdy = dst_meta_rdy;
 
                 if (src_meta_val) begin
-                    if (would_drop) begin
-                        // Swallow the meta, drain data flits to /dev/null.
-                        state_next = DROP;
-                    end else begin
-                        // Forward the meta with substituted src_ip.
-                        dst_meta_val = 1'b1;
-                        if (dst_meta_rdy) state_next = FORWARD;
-                    end
+                    dst_meta_val = 1'b1;
+                    if (dst_meta_rdy) state_next = FORWARD;
                 end
             end
             FORWARD: begin
@@ -136,14 +122,7 @@ module ip_tx_policy_mux
                     state_next = IDLE;
                 end
             end
-            DROP: begin
-                // Drain every data flit, never raise dst_data_val.
-                src_data_rdy = 1'b1;
-                if (src_data_val && src_data_last) begin
-                    state_next = IDLE;
-                end
-            end
-            default: state_next = UND;
+            default: state_next = IDLE;
         endcase
     end
 endmodule

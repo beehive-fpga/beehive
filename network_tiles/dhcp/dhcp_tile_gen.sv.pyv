@@ -16,7 +16,13 @@ noc_if_generator = NocInterfaceGen()
 module dhcp_tile_wrapper #(
     parameter SRC_X = -1,
     parameter SRC_Y = -1,
-    parameter CLK_HZ = 100_000_000
+    parameter CLK_HZ = 100_000_000,
+    // Bind notification subscriber. Defaults match dhcp_tile.sv.
+    // Override at instantiation to route DHCP_IP_BIND/EXPIRE elsewhere
+    // (e.g. IP_TX_TILE when DHCP_BIND_LISTEN=1 on that tile).
+    parameter logic [`MSG_DST_X_WIDTH-1:0]     SUB_X     = IP_RX_TILE_X,
+    parameter logic [`MSG_DST_Y_WIDTH-1:0]     SUB_Y     = IP_RX_TILE_Y,
+    parameter logic [`MSG_DST_FBITS_WIDTH-1:0] SUB_FBITS = PKT_IF_FBITS
 ) (
     input clk,
     input rst
@@ -106,7 +112,10 @@ print(processor_ports)
         .SRC_Y(SRC_Y),
         .SRC_FBITS(PKT_IF_FBITS[`NOC_FBITS_WIDTH-1:0]),
         .NOC_DATA_W(`NOC_DATA_WIDTH),
-        .CLK_HZ(CLK_HZ)
+        .CLK_HZ(CLK_HZ),
+        .SUB_X(SUB_X),
+        .SUB_Y(SUB_Y),
+        .SUB_FBITS(SUB_FBITS)
     ) tile (
         .clk(clk),
         .rst(rst),

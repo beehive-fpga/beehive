@@ -101,7 +101,10 @@ print(tile_std_ports)
 
     ip_tx_tile #(
         .SRC_X(IP_TX_TILE_X),
-        .SRC_Y(IP_TX_TILE_Y)
+        .SRC_Y(IP_TX_TILE_Y),
+        // Listen for DHCP_IP_BIND/EXPIRE pushed by the dhcp_tile so we
+        // cache the bound IP locally (substitution lands in step 9b).
+        .DHCP_BIND_LISTEN(1)
     ) IP_TX_1_1 (
         .clk(clk),
         .rst(rst)
@@ -138,7 +141,12 @@ print(tile_std_ports)
     dhcp_tile_wrapper #(
         .SRC_X(DHCP_TILE_X),
         .SRC_Y(DHCP_TILE_Y),
-        .CLK_HZ(1000)
+        .CLK_HZ(1000),
+        // Bind notifications go to IP_TX so it can use the lease IP as
+        // src on outgoing packets. IP_RX consumer story stays future
+        // work; multi-subscriber broadcast can re-add IP_RX later.
+        .SUB_X(IP_TX_TILE_X),
+        .SUB_Y(IP_TX_TILE_Y)
     ) DHCP_TILE_3_0 (
         .clk(clk),
         .rst(rst)

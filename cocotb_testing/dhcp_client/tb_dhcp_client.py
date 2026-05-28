@@ -497,10 +497,11 @@ async def bind_pushed_to_subscribers(dut):
     hdr = captured[bind_idx]
     dst_x = get_field(hdr, HDR_DST_X_MSB, XY_BITS)
     dst_y = get_field(hdr, HDR_DST_Y_MSB, XY_BITS)
-    # Default subscriber wired in dhcp_tile.sv is IP_RX_TILE.
-    # IP_RX_TILE = (1, 0) per cocotb_testing/dhcp_client/tile_config.xml.
-    assert dst_x == 1, f"bind dst_x {dst_x} != IP_RX_TILE_X (1)"
-    assert dst_y == 0, f"bind dst_y {dst_y} != IP_RX_TILE_Y (0)"
+    # The dhcp_client harness retargets the bind subscriber to IP_TX_TILE
+    # so the listener inside ip_tx_tile (DHCP_BIND_LISTEN=1) can cache
+    # the bound IP. IP_TX_TILE = (1, 1) per tile_config.xml.
+    assert dst_x == 1, f"bind dst_x {dst_x} != IP_TX_TILE_X (1)"
+    assert dst_y == 1, f"bind dst_y {dst_y} != IP_TX_TILE_Y (1)"
 
     assert bind_idx + 1 < len(captured), "bind header captured but data flit missing"
     data = captured[bind_idx + 1]
@@ -810,3 +811,64 @@ async def rebind_expiry_goes_to_init(dut):
     yiaddr_obs = get_field(captured[expire_data_idx], DATA_YIADDR_MSB, DATA_YIADDR_W)
     assert yiaddr_obs == yiaddr, \
         f"expire notification yiaddr {yiaddr_obs:#x} != {yiaddr:#x}"
+
+
+@cocotb.test()
+async def bind_lands_in_ip_tx(dut):
+    """The dhcp bind subscriber is wired to IP_TX_TILE in the harness, and
+    that tile is built with DHCP_BIND_LISTEN=1 so its ip_tx_dhcp_listener
+    snoops DHCP_IP_BIND / DHCP_IP_EXPIRE off the NoC RX path and caches
+    the bound yiaddr in `dhcp_bound_ip` + `dhcp_bound_valid`. This test
+    drives a full lease cycle and peeks those regs.
+
+    Pre-bind:  bound_valid=0,  bound_ip=0.
+    Post-bind: bound_valid=1,  bound_ip=yiaddr (~one extra cycle after
+               the bind data flit handshakes through the listener FSM).
+    Post-expiry: bound_valid=0, bound_ip=0 (DHCP_IP_EXPIRE clears).
+    """
+    tb = TB(dut)
+    await test_prep(dut, tb)
+
+    yiaddr = 0xC0A8000A
+    siaddr = 0xC0A80001
+    lease_secs = 8  # ~32 us total at CLK_HZ=1000
+
+    # Sanity-check the listener powers up cleared.
+    assert int(dut.IP_TX_1_1.dhcp_bound_valid.value) == 0, \
+        "ip_tx listener bound_valid not 0 out of reset"
+
+    # --- DORA -> BOUND ----------------------------------------------------
+    await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    offer = build_dhcp_offer(DISCOVER_XID, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, offer))
+    await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    ack = build_dhcp_ack(DISCOVER_XID, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, ack))
+    await with_timeout(_wait_lease_state(dut, LEASE_STATE_BOUND),
+                       2_000_000_000, "ns")
+
+    # The bind FSM strobes notify_start the same cycle as BOUND, but the
+    # 2 notify flits + 1 capture cycle still have to traverse the router
+    # + listener. Poll for the cached bind to land.
+    async def _wait_ip_tx_bound(target_valid):
+        while True:
+            await RisingEdge(dut.clk)
+            if int(dut.IP_TX_1_1.dhcp_bound_valid.value) == target_valid:
+                return
+    await with_timeout(_wait_ip_tx_bound(1), 50_000, "ns")
+
+    bound_ip = int(dut.IP_TX_1_1.dhcp_bound_ip.value)
+    assert bound_ip == yiaddr, \
+        f"ip_tx bound_ip {bound_ip:#x} != yiaddr {yiaddr:#x}"
+
+    # --- Burn T1 + T2 + EXPIRY (no acks at all) ---------------------------
+    await with_timeout(tb.output_op.recv_frame(), 50_000, "ns")  # RENEW
+    await with_timeout(tb.output_op.recv_frame(), 50_000, "ns")  # REBIND
+    await with_timeout(_wait_lease_state(dut, LEASE_STATE_INIT),
+                       50_000, "ns")
+
+    # Expiry notification should land at the listener; bound_valid clears.
+    await with_timeout(_wait_ip_tx_bound(0), 50_000, "ns")
+    bound_ip_post = int(dut.IP_TX_1_1.dhcp_bound_ip.value)
+    assert bound_ip_post == 0, \
+        f"ip_tx bound_ip not cleared after expiry: {bound_ip_post:#x}"

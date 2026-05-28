@@ -19,6 +19,7 @@ filesets:
             - ip_tx_noc_in.sv
             - ip_tx_noc_in_ctrl.sv
             - ip_tx_noc_in_datap.sv
+            - ip_tx_dhcp_listener.sv
             - ip_tx_noc_out.sv
             - ip_tx_noc_out_ctrl.sv
             - ip_tx_noc_out_datap.sv

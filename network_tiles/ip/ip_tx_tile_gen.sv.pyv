@@ -13,12 +13,17 @@ logging.info(f"Using tile config at {design_path}")
 tile_config = BeehiveConfig(design_path + "/tile_config.xml")
 noc_if_generator = NocInterfaceGen()
 %>
-module ip_tx_tile 
+module ip_tx_tile
     import tracker_pkg::*;
 #(
      parameter SRC_X = -1
     ,parameter SRC_Y = -1
     ,parameter USE_INT_LB = 0
+    // Opt-in DHCP awareness. When 1, an ip_tx_dhcp_listener intercepts
+    // DHCP_IP_BIND/EXPIRE NoC msgs upstream of ip_tx_tile_noc_in and
+    // caches the bound IP into `dhcp_bound_ip` / `dhcp_bound_valid`.
+    // Default 0 keeps every existing instantiation byte-identical.
+    ,parameter DHCP_BIND_LISTEN = 0
 )(
      input clk
     ,input rst
@@ -219,13 +224,49 @@ print(router_wires)
         ,.noc_wr_tracker_out_rdy    (ip_tx_in_log_data_noc0_rdy     )
     );
     
+    // Optional DHCP-bind listener sits between the tracker output and
+    // the noc_in. When disabled (default), the wires below are a literal
+    // pass-through and `dhcp_bound_*` stay tied to 0.
+    logic                       noc_in_input_val;
+    logic [`NOC_DATA_WIDTH-1:0] noc_in_input_data;
+    logic                       noc_in_input_rdy;
+
+    logic [`IP_ADDR_W-1:0]      dhcp_bound_ip;
+    logic                       dhcp_bound_valid;
+
+generate
+    if (DHCP_BIND_LISTEN == 1) begin : dhcp_listener_gen
+        ip_tx_dhcp_listener dhcp_listener (
+             .clk   (clk)
+            ,.rst   (rst)
+
+            ,.src_val   (log_ip_tx_in_data_noc0_val     )
+            ,.src_data  (log_ip_tx_in_data_noc0_data    )
+            ,.src_rdy   (ip_tx_in_log_data_noc0_rdy     )
+
+            ,.dst_val   (noc_in_input_val               )
+            ,.dst_data  (noc_in_input_data              )
+            ,.dst_rdy   (noc_in_input_rdy               )
+
+            ,.dhcp_bound_ip     (dhcp_bound_ip          )
+            ,.dhcp_bound_valid  (dhcp_bound_valid       )
+        );
+    end else begin : no_dhcp_listener
+        assign noc_in_input_val           = log_ip_tx_in_data_noc0_val;
+        assign noc_in_input_data          = log_ip_tx_in_data_noc0_data;
+        assign ip_tx_in_log_data_noc0_rdy = noc_in_input_rdy;
+        assign dhcp_bound_ip              = '0;
+        assign dhcp_bound_valid           = 1'b0;
+    end
+endgenerate
+
     ip_tx_tile_noc_in tx_noc_in (
          .clk   (clk)
         ,.rst   (rst)
-        
-        ,.noc0_ctovr_ip_tx_in_val       (log_ip_tx_in_data_noc0_val     )
-        ,.noc0_ctovr_ip_tx_in_data      (log_ip_tx_in_data_noc0_data    )
-        ,.ip_tx_in_noc0_ctovr_rdy       (ip_tx_in_log_data_noc0_rdy     )
+
+        ,.noc0_ctovr_ip_tx_in_val       (noc_in_input_val               )
+        ,.noc0_ctovr_ip_tx_in_data      (noc_in_input_data              )
+        ,.ip_tx_in_noc0_ctovr_rdy       (noc_in_input_rdy               )
    
         ,.ip_tx_in_assemble_meta_val    (ip_tx_in_assemble_meta_val     )
         ,.ip_tx_in_assemble_meta_flit   (ip_tx_in_assemble_meta_flit    )

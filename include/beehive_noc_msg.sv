@@ -92,6 +92,12 @@ package beehive_noc_msg;
     
     localparam [`MSG_TYPE_WIDTH-1:0]    IP_REWRITE_ADJUST_TABLE = `MSG_TYPE_WIDTH'd15;
 
+    // Notifications pushed by dhcp_tile on every lease event. Consumed by
+    // any tile that wants to use the DHCP-bound IP as its source address
+    // (e.g. ip_tx_tile with DHCP_BIND_LISTEN=1).
+    localparam [`MSG_TYPE_WIDTH-1:0]    DHCP_IP_BIND   = `MSG_TYPE_WIDTH'd64;
+    localparam [`MSG_TYPE_WIDTH-1:0]    DHCP_IP_EXPIRE = `MSG_TYPE_WIDTH'd65;
+
     localparam [`MSG_TYPE_WIDTH-1:0]    TRACKER_MSG = `MSG_TYPE_WIDTH'd16;
 
     localparam [`MSG_TYPE_WIDTH-1:0]    ALLOC_MEM = `MSG_TYPE_WIDTH'd17;

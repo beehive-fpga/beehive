@@ -139,8 +139,37 @@ async def test_prep(dut, tb):
     dut.mac_engine_rx_frame_size.setimmediatevalue(0)
     dut.mac_engine_tx_rdy.setimmediatevalue(1)
 
+    # udp_test_sender_tile inputs idle until a test triggers it.
+    dut.test_sender_trigger.setimmediatevalue(0)
+    dut.test_sender_src_ip.setimmediatevalue(0)
+    dut.test_sender_dst_ip.setimmediatevalue(0)
+    dut.test_sender_src_port.setimmediatevalue(0)
+    dut.test_sender_dst_port.setimmediatevalue(0)
+    dut.test_sender_payload_len.setimmediatevalue(0)
+    dut.test_sender_payload.setimmediatevalue(BinaryValue(value=0, n_bits=512))
+
     cocotb.start_soon(Clock(dut.clk, tb.CLOCK_CYCLE_TIME, units="ns").start())
     await reset(dut)
+
+
+async def fire_test_sender(dut, src_ip, dst_ip, dst_port=5555, src_port=60000,
+                           payload_len=8, payload_msb=0xCAFEFACECAFEFACE):
+    """Single-shot UDP burst out of udp_test_sender_tile. Payload bytes
+    are placed at the MSB of the 512-bit flit (matches how to_udp
+    expects byte 0 at bit 511)."""
+    dut.test_sender_src_ip.value = src_ip
+    dut.test_sender_dst_ip.value = dst_ip
+    dut.test_sender_src_port.value = src_port
+    dut.test_sender_dst_port.value = dst_port
+    dut.test_sender_payload_len.value = payload_len
+    # 8-byte payload at the top of the 512-bit flit.
+    flit = payload_msb << (512 - 64)
+    dut.test_sender_payload.value = BinaryValue(value=flit, n_bits=512)
+
+    await RisingEdge(dut.clk)
+    dut.test_sender_trigger.value = 1
+    await RisingEdge(dut.clk)
+    dut.test_sender_trigger.value = 0
 
 
 async def _wait_parser_val(dut):
@@ -1166,3 +1195,148 @@ async def filter_drops_mismatched_dst(dut):
     pulses = await _count_parser_pulses(dut, 1500)
     assert pulses == 0, \
         f"mismatched-dst probe reached parser ({pulses} pulses) -- filter not dropping"
+
+
+# --- udp_test_sender end-to-end substitution tests ------------------------
+# These drive a non-DHCP UDP burst through ip_tx_tile's policy_mux and
+# inspect the actual MAC egress frame's IP.src. With SRC_IP_POLICY=1:
+#   * unbound -> IP.src equals whatever the operator (test sender) supplied
+#   * bound   -> IP.src is substituted with the DHCP yiaddr
+
+EXTERNAL_DST_IP_INT = 0x0A141E0A   # 10.20.30.10 (caller-supplied test dst)
+
+
+async def _wait_ip_tx_bound(dut, target):
+    while True:
+        await RisingEdge(dut.clk)
+        if int(dut.IP_TX_1_1.dhcp_bound_valid.value) == target:
+            return
+
+
+@cocotb.test()
+async def udp_send_pre_bind_uses_operator_src(dut):
+    """Pre-bind, POLICY=1 substitution is gated by dhcp_bound_valid=0,
+    so the operator's src_ip flows through. Test sender supplies
+    src=0.0.0.0; expect the MAC egress to carry IP.src=0.0.0.0."""
+    tb = TB(dut)
+    await test_prep(dut, tb)
+
+    # Drain the auto-emitted DISCOVER first so we capture our own frame next.
+    await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+
+    # FSM is in SELECTING, IP_TX dhcp_bound_valid still 0.
+    assert int(dut.IP_TX_1_1.dhcp_bound_valid.value) == 0
+
+    # Make the test dst broadcast so the harness's IP_DST_FILTER on IP_RX
+    # doesn't drop the egress on its way back through any loopback path.
+    await fire_test_sender(
+        dut,
+        src_ip=0,
+        dst_ip=EXTERNAL_DST_IP_INT,
+        dst_port=5555,
+    )
+
+    frame = await with_timeout(tb.output_op.recv_frame(), 200_000, "ns")
+    pkt = Ether(frame)
+    assert UDP in pkt, "test-sender egress not UDP"
+    assert pkt[IP].src == "0.0.0.0", \
+        f"pre-bind IP.src {pkt[IP].src} != 0.0.0.0 (substitution fired without a lease)"
+    assert pkt[IP].dst == str(ipaddress.IPv4Address(EXTERNAL_DST_IP_INT))
+    assert int(pkt[UDP].dport) == 5555
+
+
+@cocotb.test()
+async def udp_send_post_bind_substitutes_visible(dut):
+    """Post-bind, POLICY=1 substitution kicks in: test sender supplies
+    src=0.0.0.0 but the MAC egress carries IP.src=yiaddr. This is the
+    visible end-to-end substitution test."""
+    tb = TB(dut)
+    await test_prep(dut, tb)
+
+    yiaddr = 0xC0A8000A
+    siaddr = 0xC0A80001
+    lease_secs = 4
+
+    # DORA -> BOUND
+    await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    offer = build_dhcp_offer(DISCOVER_XID, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, offer))
+    await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    ack = build_dhcp_ack(DISCOVER_XID, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, ack))
+    await with_timeout(_wait_ip_tx_bound(dut, 1), 50_000, "ns")
+
+    # Fire the test sender with src=0.0.0.0 -- substitution should swap
+    # it to yiaddr on egress.
+    await fire_test_sender(
+        dut,
+        src_ip=0,
+        dst_ip=EXTERNAL_DST_IP_INT,
+        dst_port=5555,
+    )
+
+    frame = await with_timeout(tb.output_op.recv_frame(), 200_000, "ns")
+    pkt = Ether(frame)
+    assert UDP in pkt, "test-sender egress not UDP"
+    assert pkt[IP].src == str(ipaddress.IPv4Address(yiaddr)), \
+        f"post-bind IP.src {pkt[IP].src} != yiaddr -- substitution didn't fire"
+    assert pkt[IP].dst == str(ipaddress.IPv4Address(EXTERNAL_DST_IP_INT))
+    assert int(pkt[UDP].dport) == 5555
+
+
+@cocotb.test()
+async def udp_send_after_rebind_substitutes_new_ip(dut):
+    """Run DORA, then REBIND with a *different* server that hands out a
+    new yiaddr. Fire the test sender; the substitution should use the
+    refreshed yiaddr, not the original one."""
+    tb = TB(dut)
+    await test_prep(dut, tb)
+
+    yiaddr_first  = 0xC0A8000A
+    siaddr_first  = 0xC0A80001
+    yiaddr_second = 0xC0A8000B
+    siaddr_second = 0xC0A80002
+    lease_secs = 8
+
+    # DORA with first server.
+    await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    offer = build_dhcp_offer(DISCOVER_XID, yiaddr_first, siaddr_first, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, offer))
+    await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    ack = build_dhcp_ack(DISCOVER_XID, yiaddr_first, siaddr_first, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, ack))
+    await with_timeout(_wait_lease_state(dut, LEASE_STATE_BOUND),
+                       2_000_000_000, "ns")
+
+    # Burn T1 (no ACK) + T2 (no ACK) to reach REBINDING.
+    await with_timeout(tb.output_op.recv_frame(), 50_000, "ns")  # RENEW
+    await with_timeout(tb.output_op.recv_frame(), 50_000, "ns")  # REBIND
+    await with_timeout(_wait_lease_state(dut, LEASE_STATE_REBINDING),
+                       50_000, "ns")
+
+    # Different server answers the rebind with a NEW yiaddr.
+    ack2 = build_dhcp_ack(DISCOVER_XID, yiaddr_second, siaddr_second, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, ack2))
+    await with_timeout(_wait_lease_state(dut, LEASE_STATE_BOUND), 50_000, "ns")
+
+    # IP_TX listener should have cached the new yiaddr.
+    async def _wait_ip_tx_bound_ip(target):
+        while True:
+            await RisingEdge(dut.clk)
+            if int(dut.IP_TX_1_1.dhcp_bound_ip.value) == target:
+                return
+    await with_timeout(_wait_ip_tx_bound_ip(yiaddr_second), 50_000, "ns")
+
+    # Fire test sender with src=0; substitution uses the NEW yiaddr.
+    await fire_test_sender(
+        dut,
+        src_ip=0,
+        dst_ip=EXTERNAL_DST_IP_INT,
+        dst_port=5555,
+    )
+
+    frame = await with_timeout(tb.output_op.recv_frame(), 200_000, "ns")
+    pkt = Ether(frame)
+    assert UDP in pkt
+    assert pkt[IP].src == str(ipaddress.IPv4Address(yiaddr_second)), \
+        f"post-rebind IP.src {pkt[IP].src} != new yiaddr"

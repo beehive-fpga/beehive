@@ -138,5 +138,23 @@
             </interface>
         </interfaces>
     </endpoint>
+    <endpoint>
+        <endpoint_name>udp_test_sender_tile</endpoint_name>
+        <port_name>udp_test_sender</port_name>
+        <endpoint_x>3</endpoint_x>
+        <endpoint_y>1</endpoint_y>
+        <interfaces>
+            <interface>
+                <if_name>udp_test_sender_pkt</if_name>
+                <fbits>PKT_IF_FBITS</fbits>
+                <dsts>
+                    <dst_endpoint>
+                        <endpoint_name>udp_tx_tile</endpoint_name>
+                        <if_name>udp_pkt_tx</if_name>
+                    </dst_endpoint>
+                </dsts>
+            </interface>
+        </interfaces>
+    </endpoint>
 </tiles>
 </design>

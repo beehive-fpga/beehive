@@ -4,6 +4,8 @@ description: Beehive DHCP client design
 
 filesets:
     rtl:
+        files:
+            - udp_test_sender_core.sv
         depend:
             - uwcse:beehive:common_inc
             - uwcse:basejump:bsg_mem
@@ -18,6 +20,8 @@ filesets:
             - uwcse:beehive:dhcp_tile
             - uwcse:beehive:topology:0.2
             - uwcse:beehive:pyhp_generator
+            - uwcse:beehive:router_block
+            - uwcse:beehive:app_udp_adapters
         file_type: systemVerilogSource
 
 targets:
@@ -34,4 +38,5 @@ generate:
     pyhp_generate:
         generator: pyhp_gen
         parameters:
-            process_me: [[dhcp_client_top_gen.sv.pyv, dhcp_client_top_gen.sv]]
+            process_me: [[dhcp_client_top_gen.sv.pyv, dhcp_client_top_gen.sv],
+                         [udp_test_sender_tile_gen.sv.pyv, udp_test_sender_tile_gen.sv]]

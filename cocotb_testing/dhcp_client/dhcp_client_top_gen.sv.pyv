@@ -19,7 +19,18 @@ module dhcp_client_top (
     output logic [`MTU_SIZE_W-1:0] engine_mac_tx_frame_size,
     output logic engine_mac_tx_endframe,
     output logic [`MAC_INTERFACE_W-1:0] engine_mac_tx_data,
-    output logic [`MAC_PADBYTES_W-1:0] engine_mac_tx_padbytes
+    output logic [`MAC_PADBYTES_W-1:0] engine_mac_tx_padbytes,
+
+    // udp_test_sender_tile inputs exposed for cocotb. Drives a single
+    // UDP_TX_SEGMENT burst on each `test_sender_trigger` rising edge.
+    input  logic                          test_sender_trigger,
+    input  logic [`IP_ADDR_W-1:0]         test_sender_src_ip,
+    input  logic [`IP_ADDR_W-1:0]         test_sender_dst_ip,
+    input  logic [`PORT_NUM_W-1:0]        test_sender_src_port,
+    input  logic [`PORT_NUM_W-1:0]        test_sender_dst_port,
+    input  logic [`UDP_LENGTH_W-1:0]      test_sender_payload_len,
+    input  logic [`NOC_DATA_WIDTH-1:0]    test_sender_payload,
+    output logic                          test_sender_done
 );
 <%
 import sys
@@ -166,6 +177,26 @@ print(tile_std_ports)
         .rst(rst)
 <%
 tile_std_ports = tile_config.getEndpointPorts("dhcp_tile")
+print(tile_std_ports)
+%>
+    );
+
+    udp_test_sender_tile #(
+        .SRC_X(UDP_TEST_SENDER_TILE_X),
+        .SRC_Y(UDP_TEST_SENDER_TILE_Y)
+    ) UDP_TEST_SENDER_3_1 (
+        .clk(clk),
+        .rst(rst),
+        .trigger        (test_sender_trigger        ),
+        .in_src_ip      (test_sender_src_ip         ),
+        .in_dst_ip      (test_sender_dst_ip         ),
+        .in_src_port    (test_sender_src_port       ),
+        .in_dst_port    (test_sender_dst_port       ),
+        .in_payload_len (test_sender_payload_len    ),
+        .in_payload     (test_sender_payload        ),
+        .sender_done    (test_sender_done           )
+<%
+tile_std_ports = tile_config.getEndpointPorts("udp_test_sender_tile")
 print(tile_std_ports)
 %>
     );

@@ -13,12 +13,22 @@ logging.info(f"Using tile config at {design_path}")
 tile_config = BeehiveConfig(design_path + "/tile_config.xml")
 noc_if_generator = NocInterfaceGen()
 %>
-module ip_rx_tile 
+module ip_rx_tile
 import tracker_pkg::*;
 #(
      parameter SRC_X = -1
     ,parameter SRC_Y = -1
     ,parameter USE_INT_LB = 0
+    // Opt-in DHCP awareness. When 1, an ip_rx_dhcp_listener intercepts
+    // DHCP_IP_BIND/EXPIRE NoC msgs upstream of ip_rx_noc_in and caches
+    // the bound IP into tile-scope `dhcp_bound_ip` / `dhcp_bound_valid`.
+    // Default 0 keeps every existing instantiation byte-identical.
+    ,parameter DHCP_BIND_LISTEN = 0
+    // Opt-in destination-IP filter. When 1 (only meaningful if
+    // DHCP_BIND_LISTEN=1), incoming IP datagrams whose dest_addr is
+    // neither the bound IP nor the IPv4 broadcast get dropped after
+    // the IP header parse. Default 0.
+    ,parameter IP_DST_FILTER = 0
 )(
      input clk
     ,input rst
@@ -191,13 +201,49 @@ print(router_wires)
 		,.dst_vrtoc_yummy   (router_vrtoc_data_noc0_yummy   )
     );
     
+    // Optional DHCP-bind listener sits between the tracker output and
+    // ip_rx_noc_in. When disabled (default), the wires below are a
+    // literal pass-through and `dhcp_bound_*` stay tied to 0.
+    logic                       noc_in_input_val;
+    logic [`NOC_DATA_WIDTH-1:0] noc_in_input_data;
+    logic                       noc_in_input_rdy;
+
+    logic [`IP_ADDR_W-1:0]      dhcp_bound_ip;
+    logic                       dhcp_bound_valid;
+
+generate
+    if (DHCP_BIND_LISTEN == 1) begin : dhcp_listener_gen
+        ip_rx_dhcp_listener dhcp_listener (
+             .clk   (clk)
+            ,.rst   (rst)
+
+            ,.src_val   (log_ip_rx_in_data_noc0_val     )
+            ,.src_data  (log_ip_rx_in_data_noc0_data    )
+            ,.src_rdy   (ip_rx_in_log_data_noc0_rdy     )
+
+            ,.dst_val   (noc_in_input_val               )
+            ,.dst_data  (noc_in_input_data              )
+            ,.dst_rdy   (noc_in_input_rdy               )
+
+            ,.dhcp_bound_ip     (dhcp_bound_ip          )
+            ,.dhcp_bound_valid  (dhcp_bound_valid       )
+        );
+    end else begin : no_dhcp_listener
+        assign noc_in_input_val           = log_ip_rx_in_data_noc0_val;
+        assign noc_in_input_data          = log_ip_rx_in_data_noc0_data;
+        assign ip_rx_in_log_data_noc0_rdy = noc_in_input_rdy;
+        assign dhcp_bound_ip              = '0;
+        assign dhcp_bound_valid           = 1'b0;
+    end
+endgenerate
+
     ip_rx_noc_in ip_rx_noc_in (
          .clk   (clk)
         ,.rst   (rst)
-        
-        ,.noc0_ctovr_ip_rx_in_val           (log_ip_rx_in_data_noc0_val     )
-        ,.noc0_ctovr_ip_rx_in_data          (log_ip_rx_in_data_noc0_data    )
-        ,.ip_rx_in_noc0_ctovr_rdy           (ip_rx_in_log_data_noc0_rdy     )
+
+        ,.noc0_ctovr_ip_rx_in_val           (noc_in_input_val               )
+        ,.noc0_ctovr_ip_rx_in_data          (noc_in_input_data              )
+        ,.ip_rx_in_noc0_ctovr_rdy           (noc_in_input_rdy               )
                                                                             
         ,.ip_rx_in_ip_format_rx_val         (ip_rx_in_ip_format_rx_val      )
         ,.ip_rx_in_ip_format_rx_timestamp   (ip_rx_in_ip_format_rx_timestamp)
@@ -234,23 +280,91 @@ print(router_wires)
         ,.dst_ip_format_rx_data_rdy     (ip_rx_out_ip_format_rx_data_rdy    )
     );
 
+    // Optional destination-IP filter sits between ip_format and
+    // ip_rx_noc_out_copy. When disabled (default), the wires below are
+    // a literal pass-through.
+    logic                               post_filter_hdr_val;
+    ip_pkt_hdr                          post_filter_ip_hdr;
+    tracker_stats_struct                post_filter_timestamp;
+    logic                               post_filter_hdr_rdy;
+
+    logic                               post_filter_data_val;
+    logic [`NOC_DATA_WIDTH-1:0]         post_filter_data;
+    logic                               post_filter_last;
+    logic [`NOC_PADBYTES_WIDTH-1:0]     post_filter_padbytes;
+    logic                               post_filter_data_rdy;
+
+    // Hoisted to tile scope for cocotb deep-peek.
+    logic                               dst_filter_would_drop;
+
+generate
+    if (IP_DST_FILTER == 1) begin : dst_filter_gen
+        ip_rx_dst_filter #(
+             .FILTER_ENABLE (1)
+        ) dst_filter (
+             .clk   (clk)
+            ,.rst   (rst)
+
+            ,.src_hdr_val       (ip_format_ip_rx_out_rx_hdr_val     )
+            ,.src_ip_hdr        (ip_format_ip_rx_out_rx_ip_hdr      )
+            ,.src_timestamp     (ip_format_ip_rx_out_rx_timestamp   )
+            ,.src_hdr_rdy       (ip_rx_out_ip_format_rx_hdr_rdy     )
+
+            ,.src_data_val      (ip_format_ip_rx_out_rx_data_val    )
+            ,.src_data          (ip_format_ip_rx_out_rx_data        )
+            ,.src_last          (ip_format_ip_rx_out_rx_last        )
+            ,.src_padbytes      (ip_format_ip_rx_out_rx_padbytes    )
+            ,.src_data_rdy      (ip_rx_out_ip_format_rx_data_rdy    )
+
+            ,.dst_hdr_val       (post_filter_hdr_val                )
+            ,.dst_ip_hdr        (post_filter_ip_hdr                 )
+            ,.dst_timestamp     (post_filter_timestamp              )
+            ,.dst_hdr_rdy       (post_filter_hdr_rdy                )
+
+            ,.dst_data_val      (post_filter_data_val               )
+            ,.dst_data          (post_filter_data                   )
+            ,.dst_last          (post_filter_last                   )
+            ,.dst_padbytes      (post_filter_padbytes               )
+            ,.dst_data_rdy      (post_filter_data_rdy               )
+
+            ,.dhcp_bound_ip     (dhcp_bound_ip                      )
+            ,.dhcp_bound_valid  (dhcp_bound_valid                   )
+
+            ,.dbg_would_drop    (dst_filter_would_drop              )
+        );
+    end else begin : no_dst_filter
+        assign post_filter_hdr_val            = ip_format_ip_rx_out_rx_hdr_val;
+        assign post_filter_ip_hdr             = ip_format_ip_rx_out_rx_ip_hdr;
+        assign post_filter_timestamp          = ip_format_ip_rx_out_rx_timestamp;
+        assign ip_rx_out_ip_format_rx_hdr_rdy = post_filter_hdr_rdy;
+
+        assign post_filter_data_val           = ip_format_ip_rx_out_rx_data_val;
+        assign post_filter_data               = ip_format_ip_rx_out_rx_data;
+        assign post_filter_last               = ip_format_ip_rx_out_rx_last;
+        assign post_filter_padbytes           = ip_format_ip_rx_out_rx_padbytes;
+        assign ip_rx_out_ip_format_rx_data_rdy = post_filter_data_rdy;
+
+        assign dst_filter_would_drop          = 1'b0;
+    end
+endgenerate
+
     ip_rx_noc_out_copy #(
          .SRC_X (SRC_X)
         ,.SRC_Y (SRC_Y)
     ) rx_noc_out (
          .clk   (clk)
         ,.rst   (rst)
-        
-        ,.ip_format_ip_rx_out_rx_hdr_val    (ip_format_ip_rx_out_rx_hdr_val     )
-        ,.ip_format_ip_rx_out_rx_ip_hdr     (ip_format_ip_rx_out_rx_ip_hdr      )
-        ,.ip_format_ip_rx_out_rx_timestamp  (ip_format_ip_rx_out_rx_timestamp   )
-        ,.ip_rx_out_ip_format_rx_hdr_rdy    (ip_rx_out_ip_format_rx_hdr_rdy     )
-                                                                                
-        ,.ip_format_ip_rx_out_rx_data_val   (ip_format_ip_rx_out_rx_data_val    )
-        ,.ip_format_ip_rx_out_rx_data       (ip_format_ip_rx_out_rx_data        )
-        ,.ip_format_ip_rx_out_rx_last       (ip_format_ip_rx_out_rx_last        )
-        ,.ip_format_ip_rx_out_rx_padbytes   (ip_format_ip_rx_out_rx_padbytes    )
-        ,.ip_rx_out_ip_format_rx_data_rdy   (ip_rx_out_ip_format_rx_data_rdy    )
+
+        ,.ip_format_ip_rx_out_rx_hdr_val    (post_filter_hdr_val                )
+        ,.ip_format_ip_rx_out_rx_ip_hdr     (post_filter_ip_hdr                 )
+        ,.ip_format_ip_rx_out_rx_timestamp  (post_filter_timestamp              )
+        ,.ip_rx_out_ip_format_rx_hdr_rdy    (post_filter_hdr_rdy                )
+
+        ,.ip_format_ip_rx_out_rx_data_val   (post_filter_data_val               )
+        ,.ip_format_ip_rx_out_rx_data       (post_filter_data                   )
+        ,.ip_format_ip_rx_out_rx_last       (post_filter_last                   )
+        ,.ip_format_ip_rx_out_rx_padbytes   (post_filter_padbytes               )
+        ,.ip_rx_out_ip_format_rx_data_rdy   (post_filter_data_rdy               )
         
         ,.ip_rx_out_noc0_vrtoc_val          (ip_rx_out_lb_val                   )
         ,.ip_rx_out_noc0_vrtoc_data         (ip_rx_out_lb_data                  )

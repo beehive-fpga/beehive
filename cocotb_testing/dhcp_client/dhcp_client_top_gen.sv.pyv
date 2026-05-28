@@ -89,7 +89,13 @@ print(tile_std_ports)
 
     ip_rx_tile #(
         .SRC_X(IP_RX_TILE_X),
-        .SRC_Y(IP_RX_TILE_Y)
+        .SRC_Y(IP_RX_TILE_Y),
+        // Subscribe to DHCP_IP_BIND/EXPIRE (sent by dhcp_tile as
+        // subscriber #1) and use the bound IP to filter inbound
+        // datagrams. Broadcast (255.255.255.255) always passes so DHCP
+        // OFFER/ACK still reach the dhcp_tile parser.
+        .DHCP_BIND_LISTEN(1),
+        .IP_DST_FILTER(1)
     ) IP_RX_1_0 (
         .clk(clk),
         .rst(rst)

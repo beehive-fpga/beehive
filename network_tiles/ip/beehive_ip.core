@@ -21,6 +21,8 @@ filesets:
             - ip_tx_noc_in_datap.sv
             - ip_tx_dhcp_listener.sv
             - ip_tx_policy_mux.sv
+            - ip_rx_dhcp_listener.sv
+            - ip_rx_dst_filter.sv
             - ip_tx_noc_out.sv
             - ip_tx_noc_out_ctrl.sv
             - ip_tx_noc_out_datap.sv

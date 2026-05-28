@@ -88,9 +88,12 @@ def pad_packet(packet_buffer, min_size=64):
         packet_buffer.extend(bytearray(min_size - len(packet_buffer)))
 
 
-def make_udp_frame(dst_port, payload_bytes):
+def make_udp_frame(dst_port, payload_bytes, ip_dst="255.255.255.255"):
+    """Default IP dst = broadcast so the dhcp_client harness's IP_RX
+    destination filter (enabled via IP_DST_FILTER=1) always passes the
+    frame. Override `ip_dst` to test the filter's match / drop paths."""
     pkt = Ether(dst="00:0a:35:0d:4d:c6", src="b8:59:9f:b7:ba:44") / \
-        IP(src="198.0.0.5", dst="198.0.0.7", flags="DF") / \
+        IP(src="198.0.0.5", dst=ip_dst, flags="DF") / \
         UDP(sport=60000, dport=dst_port) / Raw(load=payload_bytes)
     data = bytearray(pkt.build())
     pad_packet(data)
@@ -1009,3 +1012,157 @@ async def policy_mux_substitutes_when_bound(dut):
     # the upstream is presenting -- the important assertion is just that
     # substitute_now cleared.
     await with_timeout(_wait_substitute(0), 50_000, "ns")
+
+
+async def _wait_ip_rx_bound(dut, target):
+    while True:
+        await RisingEdge(dut.clk)
+        if int(dut.IP_RX_1_0.dhcp_bound_valid.value) == target:
+            return
+
+
+async def _count_parser_pulses(dut, window_cycles):
+    """Count rising edges of parser.parsed_val over a window. Useful
+    for asserting either 0 pulses (drop) or >=1 pulse (pass) within
+    a window without racing against state transitions."""
+    count = 0
+    prev = int(dut.DHCP_TILE_3_0.tile.parser.parsed_val.value)
+    for _ in range(window_cycles):
+        await RisingEdge(dut.clk)
+        cur = int(dut.DHCP_TILE_3_0.tile.parser.parsed_val.value)
+        if cur == 1 and prev == 0:
+            count += 1
+        prev = cur
+    return count
+
+
+@cocotb.test()
+async def ip_rx_caches_bound_ip(dut):
+    """The dhcp_tile fans binds out to both IP_TX (sub 0) and IP_RX
+    (sub 1). IP_RX_1_0 is built with DHCP_BIND_LISTEN=1, so its
+    ip_rx_dhcp_listener should cache the bound yiaddr after DORA."""
+    tb = TB(dut)
+    await test_prep(dut, tb)
+
+    yiaddr = 0xC0A8000A
+    siaddr = 0xC0A80001
+    lease_secs = 4
+
+    # Pre-bind: bound_valid clear.
+    assert int(dut.IP_RX_1_0.dhcp_bound_valid.value) == 0, \
+        "ip_rx listener bound_valid not 0 out of reset"
+
+    # DORA
+    await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    offer = build_dhcp_offer(DISCOVER_XID, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, offer))
+    await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    ack = build_dhcp_ack(DISCOVER_XID, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, ack))
+
+    await with_timeout(_wait_ip_rx_bound(dut, 1), 50_000, "ns")
+    cached = int(dut.IP_RX_1_0.dhcp_bound_ip.value)
+    assert cached == yiaddr, \
+        f"ip_rx cached bound_ip {cached:#x} != yiaddr {yiaddr:#x}"
+
+
+@cocotb.test()
+async def filter_passes_matching_dst(dut):
+    """Post-bind, inject a UDP frame whose IP.dst matches the bound
+    yiaddr. IP_RX filter must pass it through; the dhcp_tile parser
+    should snapshot the payload."""
+    tb = TB(dut)
+    await test_prep(dut, tb)
+
+    yiaddr = 0xC0A8000A
+    siaddr = 0xC0A80001
+    lease_secs = 4
+
+    # DORA -> BOUND
+    await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    offer = build_dhcp_offer(DISCOVER_XID, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, offer))
+    await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    ack = build_dhcp_ack(DISCOVER_XID, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, ack))
+    await with_timeout(_wait_ip_rx_bound(dut, 1), 50_000, "ns")
+
+    # Inject a DHCP-shaped probe with ip_dst = yiaddr (matches).
+    probe = build_dhcp_offer(0xCAFEBABE, yiaddr, siaddr, lease_secs)
+    yiaddr_str = str(ipaddress.IPv4Address(yiaddr))
+    await tb.input_op.xmit_frame(
+        make_udp_frame(DHCP_CLIENT_PORT, probe, ip_dst=yiaddr_str)
+    )
+
+    # Filter should pass; parser should see at least one pulse.
+    pulses = await _count_parser_pulses(dut, 1000)
+    assert pulses >= 1, \
+        f"matching-dst probe never reached parser (pulses={pulses})"
+
+
+@cocotb.test()
+async def filter_passes_broadcast(dut):
+    """Broadcast IP.dst (255.255.255.255) must always pass the filter
+    even when bound, because DHCP replies arrive that way."""
+    tb = TB(dut)
+    await test_prep(dut, tb)
+
+    yiaddr = 0xC0A8000A
+    siaddr = 0xC0A80001
+    lease_secs = 4
+
+    # DORA -> BOUND. The DORA itself uses broadcast, so reaching BOUND
+    # also implicitly proves broadcast passes pre-bind.
+    await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    offer = build_dhcp_offer(DISCOVER_XID, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, offer))
+    await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    ack = build_dhcp_ack(DISCOVER_XID, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, ack))
+    await with_timeout(_wait_ip_rx_bound(dut, 1), 50_000, "ns")
+
+    # Inject a probe with broadcast ip_dst (default for make_udp_frame).
+    probe = build_dhcp_offer(0xCAFEBABE, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(
+        make_udp_frame(DHCP_CLIENT_PORT, probe, ip_dst="255.255.255.255")
+    )
+
+    pulses = await _count_parser_pulses(dut, 1000)
+    assert pulses >= 1, \
+        f"broadcast probe never reached parser (pulses={pulses})"
+
+
+@cocotb.test()
+async def filter_drops_mismatched_dst(dut):
+    """Post-bind, inject a UDP frame whose IP.dst is neither the bound
+    yiaddr nor the IPv4 broadcast. IP_RX filter must drop it -- the
+    dhcp_tile parser must NOT see it within a generous window."""
+    tb = TB(dut)
+    await test_prep(dut, tb)
+
+    yiaddr = 0xC0A8000A
+    siaddr = 0xC0A80001
+    lease_secs = 4
+
+    # DORA -> BOUND
+    await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    offer = build_dhcp_offer(DISCOVER_XID, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, offer))
+    await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    ack = build_dhcp_ack(DISCOVER_XID, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, ack))
+    await with_timeout(_wait_ip_rx_bound(dut, 1), 50_000, "ns")
+
+    # Wait for any in-flight parser activity from the DORA to settle.
+    await ClockCycles(dut.clk, 50)
+
+    # Inject a probe with ip_dst that matches neither yiaddr nor broadcast.
+    probe = build_dhcp_offer(0xCAFEBABE, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(
+        make_udp_frame(DHCP_CLIENT_PORT, probe, ip_dst="10.20.30.40")
+    )
+
+    # Filter should drop. Parser must see zero new pulses.
+    pulses = await _count_parser_pulses(dut, 1500)
+    assert pulses == 0, \
+        f"mismatched-dst probe reached parser ({pulses} pulses) -- filter not dropping"

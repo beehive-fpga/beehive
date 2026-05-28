@@ -872,3 +872,72 @@ async def bind_lands_in_ip_tx(dut):
     bound_ip_post = int(dut.IP_TX_1_1.dhcp_bound_ip.value)
     assert bound_ip_post == 0, \
         f"ip_tx bound_ip not cleared after expiry: {bound_ip_post:#x}"
+
+
+@cocotb.test()
+async def policy_mux_substitutes_when_bound(dut):
+    """The dhcp_client harness builds IP_TX_1_1 with SRC_IP_POLICY=1, so
+    its ip_tx_policy_mux should substitute src_ip with the cached DHCP
+    yiaddr whenever a lease is held, and pass through the operator's
+    src_ip whenever it isn't.
+
+    Test peeks the policy_mux's combinational `substitute_now` decision
+    and `substituted_src_ip` output across the full lease lifecycle.
+    End-to-end IP-frame inspection is harder -- DHCP's own egress
+    already supplies the correct src per RFC, so substitution is a
+    no-op on those frames. A test that drives a non-DHCP UDP burst
+    through ip_tx with src=0.0.0.0 requires a UDP injector (future
+    work). The peek here at least proves the logic gates correctly.
+    """
+    tb = TB(dut)
+    await test_prep(dut, tb)
+
+    yiaddr = 0xC0A8000A
+    siaddr = 0xC0A80001
+    lease_secs = 8
+
+    # Observability hooks hoisted to tile scope -- Verilator's VPI
+    # doesn't expose generate-block scopes by name.
+    substitute_now_h     = dut.IP_TX_1_1.policy_substitute_now
+    substituted_src_ip_h = dut.IP_TX_1_1.policy_substituted_src_ip
+
+    # Out of reset: no lease, no substitution.
+    assert int(substitute_now_h.value) == 0, \
+        "policy_substitute_now should be 0 pre-bind"
+
+    # --- DORA -> BOUND ----------------------------------------------------
+    await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    offer = build_dhcp_offer(DISCOVER_XID, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, offer))
+    await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    ack = build_dhcp_ack(DISCOVER_XID, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, ack))
+    await with_timeout(_wait_lease_state(dut, LEASE_STATE_BOUND),
+                       2_000_000_000, "ns")
+
+    # Bind notification reaches the listener a few cycles later; poll.
+    async def _wait_substitute(target):
+        while True:
+            await RisingEdge(dut.clk)
+            if int(substitute_now_h.value) == target:
+                return
+    await with_timeout(_wait_substitute(1), 50_000, "ns")
+
+    # With substitute_now=1, substituted_src_ip combinationally tracks
+    # the cached DHCP IP regardless of whatever the upstream meta_flit
+    # currently carries.
+    sub_ip = int(substituted_src_ip_h.value)
+    assert sub_ip == yiaddr, \
+        f"policy_substituted_src_ip {sub_ip:#x} != yiaddr {yiaddr:#x}"
+
+    # --- Burn through RENEW + REBIND + EXPIRY (no acks) -------------------
+    await with_timeout(tb.output_op.recv_frame(), 50_000, "ns")  # RENEW
+    await with_timeout(tb.output_op.recv_frame(), 50_000, "ns")  # REBIND
+    await with_timeout(_wait_lease_state(dut, LEASE_STATE_INIT),
+                       50_000, "ns")
+
+    # Post-expiry: substitute_now should drop back to 0. The post-expiry
+    # value of substituted_src_ip mirrors whatever stale meta_flit.src_ip
+    # the upstream is presenting -- the important assertion is just that
+    # substitute_now cleared.
+    await with_timeout(_wait_substitute(0), 50_000, "ns")

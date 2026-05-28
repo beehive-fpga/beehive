@@ -103,8 +103,13 @@ print(tile_std_ports)
         .SRC_X(IP_TX_TILE_X),
         .SRC_Y(IP_TX_TILE_Y),
         // Listen for DHCP_IP_BIND/EXPIRE pushed by the dhcp_tile so we
-        // cache the bound IP locally (substitution lands in step 9b).
-        .DHCP_BIND_LISTEN(1)
+        // cache the bound IP locally, and use policy 1 (substitute when
+        // bound, else fall back to the operator's src_ip). DHCP itself
+        // already supplies the correct src per RFC (0 pre-bind, yiaddr
+        // post-bind), so substitution is a no-op for DHCP egress and
+        // doesn't change any existing assertions.
+        .DHCP_BIND_LISTEN(1),
+        .SRC_IP_POLICY(1)
     ) IP_TX_1_1 (
         .clk(clk),
         .rst(rst)

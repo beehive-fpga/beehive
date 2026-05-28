@@ -24,6 +24,13 @@ module ip_tx_tile
     // caches the bound IP into `dhcp_bound_ip` / `dhcp_bound_valid`.
     // Default 0 keeps every existing instantiation byte-identical.
     ,parameter DHCP_BIND_LISTEN = 0
+    // Source-IP substitution policy (only meaningful when
+    // DHCP_BIND_LISTEN=1; otherwise the policy_mux isn't instantiated):
+    //   0  passthrough -- meta.src_ip is written into the IP header as-is.
+    //   1  substitute meta.src_ip with the DHCP-bound IP whenever a
+    //      lease is held; fall back to the operator's src_ip otherwise.
+    //   2  substitute when bound; drop the whole burst when unbound.
+    ,parameter SRC_IP_POLICY = 0
 )(
      input clk
     ,input rst
@@ -280,25 +287,98 @@ endgenerate
         ,.assemble_ip_tx_in_data_rdy    (assemble_ip_tx_in_data_rdy     )
     );
 
+    // Intermediate wires between noc_in and hdr_assembler. When
+    // DHCP_BIND_LISTEN=0 these are tied directly to noc_in's outputs
+    // (zero-cost passthrough). When =1, ip_tx_policy_mux interposes and
+    // optionally rewrites src_ip / drops the burst.
+    logic                               assembler_meta_val;
+    ip_tx_metadata_flit                 assembler_meta_flit;
+    tracker_stats_struct                assembler_meta_timestamp;
+    logic                               assembler_meta_rdy;
+
+    logic                               assembler_data_val;
+    logic [`MAC_INTERFACE_W-1:0]        assembler_data;
+    logic                               assembler_data_last;
+    logic [`MAC_PADBYTES_W-1:0]         assembler_data_padbytes;
+    logic                               assembler_data_rdy;
+
+    // Policy-mux observability hooks, hoisted to tile scope so cocotb
+    // can deep-peek them without traversing the generate block (VPI
+    // doesn't expose generate-block scopes as hierarchical names).
+    logic                               policy_substitute_now;
+    logic [`IP_ADDR_W-1:0]              policy_substituted_src_ip;
+
+generate
+    if (DHCP_BIND_LISTEN == 1) begin : policy_mux_gen
+        ip_tx_policy_mux #(
+             .SRC_IP_POLICY (SRC_IP_POLICY)
+        ) policy_mux (
+             .clk   (clk)
+            ,.rst   (rst)
+
+            ,.src_meta_val          (ip_tx_in_assemble_meta_val     )
+            ,.src_meta_flit         (ip_tx_in_assemble_meta_flit    )
+            ,.src_meta_timestamp    (ip_tx_in_assemble_timestamp    )
+            ,.src_meta_rdy          (assemble_ip_tx_in_meta_rdy     )
+
+            ,.src_data_val          (ip_tx_in_assemble_data_val     )
+            ,.src_data              (ip_tx_in_assemble_data         )
+            ,.src_data_last         (ip_tx_in_assemble_last         )
+            ,.src_data_padbytes     (ip_tx_in_assemble_padbytes     )
+            ,.src_data_rdy          (assemble_ip_tx_in_data_rdy     )
+
+            ,.dst_meta_val          (assembler_meta_val             )
+            ,.dst_meta_flit         (assembler_meta_flit            )
+            ,.dst_meta_timestamp    (assembler_meta_timestamp       )
+            ,.dst_meta_rdy          (assembler_meta_rdy             )
+
+            ,.dst_data_val          (assembler_data_val             )
+            ,.dst_data              (assembler_data                 )
+            ,.dst_data_last         (assembler_data_last            )
+            ,.dst_data_padbytes     (assembler_data_padbytes        )
+            ,.dst_data_rdy          (assembler_data_rdy             )
+
+            ,.dhcp_bound_ip         (dhcp_bound_ip                  )
+            ,.dhcp_bound_valid      (dhcp_bound_valid               )
+
+            ,.dbg_substitute_now    (policy_substitute_now          )
+            ,.dbg_substituted_src_ip(policy_substituted_src_ip      )
+        );
+    end else begin : no_policy_mux
+        assign policy_substitute_now     = 1'b0;
+        assign policy_substituted_src_ip = '0;
+        assign assembler_meta_val       = ip_tx_in_assemble_meta_val;
+        assign assembler_meta_flit      = ip_tx_in_assemble_meta_flit;
+        assign assembler_meta_timestamp = ip_tx_in_assemble_timestamp;
+        assign assemble_ip_tx_in_meta_rdy = assembler_meta_rdy;
+
+        assign assembler_data_val       = ip_tx_in_assemble_data_val;
+        assign assembler_data           = ip_tx_in_assemble_data;
+        assign assembler_data_last      = ip_tx_in_assemble_last;
+        assign assembler_data_padbytes  = ip_tx_in_assemble_padbytes;
+        assign assemble_ip_tx_in_data_rdy = assembler_data_rdy;
+    end
+endgenerate
+
     ip_hdr_assembler_pipe #(
          .DATA_W         (`MAC_INTERFACE_W  )
     ) hdr_assembler (
          .clk   (clk    )
         ,.rst   (rst    )
-    
-        ,.src_assembler_req_val             (ip_tx_in_assemble_meta_val                     )
-        ,.src_assembler_src_ip_addr         (ip_tx_in_assemble_meta_flit.src_ip             )
-        ,.src_assembler_dst_ip_addr         (ip_tx_in_assemble_meta_flit.dst_ip             )
-        ,.src_assembler_data_payload_len    (ip_tx_in_assemble_meta_flit.data_payload_len   )
-        ,.src_assembler_protocol            (ip_tx_in_assemble_meta_flit.protocol           )
-        ,.src_assembler_timestamp           (ip_tx_in_assemble_timestamp                    )
-        ,.assembler_src_req_rdy             (assemble_ip_tx_in_meta_rdy                     )
-    
-        ,.src_assembler_data_val            (ip_tx_in_assemble_data_val                     )
-        ,.src_assembler_data                (ip_tx_in_assemble_data                         )
-        ,.src_assembler_data_last           (ip_tx_in_assemble_last                         )
-        ,.src_assembler_data_padbytes       (ip_tx_in_assemble_padbytes                     )
-        ,.assembler_src_data_rdy            (assemble_ip_tx_in_data_rdy                     )
+
+        ,.src_assembler_req_val             (assembler_meta_val                             )
+        ,.src_assembler_src_ip_addr         (assembler_meta_flit.src_ip                     )
+        ,.src_assembler_dst_ip_addr         (assembler_meta_flit.dst_ip                     )
+        ,.src_assembler_data_payload_len    (assembler_meta_flit.data_payload_len           )
+        ,.src_assembler_protocol            (assembler_meta_flit.protocol                   )
+        ,.src_assembler_timestamp           (assembler_meta_timestamp                       )
+        ,.assembler_src_req_rdy             (assembler_meta_rdy                             )
+
+        ,.src_assembler_data_val            (assembler_data_val                             )
+        ,.src_assembler_data                (assembler_data                                 )
+        ,.src_assembler_data_last           (assembler_data_last                            )
+        ,.src_assembler_data_padbytes       (assembler_data_padbytes                        )
+        ,.assembler_src_data_rdy            (assembler_data_rdy                             )
     
         ,.assembler_dst_hdr_val             (assemble_ip_to_ethstream_hdr_val               )
         ,.assembler_dst_timestamp           (assemble_ip_to_ethstream_timestamp             )

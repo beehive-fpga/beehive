@@ -147,11 +147,14 @@ print(tile_std_ports)
         .SRC_X(DHCP_TILE_X),
         .SRC_Y(DHCP_TILE_Y),
         .CLK_HZ(1000),
-        // Bind notifications go to IP_TX so it can use the lease IP as
-        // src on outgoing packets. IP_RX consumer story stays future
-        // work; multi-subscriber broadcast can re-add IP_RX later.
-        .SUB_X(IP_TX_TILE_X),
-        .SUB_Y(IP_TX_TILE_Y)
+        // Fan binds out to both IP_TX (for src-IP substitution, step 9)
+        // and IP_RX (for destination filtering, step 12). Each bind
+        // event now produces 2 DHCP_IP_BIND NoC msgs back-to-back.
+        .NUM_SUBSCRIBERS(2),
+        .SUB_0_X(IP_TX_TILE_X),
+        .SUB_0_Y(IP_TX_TILE_Y),
+        .SUB_1_X(IP_RX_TILE_X),
+        .SUB_1_Y(IP_RX_TILE_Y)
     ) DHCP_TILE_3_0 (
         .clk(clk),
         .rst(rst)

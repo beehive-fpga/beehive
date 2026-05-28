@@ -511,6 +511,69 @@ async def bind_pushed_to_subscribers(dut):
 
 
 @cocotb.test()
+async def bind_lands_in_both_subscribers(dut):
+    """With NUM_SUBSCRIBERS=2 in the harness (SUB_0=IP_TX, SUB_1=IP_RX),
+    each lease event fans out 2 DHCP_IP_BIND msgs back-to-back. Test
+    walks the captured NoC TX after BOUND and verifies BOTH a bind
+    addressed to IP_TX (1,1) AND one to IP_RX (1,0), in that order,
+    each carrying the same yiaddr."""
+    tb = TB(dut)
+    await test_prep(dut, tb)
+
+    yiaddr = 0xC0A8000A
+    siaddr = 0xC0A80001
+    lease_secs = 3600
+
+    # Snapshot every NoC TX handshake.
+    captured = []
+    async def monitor():
+        while True:
+            await RisingEdge(dut.clk)
+            if int(dut.DHCP_TILE_3_0.tile.noc_dhcp_tx_val.value) == 1 and \
+               int(dut.DHCP_TILE_3_0.tile.noc_dhcp_tx_rdy.value) == 1:
+                captured.append(int(dut.DHCP_TILE_3_0.tile.noc_dhcp_tx_data.value))
+    monitor_task = cocotb.start_soon(monitor())
+
+    # DORA -> BOUND
+    await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    offer = build_dhcp_offer(DISCOVER_XID, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, offer))
+    await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    ack = build_dhcp_ack(DISCOVER_XID, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, ack))
+    await with_timeout(_wait_lease_state(dut, LEASE_STATE_BOUND),
+                       2_000_000_000, "ns")
+
+    # Give the second bind a window to walk.
+    await ClockCycles(dut.clk, 50)
+    monitor_task.kill()
+
+    # Collect BIND headers and their destinations.
+    bind_dsts = [
+        (get_field(f, HDR_DST_X_MSB, XY_BITS),
+         get_field(f, HDR_DST_Y_MSB, XY_BITS),
+         i)
+        for i, f in enumerate(captured)
+        if get_field(f, HDR_MSG_TYPE_MSB, HDR_MSG_TYPE_W) == DHCP_IP_BIND_MSG_TYPE
+    ]
+    assert len(bind_dsts) == 2, \
+        f"expected 2 DHCP_IP_BIND msgs (1 event x 2 subs), got {len(bind_dsts)}"
+
+    # SUB_0 = IP_TX (1,1) fires first, SUB_1 = IP_RX (1,0) second.
+    assert bind_dsts[0][:2] == (1, 1), \
+        f"first bind dst {bind_dsts[0][:2]} != IP_TX_TILE (1,1)"
+    assert bind_dsts[1][:2] == (1, 0), \
+        f"second bind dst {bind_dsts[1][:2]} != IP_RX_TILE (1,0)"
+
+    # Both data flits should carry the same yiaddr.
+    for _, _, hdr_idx in bind_dsts:
+        data_idx = hdr_idx + 1
+        assert data_idx < len(captured), "bind hdr captured but data missing"
+        yi = get_field(captured[data_idx], DATA_YIADDR_MSB, DATA_YIADDR_W)
+        assert yi == yiaddr, f"bind data yiaddr {yi:#x} != {yiaddr:#x}"
+
+
+@cocotb.test()
 async def renew_ack_returns_to_bound(dut):
     """T1 (lease_secs/2) fires in BOUND, the tile unicasts a REQUEST_RENEW
     (ciaddr=yiaddr, src=yiaddr, dst=siaddr, no opt 50/54). On matching
@@ -593,8 +656,10 @@ async def renew_ack_returns_to_bound(dut):
         1 for f in captured
         if get_field(f, HDR_MSG_TYPE_MSB, HDR_MSG_TYPE_W) == DHCP_IP_BIND_MSG_TYPE
     )
-    assert bind_count == 2, \
-        f"expected 2 DHCP_IP_BIND notifications (initial + renewal), got {bind_count}"
+    # NUM_SUBSCRIBERS=2 in the harness, so every lease event fans out 2 BINDs.
+    # Initial DORA-ACK + renewal-ACK = 2 events = 4 BIND msgs.
+    assert bind_count == 4, \
+        f"expected 4 DHCP_IP_BIND notifications (2 events x 2 subs), got {bind_count}"
 
 
 @cocotb.test()
@@ -718,21 +783,21 @@ async def rebind_ack_returns_to_bound(dut):
     await ClockCycles(dut.clk, 50)
     monitor_task.kill()
 
-    # Two binds total: one on initial DORA-ACK, one on rebind-ACK. Each
-    # bind has a header + data flit, so 2 headers carry DHCP_IP_BIND.
+    # Two bind EVENTS (initial DORA-ACK + rebind-ACK). NUM_SUBSCRIBERS=2
+    # in the harness so each event fans out 2 BIND msgs = 4 total.
     bind_headers = [
         i for i, f in enumerate(captured)
         if get_field(f, HDR_MSG_TYPE_MSB, HDR_MSG_TYPE_W) == DHCP_IP_BIND_MSG_TYPE
     ]
-    assert len(bind_headers) == 2, \
-        f"expected 2 DHCP_IP_BIND notifications, got {len(bind_headers)}"
+    assert len(bind_headers) == 4, \
+        f"expected 4 DHCP_IP_BIND notifications (2 events x 2 subs), got {len(bind_headers)}"
 
-    # The second bind's data flit (next entry after the header) carries
-    # the refreshed yiaddr.
-    second_data_idx = bind_headers[1] + 1
-    assert second_data_idx < len(captured), \
-        "second bind header captured but data flit missing"
-    yiaddr_obs = get_field(captured[second_data_idx], DATA_YIADDR_MSB, DATA_YIADDR_W)
+    # The second event starts at bind_headers[2] (after the 2 first-event
+    # BINDs walked subs 0 and 1). Its data flit is the next entry.
+    second_event_data_idx = bind_headers[2] + 1
+    assert second_event_data_idx < len(captured), \
+        "second-event bind header captured but data flit missing"
+    yiaddr_obs = get_field(captured[second_event_data_idx], DATA_YIADDR_MSB, DATA_YIADDR_W)
     assert yiaddr_obs == yiaddr_second, \
         f"rebind notification yiaddr {yiaddr_obs:#x} != {yiaddr_second:#x}"
 
@@ -797,20 +862,23 @@ async def rebind_expiry_goes_to_init(dut):
     await ClockCycles(dut.clk, 50)
     monitor_task.kill()
 
-    # Exactly one DHCP_IP_EXPIRE notification carrying the expiring yiaddr.
+    # One EXPIRE event x NUM_SUBSCRIBERS=2 = 2 DHCP_IP_EXPIRE notifications,
+    # each carrying the expiring yiaddr.
     expire_headers = [
         i for i, f in enumerate(captured)
         if get_field(f, HDR_MSG_TYPE_MSB, HDR_MSG_TYPE_W) == DHCP_IP_EXPIRE_MSG_TYPE
     ]
-    assert len(expire_headers) == 1, \
-        f"expected 1 DHCP_IP_EXPIRE notification, got {len(expire_headers)}"
+    assert len(expire_headers) == 2, \
+        f"expected 2 DHCP_IP_EXPIRE notifications (1 event x 2 subs), got {len(expire_headers)}"
 
-    expire_data_idx = expire_headers[0] + 1
-    assert expire_data_idx < len(captured), \
-        "expire header captured but data flit missing"
-    yiaddr_obs = get_field(captured[expire_data_idx], DATA_YIADDR_MSB, DATA_YIADDR_W)
-    assert yiaddr_obs == yiaddr, \
-        f"expire notification yiaddr {yiaddr_obs:#x} != {yiaddr:#x}"
+    # Every expire data flit (one per subscriber) carries the same yiaddr.
+    for hdr_idx in expire_headers:
+        data_idx = hdr_idx + 1
+        assert data_idx < len(captured), \
+            f"expire header at {hdr_idx} captured but data flit missing"
+        yiaddr_obs = get_field(captured[data_idx], DATA_YIADDR_MSB, DATA_YIADDR_W)
+        assert yiaddr_obs == yiaddr, \
+            f"expire notification yiaddr {yiaddr_obs:#x} != {yiaddr:#x}"
 
 
 @cocotb.test()

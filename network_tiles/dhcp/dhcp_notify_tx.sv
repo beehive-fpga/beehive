@@ -1,22 +1,31 @@
 `include "dhcp_tile_defs.svh"
 
-// Pushes a 2-flit NoC notification (header + 1 data flit) to a single
-// subscriber. Triggered by a one-cycle `notify_start`; the latched
-// msg_type (DHCP_IP_BIND for now) and yiaddr ride for the whole burst,
-// so the FSM is free to move on. `notify_done` pulses one cycle after
-// the data flit handshakes.
+// Pushes a 2-flit NoC notification (header + 1 data flit) to up to two
+// subscribers in sequence. On notify_start the FSM walks:
+//   SEND_HDR(0) -> SEND_DAT(0) -> [if NUM_SUBSCRIBERS==2]
+//   SEND_HDR(1) -> SEND_DAT(1) -> IDLE
+// The latched msg_type (DHCP_IP_BIND / DHCP_IP_EXPIRE) and yiaddr ride
+// for the whole walk; the FSM is free to move on as soon as the last
+// flit handshakes. notify_done pulses one cycle after the final
+// subscriber's data flit handshakes.
 //
-// Step 7 sends to a single subscriber so cocotb can verify the bytes
-// landing on the NoC TX path. A multi-subscriber walk drops in here
-// whenever real consumers exist downstream.
+// Two subscribers is the maximum today (IP RX + IP TX in the dhcp_client
+// harness). Extending to N is straightforward but every extra subscriber
+// adds the same 2 NoC flits per lease event.
 module dhcp_notify_tx #(
-    parameter int                                 NOC_DATA_W = `NOC_DATA_WIDTH,
-    parameter logic [`MSG_DST_X_WIDTH-1:0]        SRC_X      = '0,
-    parameter logic [`MSG_DST_Y_WIDTH-1:0]        SRC_Y      = '0,
-    parameter logic [`MSG_DST_FBITS_WIDTH-1:0]    SRC_FBITS  = PKT_IF_FBITS,
-    parameter logic [`MSG_DST_X_WIDTH-1:0]        SUB_X      = '0,
-    parameter logic [`MSG_DST_Y_WIDTH-1:0]        SUB_Y      = '0,
-    parameter logic [`MSG_DST_FBITS_WIDTH-1:0]    SUB_FBITS  = PKT_IF_FBITS
+    parameter int                                 NOC_DATA_W      = `NOC_DATA_WIDTH,
+    parameter int                                 NUM_SUBSCRIBERS = 1,
+    parameter logic [`MSG_DST_X_WIDTH-1:0]        SRC_X           = '0,
+    parameter logic [`MSG_DST_Y_WIDTH-1:0]        SRC_Y           = '0,
+    parameter logic [`MSG_DST_FBITS_WIDTH-1:0]    SRC_FBITS       = PKT_IF_FBITS,
+    // Subscriber 0 (always used).
+    parameter logic [`MSG_DST_X_WIDTH-1:0]        SUB_0_X         = '0,
+    parameter logic [`MSG_DST_Y_WIDTH-1:0]        SUB_0_Y         = '0,
+    parameter logic [`MSG_DST_FBITS_WIDTH-1:0]    SUB_0_FBITS     = PKT_IF_FBITS,
+    // Subscriber 1 (only addressed when NUM_SUBSCRIBERS >= 2).
+    parameter logic [`MSG_DST_X_WIDTH-1:0]        SUB_1_X         = '0,
+    parameter logic [`MSG_DST_Y_WIDTH-1:0]        SUB_1_Y         = '0,
+    parameter logic [`MSG_DST_FBITS_WIDTH-1:0]    SUB_1_FBITS     = PKT_IF_FBITS
 ) (
     input  logic clk,
     input  logic rst,
@@ -42,16 +51,36 @@ module dhcp_notify_tx #(
 
     logic [`MSG_TYPE_WIDTH-1:0] msg_type_reg, msg_type_next;
     logic [`IP_ADDR_W-1:0]      yiaddr_reg,   yiaddr_next;
+    // 1-bit subscriber index (0 or 1). Wider when NUM_SUBSCRIBERS > 2.
+    logic                       sub_idx_reg,  sub_idx_next;
 
     always_ff @(posedge clk) begin
         if (rst) begin
             state_reg    <= IDLE;
             msg_type_reg <= '0;
             yiaddr_reg   <= '0;
+            sub_idx_reg  <= 1'b0;
         end else begin
             state_reg    <= state_next;
             msg_type_reg <= msg_type_next;
             yiaddr_reg   <= yiaddr_next;
+            sub_idx_reg  <= sub_idx_next;
+        end
+    end
+
+    // Per-subscriber address selection.
+    logic [`MSG_DST_X_WIDTH-1:0]     cur_dst_x;
+    logic [`MSG_DST_Y_WIDTH-1:0]     cur_dst_y;
+    logic [`MSG_DST_FBITS_WIDTH-1:0] cur_dst_fbits;
+    always_comb begin
+        if (sub_idx_reg == 1'b0) begin
+            cur_dst_x     = SUB_0_X;
+            cur_dst_y     = SUB_0_Y;
+            cur_dst_fbits = SUB_0_FBITS;
+        end else begin
+            cur_dst_x     = SUB_1_X;
+            cur_dst_y     = SUB_1_Y;
+            cur_dst_fbits = SUB_1_FBITS;
         end
     end
 
@@ -59,10 +88,9 @@ module dhcp_notify_tx #(
     always_comb begin
         hdr_flit                       = '0;
         hdr_flit.core.core.dst_chip_id = '0;
-        hdr_flit.core.core.dst_x_coord = SUB_X;
-        hdr_flit.core.core.dst_y_coord = SUB_Y;
-        hdr_flit.core.core.dst_fbits   = SUB_FBITS;
-        // 1 data flit, no metadata flits.
+        hdr_flit.core.core.dst_x_coord = cur_dst_x;
+        hdr_flit.core.core.dst_y_coord = cur_dst_y;
+        hdr_flit.core.core.dst_fbits   = cur_dst_fbits;
         hdr_flit.core.core.msg_len     = `MSG_LENGTH_WIDTH'd1;
         hdr_flit.core.core.msg_type    = msg_type_reg;
         hdr_flit.core.core.src_chip_id = '0;
@@ -75,23 +103,29 @@ module dhcp_notify_tx #(
     logic [NOC_DATA_W-1:0] data_flit;
     always_comb begin
         data_flit = '0;
-        // Place yiaddr at the most-significant bytes of the flit.
         data_flit[NOC_DATA_W-1 -: `IP_ADDR_W] = yiaddr_reg;
     end
+
+    // True after the FINAL subscriber's data flit handshakes.
+    logic at_last_subscriber;
+    assign at_last_subscriber = (NUM_SUBSCRIBERS == 1) || (sub_idx_reg == 1'b1);
 
     always_comb begin
         state_next    = state_reg;
         msg_type_next = msg_type_reg;
         yiaddr_next   = yiaddr_reg;
-        noc_val       = 1'b0;
-        noc_data      = '0;
-        notify_done   = 1'b0;
+        sub_idx_next  = sub_idx_reg;
+
+        noc_val     = 1'b0;
+        noc_data    = '0;
+        notify_done = 1'b0;
 
         case (state_reg)
             IDLE: begin
                 if (notify_start) begin
                     msg_type_next = notify_msg_type;
                     yiaddr_next   = notify_yiaddr;
+                    sub_idx_next  = 1'b0;
                     state_next    = SEND_HDR;
                 end
             end
@@ -104,13 +138,16 @@ module dhcp_notify_tx #(
                 noc_val  = 1'b1;
                 noc_data = data_flit;
                 if (noc_rdy) begin
-                    notify_done = 1'b1;
-                    state_next  = IDLE;
+                    if (at_last_subscriber) begin
+                        notify_done = 1'b1;
+                        state_next  = IDLE;
+                    end else begin
+                        sub_idx_next = sub_idx_reg + 1'b1;
+                        state_next   = SEND_HDR;
+                    end
                 end
             end
-            default: begin
-                state_next = UND;
-            end
+            default: state_next = UND;
         endcase
     end
 endmodule

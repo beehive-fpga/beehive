@@ -17,12 +17,17 @@ module dhcp_tile_wrapper #(
     parameter SRC_X = -1,
     parameter SRC_Y = -1,
     parameter CLK_HZ = 100_000_000,
-    // Bind notification subscriber. Defaults match dhcp_tile.sv.
-    // Override at instantiation to route DHCP_IP_BIND/EXPIRE elsewhere
-    // (e.g. IP_TX_TILE when DHCP_BIND_LISTEN=1 on that tile).
-    parameter logic [`MSG_DST_X_WIDTH-1:0]     SUB_X     = IP_RX_TILE_X,
-    parameter logic [`MSG_DST_Y_WIDTH-1:0]     SUB_Y     = IP_RX_TILE_Y,
-    parameter logic [`MSG_DST_FBITS_WIDTH-1:0] SUB_FBITS = PKT_IF_FBITS
+    // Bind-notification subscriber list. Up to 2 subscribers; default 1
+    // (IP RX tile). Override at instantiation to route DHCP_IP_BIND/
+    // EXPIRE elsewhere or to fan out to two consumers (e.g. IP_TX for
+    // src substitution + IP_RX for destination filtering).
+    parameter int                              NUM_SUBSCRIBERS = 1,
+    parameter logic [`MSG_DST_X_WIDTH-1:0]     SUB_0_X     = IP_RX_TILE_X,
+    parameter logic [`MSG_DST_Y_WIDTH-1:0]     SUB_0_Y     = IP_RX_TILE_Y,
+    parameter logic [`MSG_DST_FBITS_WIDTH-1:0] SUB_0_FBITS = PKT_IF_FBITS,
+    parameter logic [`MSG_DST_X_WIDTH-1:0]     SUB_1_X     = '0,
+    parameter logic [`MSG_DST_Y_WIDTH-1:0]     SUB_1_Y     = '0,
+    parameter logic [`MSG_DST_FBITS_WIDTH-1:0] SUB_1_FBITS = PKT_IF_FBITS
 ) (
     input clk,
     input rst
@@ -113,9 +118,13 @@ print(processor_ports)
         .SRC_FBITS(PKT_IF_FBITS[`NOC_FBITS_WIDTH-1:0]),
         .NOC_DATA_W(`NOC_DATA_WIDTH),
         .CLK_HZ(CLK_HZ),
-        .SUB_X(SUB_X),
-        .SUB_Y(SUB_Y),
-        .SUB_FBITS(SUB_FBITS)
+        .NUM_SUBSCRIBERS(NUM_SUBSCRIBERS),
+        .SUB_0_X(SUB_0_X),
+        .SUB_0_Y(SUB_0_Y),
+        .SUB_0_FBITS(SUB_0_FBITS),
+        .SUB_1_X(SUB_1_X),
+        .SUB_1_Y(SUB_1_Y),
+        .SUB_1_FBITS(SUB_1_FBITS)
     ) tile (
         .clk(clk),
         .rst(rst),

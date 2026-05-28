@@ -8,12 +8,17 @@ module dhcp_tile #(
     parameter int CLK_HZ = 100_000_000,
     parameter int MAX_LEASE_SEC = 86_400,
 
-    // Single subscriber for IP-bind push notifications. Default routes
-    // the bind to the IP RX tile -- step 8 (or later) extends this to a
-    // multi-subscriber walk once IP RX/TX learn DHCP_IP_BIND.
-    parameter logic [`MSG_DST_X_WIDTH-1:0]     SUB_X     = IP_RX_TILE_X,
-    parameter logic [`MSG_DST_Y_WIDTH-1:0]     SUB_Y     = IP_RX_TILE_Y,
-    parameter logic [`MSG_DST_FBITS_WIDTH-1:0] SUB_FBITS = PKT_IF_FBITS
+    // Bind-notification subscriber list. Up to 2 subscribers; default 1
+    // (IP RX tile). When NUM_SUBSCRIBERS==2 the dhcp_notify_tx FSM walks
+    // both back-to-back per lease event. SUB_1_* is ignored at the
+    // default count.
+    parameter int                              NUM_SUBSCRIBERS = 1,
+    parameter logic [`MSG_DST_X_WIDTH-1:0]     SUB_0_X     = IP_RX_TILE_X,
+    parameter logic [`MSG_DST_Y_WIDTH-1:0]     SUB_0_Y     = IP_RX_TILE_Y,
+    parameter logic [`MSG_DST_FBITS_WIDTH-1:0] SUB_0_FBITS = PKT_IF_FBITS,
+    parameter logic [`MSG_DST_X_WIDTH-1:0]     SUB_1_X     = '0,
+    parameter logic [`MSG_DST_Y_WIDTH-1:0]     SUB_1_Y     = '0,
+    parameter logic [`MSG_DST_FBITS_WIDTH-1:0] SUB_1_FBITS = PKT_IF_FBITS
 ) (
     input logic clk,
     input logic rst,
@@ -212,12 +217,16 @@ module dhcp_tile #(
 
     dhcp_notify_tx #(
         .NOC_DATA_W(NOC_DATA_W),
+        .NUM_SUBSCRIBERS(NUM_SUBSCRIBERS),
         .SRC_X(SRC_X[`MSG_DST_X_WIDTH-1:0]),
         .SRC_Y(SRC_Y[`MSG_DST_Y_WIDTH-1:0]),
         .SRC_FBITS(SRC_FBITS),
-        .SUB_X(SUB_X),
-        .SUB_Y(SUB_Y),
-        .SUB_FBITS(SUB_FBITS)
+        .SUB_0_X(SUB_0_X),
+        .SUB_0_Y(SUB_0_Y),
+        .SUB_0_FBITS(SUB_0_FBITS),
+        .SUB_1_X(SUB_1_X),
+        .SUB_1_Y(SUB_1_Y),
+        .SUB_1_FBITS(SUB_1_FBITS)
     ) notify (
         .clk(clk),
         .rst(rst),

@@ -35,6 +35,15 @@ module udp_test_sender_core #(
     input  logic [NOC_DATA_W-1:0]         in_payload,
     output logic                          sender_done,
 
+    // Query-mode trigger: emit a 1-flit DHCP_IP_QUERY directly on the
+    // NoC TX, bypassing the to_udp UDP envelope. Used by cocotb to
+    // pull-test the dhcp_tile QUERY response path.
+    input  logic                          query_trigger,
+    input  logic [`MSG_DST_X_WIDTH-1:0]   query_dst_x,
+    input  logic [`MSG_DST_Y_WIDTH-1:0]   query_dst_y,
+    input  logic [`MSG_DST_FBITS_WIDTH-1:0] query_dst_fbits,
+    output logic                          query_sender_done,
+
     // NoC interfaces (val/rdy after the wrapper's credit converters).
     input  logic                          noc_in_val,
     input  logic [NOC_DATA_W-1:0]         noc_in_data,
@@ -55,6 +64,11 @@ module udp_test_sender_core #(
     logic [NOC_DATA_W-1:0] to_udp_data;
     logic                  to_udp_data_rdy;
 
+    // to_udp's NoC TX goes into a mux below alongside the query-emit path.
+    logic                  udp_path_val;
+    logic [NOC_DATA_W-1:0] udp_path_data;
+    logic                  udp_path_rdy;
+
     to_udp #(
          .NOC_DATA_W (NOC_DATA_W)
         ,.SRC_X      (SRC_X     )
@@ -72,14 +86,106 @@ module udp_test_sender_core #(
         ,.src_to_udp_data       (to_udp_data                )
         ,.to_udp_src_data_rdy   (to_udp_data_rdy            )
 
-        ,.to_udp_noc_vrtoc_val  (noc_out_val                )
-        ,.to_udp_noc_vrtoc_data (noc_out_data               )
-        ,.noc_vrtoc_to_udp_rdy  (noc_out_rdy                )
+        ,.to_udp_noc_vrtoc_val  (udp_path_val               )
+        ,.to_udp_noc_vrtoc_data (udp_path_data              )
+        ,.noc_vrtoc_to_udp_rdy  (udp_path_rdy               )
 
         ,.src_to_udp_dst_x      (UDP_TX_TILE_X[`XY_WIDTH-1:0]       )
         ,.src_to_udp_dst_y      (UDP_TX_TILE_Y[`XY_WIDTH-1:0]       )
         ,.src_to_udp_dst_fbits  (PKT_IF_FBITS[`NOC_FBITS_WIDTH-1:0] )
     );
+
+    // Query-emit FSM: on query_trigger, drive one DHCP_IP_QUERY header
+    // (msg_len=0, metadata_flits=0) at (query_dst_x, query_dst_y).
+    typedef enum logic [0:0] {
+        Q_IDLE      = 1'd0,
+        Q_SEND_HDR  = 1'd1
+    } q_state_e;
+
+    q_state_e q_state_reg, q_state_next;
+
+    logic [`MSG_DST_X_WIDTH-1:0]     q_dst_x_reg, q_dst_x_next;
+    logic [`MSG_DST_Y_WIDTH-1:0]     q_dst_y_reg, q_dst_y_next;
+    logic [`MSG_DST_FBITS_WIDTH-1:0] q_dst_fbits_reg, q_dst_fbits_next;
+
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            q_state_reg     <= Q_IDLE;
+            q_dst_x_reg     <= '0;
+            q_dst_y_reg     <= '0;
+            q_dst_fbits_reg <= '0;
+        end else begin
+            q_state_reg     <= q_state_next;
+            q_dst_x_reg     <= q_dst_x_next;
+            q_dst_y_reg     <= q_dst_y_next;
+            q_dst_fbits_reg <= q_dst_fbits_next;
+        end
+    end
+
+    beehive_noc_hdr_flit query_hdr;
+    always_comb begin
+        query_hdr                       = '0;
+        query_hdr.core.core.dst_chip_id = '0;
+        query_hdr.core.core.dst_x_coord = q_dst_x_reg;
+        query_hdr.core.core.dst_y_coord = q_dst_y_reg;
+        query_hdr.core.core.dst_fbits   = q_dst_fbits_reg;
+        query_hdr.core.core.msg_len     = '0;
+        query_hdr.core.core.msg_type    = DHCP_IP_QUERY;
+        query_hdr.core.core.src_chip_id = '0;
+        query_hdr.core.core.src_x_coord = SRC_X[`MSG_DST_X_WIDTH-1:0];
+        query_hdr.core.core.src_y_coord = SRC_Y[`MSG_DST_Y_WIDTH-1:0];
+        query_hdr.core.core.src_fbits   = SRC_FBITS;
+        query_hdr.core.metadata_flits   = '0;
+    end
+
+    // Query path NoC output (single-flit emit).
+    logic                  q_path_val;
+    logic [NOC_DATA_W-1:0] q_path_data;
+    logic                  q_path_rdy;
+
+    always_comb begin
+        q_state_next     = q_state_reg;
+        q_dst_x_next     = q_dst_x_reg;
+        q_dst_y_next     = q_dst_y_reg;
+        q_dst_fbits_next = q_dst_fbits_reg;
+        q_path_val       = 1'b0;
+        q_path_data      = query_hdr;
+        query_sender_done = 1'b0;
+
+        case (q_state_reg)
+            Q_IDLE: begin
+                if (query_trigger) begin
+                    q_dst_x_next     = query_dst_x;
+                    q_dst_y_next     = query_dst_y;
+                    q_dst_fbits_next = query_dst_fbits;
+                    q_state_next     = Q_SEND_HDR;
+                end
+            end
+            Q_SEND_HDR: begin
+                q_path_val = 1'b1;
+                if (q_path_rdy) begin
+                    query_sender_done = 1'b1;
+                    q_state_next      = Q_IDLE;
+                end
+            end
+        endcase
+    end
+
+    // Priority mux: query-emit wins when active (query is rare; UDP path
+    // is the steady-state user). Mirrors dhcp_tile's notify-vs-to_udp mux.
+    always_comb begin
+        if (q_path_val) begin
+            noc_out_val  = 1'b1;
+            noc_out_data = q_path_data;
+            q_path_rdy   = noc_out_rdy;
+            udp_path_rdy = 1'b0;
+        end else begin
+            noc_out_val  = udp_path_val;
+            noc_out_data = udp_path_data;
+            udp_path_rdy = noc_out_rdy;
+            q_path_rdy   = 1'b0;
+        end
+    end
 
     typedef enum logic [1:0] {
         IDLE      = 2'd0,

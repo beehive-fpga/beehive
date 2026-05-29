@@ -34,6 +34,16 @@ module dhcp_notify_tx #(
     input  logic [`MSG_TYPE_WIDTH-1:0]    notify_msg_type,
     input  logic [`IP_ADDR_W-1:0]         notify_yiaddr,
 
+    // Single-subscriber dst override. When override_dst_en is high at
+    // the IDLE -> SEND_HDR latch cycle, the FSM ignores SUB_0/SUB_1
+    // params and sends ONE burst addressed at (override_dst_x,
+    // override_dst_y). Intended for DHCP_IP_QUERY responses, which
+    // need to target the querier's runtime coords.
+    input  logic                                override_dst_en,
+    input  logic [`MSG_DST_X_WIDTH-1:0]         override_dst_x,
+    input  logic [`MSG_DST_Y_WIDTH-1:0]         override_dst_y,
+    input  logic [`MSG_DST_FBITS_WIDTH-1:0]     override_dst_fbits,
+
     output logic                          noc_val,
     output logic [NOC_DATA_W-1:0]         noc_data,
     input  logic                          noc_rdy,
@@ -54,26 +64,46 @@ module dhcp_notify_tx #(
     // 1-bit subscriber index (0 or 1). Wider when NUM_SUBSCRIBERS > 2.
     logic                       sub_idx_reg,  sub_idx_next;
 
+    // Latched override at the burst-start handshake. When 1, the FSM
+    // walks a single subscriber (the overridden coords) and ignores
+    // SUB_0/SUB_1.
+    logic                                override_active_reg, override_active_next;
+    logic [`MSG_DST_X_WIDTH-1:0]         override_x_reg,      override_x_next;
+    logic [`MSG_DST_Y_WIDTH-1:0]         override_y_reg,      override_y_next;
+    logic [`MSG_DST_FBITS_WIDTH-1:0]     override_fbits_reg,  override_fbits_next;
+
     always_ff @(posedge clk) begin
         if (rst) begin
-            state_reg    <= IDLE;
-            msg_type_reg <= '0;
-            yiaddr_reg   <= '0;
-            sub_idx_reg  <= 1'b0;
+            state_reg           <= IDLE;
+            msg_type_reg        <= '0;
+            yiaddr_reg          <= '0;
+            sub_idx_reg         <= 1'b0;
+            override_active_reg <= 1'b0;
+            override_x_reg      <= '0;
+            override_y_reg      <= '0;
+            override_fbits_reg  <= '0;
         end else begin
-            state_reg    <= state_next;
-            msg_type_reg <= msg_type_next;
-            yiaddr_reg   <= yiaddr_next;
-            sub_idx_reg  <= sub_idx_next;
+            state_reg           <= state_next;
+            msg_type_reg        <= msg_type_next;
+            yiaddr_reg          <= yiaddr_next;
+            sub_idx_reg         <= sub_idx_next;
+            override_active_reg <= override_active_next;
+            override_x_reg      <= override_x_next;
+            override_y_reg      <= override_y_next;
+            override_fbits_reg  <= override_fbits_next;
         end
     end
 
-    // Per-subscriber address selection.
+    // Per-subscriber address selection. Override path wins when active.
     logic [`MSG_DST_X_WIDTH-1:0]     cur_dst_x;
     logic [`MSG_DST_Y_WIDTH-1:0]     cur_dst_y;
     logic [`MSG_DST_FBITS_WIDTH-1:0] cur_dst_fbits;
     always_comb begin
-        if (sub_idx_reg == 1'b0) begin
+        if (override_active_reg) begin
+            cur_dst_x     = override_x_reg;
+            cur_dst_y     = override_y_reg;
+            cur_dst_fbits = override_fbits_reg;
+        end else if (sub_idx_reg == 1'b0) begin
             cur_dst_x     = SUB_0_X;
             cur_dst_y     = SUB_0_Y;
             cur_dst_fbits = SUB_0_FBITS;
@@ -106,15 +136,22 @@ module dhcp_notify_tx #(
         data_flit[NOC_DATA_W-1 -: `IP_ADDR_W] = yiaddr_reg;
     end
 
-    // True after the FINAL subscriber's data flit handshakes.
+    // True after the FINAL subscriber's data flit handshakes. Override
+    // mode is always single-subscriber regardless of NUM_SUBSCRIBERS.
     logic at_last_subscriber;
-    assign at_last_subscriber = (NUM_SUBSCRIBERS == 1) || (sub_idx_reg == 1'b1);
+    assign at_last_subscriber = override_active_reg
+                             || (NUM_SUBSCRIBERS == 1)
+                             || (sub_idx_reg == 1'b1);
 
     always_comb begin
-        state_next    = state_reg;
-        msg_type_next = msg_type_reg;
-        yiaddr_next   = yiaddr_reg;
-        sub_idx_next  = sub_idx_reg;
+        state_next           = state_reg;
+        msg_type_next        = msg_type_reg;
+        yiaddr_next          = yiaddr_reg;
+        sub_idx_next         = sub_idx_reg;
+        override_active_next = override_active_reg;
+        override_x_next      = override_x_reg;
+        override_y_next      = override_y_reg;
+        override_fbits_next  = override_fbits_reg;
 
         noc_val     = 1'b0;
         noc_data    = '0;
@@ -123,10 +160,14 @@ module dhcp_notify_tx #(
         case (state_reg)
             IDLE: begin
                 if (notify_start) begin
-                    msg_type_next = notify_msg_type;
-                    yiaddr_next   = notify_yiaddr;
-                    sub_idx_next  = 1'b0;
-                    state_next    = SEND_HDR;
+                    msg_type_next        = notify_msg_type;
+                    yiaddr_next          = notify_yiaddr;
+                    sub_idx_next         = 1'b0;
+                    override_active_next = override_dst_en;
+                    override_x_next      = override_dst_x;
+                    override_y_next      = override_dst_y;
+                    override_fbits_next  = override_dst_fbits;
+                    state_next           = SEND_HDR;
                 end
             end
             SEND_HDR: begin

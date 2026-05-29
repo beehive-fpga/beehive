@@ -13,6 +13,7 @@ filesets:
             - dhcp_tx_ctrl.sv
             - dhcp_tx_datap.sv
             - dhcp_notify_tx.sv
+            - dhcp_query_rx.sv
             - dhcp_parser.sv
         depend:
             - uwcse:beehive:common_inc

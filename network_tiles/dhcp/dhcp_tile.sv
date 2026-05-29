@@ -56,6 +56,22 @@ module dhcp_tile #(
     logic [`IP_ADDR_W-1:0]         notify_yiaddr;
     logic                          notify_done;
 
+    // Query-response override (single-burst dst override on notify_tx).
+    logic                                  notify_override_en;
+    logic [`MSG_DST_X_WIDTH-1:0]           notify_override_x;
+    logic [`MSG_DST_Y_WIDTH-1:0]           notify_override_y;
+    logic [`MSG_DST_FBITS_WIDTH-1:0]       notify_override_fbits;
+
+    // dhcp_query_rx output: a DHCP_IP_QUERY landed; coords of requester.
+    logic                                  query_received;
+    logic [`MSG_DST_X_WIDTH-1:0]           query_src_x;
+    logic [`MSG_DST_Y_WIDTH-1:0]           query_src_y;
+
+    // dhcp_query_rx <-> from_udp wires (post-demux NoC RX into from_udp).
+    logic                          fr_udp_rx_val;
+    logic [NOC_DATA_W-1:0]         fr_udp_rx_data;
+    logic                          fr_udp_rx_rdy;
+
     // UDP-side NoC TX (from to_udp) and notify-side NoC TX (from
     // dhcp_notify_tx) feed a priority mux below. After BOUND the lease
     // FSM keeps to_udp idle, so the mux's notify-priority choice cannot
@@ -77,14 +93,33 @@ module dhcp_tile #(
     logic [NOC_DATA_W-1:0] to_udp_data;
     logic to_udp_data_rdy;
 
+    // RX demux: peel DHCP_IP_QUERY headers locally so from_udp only ever
+    // sees UDP_RX_SEGMENT msgs (the format it knows how to parse).
+    dhcp_query_rx query_rx (
+        .clk(clk),
+        .rst(rst),
+
+        .src_val(noc_dhcp_rx_val),
+        .src_data(noc_dhcp_rx_data),
+        .src_rdy(dhcp_rx_noc_rdy),
+
+        .dst_val(fr_udp_rx_val),
+        .dst_data(fr_udp_rx_data),
+        .dst_rdy(fr_udp_rx_rdy),
+
+        .query_received(query_received),
+        .query_src_x(query_src_x),
+        .query_src_y(query_src_y)
+    );
+
     from_udp #(
         .NOC_DATA_W(NOC_DATA_W)
     ) from_udp_i (
         .clk(clk),
         .rst(rst),
-        .noc_ctovr_fr_udp_val(noc_dhcp_rx_val),
-        .noc_ctovr_fr_udp_data(noc_dhcp_rx_data),
-        .fr_udp_noc_ctovr_rdy(dhcp_rx_noc_rdy),
+        .noc_ctovr_fr_udp_val(fr_udp_rx_val),
+        .noc_ctovr_fr_udp_data(fr_udp_rx_data),
+        .fr_udp_noc_ctovr_rdy(fr_udp_rx_rdy),
         .fr_udp_dst_meta_val(fr_udp_meta_val),
         .fr_udp_dst_meta_info(fr_udp_meta_info),
         .dst_fr_udp_meta_rdy(fr_udp_meta_rdy),
@@ -183,6 +218,15 @@ module dhcp_tile #(
         .notify_yiaddr(notify_yiaddr),
         .notify_done(notify_done),
 
+        .notify_override_en(notify_override_en),
+        .notify_override_x(notify_override_x),
+        .notify_override_y(notify_override_y),
+        .notify_override_fbits(notify_override_fbits),
+
+        .query_received(query_received),
+        .query_src_x(query_src_x),
+        .query_src_y(query_src_y),
+
         .lease_state_dbg(lease_state_dbg)
     );
 
@@ -234,6 +278,11 @@ module dhcp_tile #(
         .notify_start(notify_start),
         .notify_msg_type(notify_msg_type),
         .notify_yiaddr(notify_yiaddr),
+
+        .override_dst_en(notify_override_en),
+        .override_dst_x(notify_override_x),
+        .override_dst_y(notify_override_y),
+        .override_dst_fbits(notify_override_fbits),
 
         .noc_val(notify_noc_val),
         .noc_data(notify_noc_data),

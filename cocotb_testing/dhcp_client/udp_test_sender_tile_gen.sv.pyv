@@ -31,6 +31,12 @@ module udp_test_sender_tile #(
     ,input  logic [`NOC_DATA_WIDTH-1:0]      in_payload
     ,output logic                            sender_done
 
+    ,input  logic                            query_trigger
+    ,input  logic [`MSG_DST_X_WIDTH-1:0]     query_dst_x
+    ,input  logic [`MSG_DST_Y_WIDTH-1:0]     query_dst_y
+    ,input  logic [`MSG_DST_FBITS_WIDTH-1:0] query_dst_fbits
+    ,output logic                            query_sender_done
+
 <%
     noc_if_str = noc_if_generator.genNocInterface(src="src", module="udp_test_sender",
          dst="dst", nocs=tile_config.nocs, noc_widths=tile_config.nocs_data_width)
@@ -117,6 +123,12 @@ print(router_wires)
         ,.in_payload_len (in_payload_len )
         ,.in_payload     (in_payload     )
         ,.sender_done    (sender_done    )
+
+        ,.query_trigger     (query_trigger     )
+        ,.query_dst_x       (query_dst_x       )
+        ,.query_dst_y       (query_dst_y       )
+        ,.query_dst_fbits   (query_dst_fbits   )
+        ,.query_sender_done (query_sender_done )
 
         ,.noc_in_val     (noc_test_sender_in_val     )
         ,.noc_in_data    (noc_test_sender_in_data    )

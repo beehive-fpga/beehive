@@ -50,6 +50,20 @@ module dhcp_tile_ctrl #(
     output logic [`IP_ADDR_W-1:0]         notify_yiaddr,
     input  logic                          notify_done,
 
+    // Override dst inputs to dhcp_notify_tx, driven on query responses
+    // so a single-subscriber burst targets the querier's coords.
+    output logic                                  notify_override_en,
+    output logic [`MSG_DST_X_WIDTH-1:0]           notify_override_x,
+    output logic [`MSG_DST_Y_WIDTH-1:0]           notify_override_y,
+    output logic [`MSG_DST_FBITS_WIDTH-1:0]       notify_override_fbits,
+
+    // DHCP_IP_QUERY arrived on the NoC RX side. Pulses for one cycle
+    // with the querier's coords; ctrl latches them and fires a single
+    // bind/expire response when the notify FSM is free.
+    input  logic                                  query_received,
+    input  logic [`MSG_DST_X_WIDTH-1:0]           query_src_x,
+    input  logic [`MSG_DST_Y_WIDTH-1:0]           query_src_y,
+
     // Cocotb peek for tests.
     output dhcp_client_state_e     lease_state_dbg
 );
@@ -74,6 +88,16 @@ module dhcp_tile_ctrl #(
     logic [`IP_ADDR_W-1:0]        yiaddr_reg, yiaddr_next;
     logic [`IP_ADDR_W-1:0]        siaddr_reg, siaddr_next;
     logic [DHCP_LEASE_SECS_W-1:0] lease_secs_reg, lease_secs_next;
+
+    // Query-response bookkeeping. `query_pending_reg` is set on a
+    // DHCP_IP_QUERY arrival and stays set until the response notify
+    // burst is dispatched (notify_start && override_en in the same
+    // cycle). `notify_inflight_reg` tracks notify_tx busy so the
+    // response waits for any in-flight broadcast.
+    logic                                query_pending_reg, query_pending_next;
+    logic [`MSG_DST_X_WIDTH-1:0]         query_src_x_reg,   query_src_x_next;
+    logic [`MSG_DST_Y_WIDTH-1:0]         query_src_y_reg,   query_src_y_next;
+    logic                                notify_inflight_reg, notify_inflight_next;
 
     // XID is held across the whole lease cycle (DISCOVER + REQUEST share
     // it). Re-rolled on NAK -> INIT via a 32-bit Fibonacci LFSR step
@@ -186,21 +210,29 @@ module dhcp_tile_ctrl #(
 
     always_ff @(posedge clk) begin
         if (rst) begin
-            state_reg       <= ST_INIT;
-            yiaddr_reg      <= '0;
-            siaddr_reg      <= '0;
-            lease_secs_reg  <= '0;
-            timeout_cnt_reg <= '0;
-            lease_cnt_reg   <= '0;
-            xid_reg         <= XID_SEED;
+            state_reg            <= ST_INIT;
+            yiaddr_reg           <= '0;
+            siaddr_reg           <= '0;
+            lease_secs_reg       <= '0;
+            timeout_cnt_reg      <= '0;
+            lease_cnt_reg        <= '0;
+            xid_reg              <= XID_SEED;
+            query_pending_reg    <= 1'b0;
+            query_src_x_reg      <= '0;
+            query_src_y_reg      <= '0;
+            notify_inflight_reg  <= 1'b0;
         end else begin
-            state_reg       <= state_next;
-            yiaddr_reg      <= yiaddr_next;
-            siaddr_reg      <= siaddr_next;
-            lease_secs_reg  <= lease_secs_next;
-            timeout_cnt_reg <= timeout_cnt_next;
-            lease_cnt_reg   <= lease_cnt_next;
-            xid_reg         <= xid_next;
+            state_reg            <= state_next;
+            yiaddr_reg           <= yiaddr_next;
+            siaddr_reg           <= siaddr_next;
+            lease_secs_reg       <= lease_secs_next;
+            timeout_cnt_reg      <= timeout_cnt_next;
+            lease_cnt_reg        <= lease_cnt_next;
+            xid_reg              <= xid_next;
+            query_pending_reg    <= query_pending_next;
+            query_src_x_reg      <= query_src_x_next;
+            query_src_y_reg      <= query_src_y_next;
+            notify_inflight_reg  <= notify_inflight_next;
         end
     end
 
@@ -213,17 +245,24 @@ module dhcp_tile_ctrl #(
                        && parser_parsed_cookie_valid
                        && (parser_parsed_xid == xid_reg);
 
+    // Defaults for the override path -- the lease-event notifies below
+    // always broadcast to SUB_0/SUB_1, so the override is only asserted
+    // when the query-response arbiter fires (after the case).
     always_comb begin
-        state_next      = state_reg;
-        yiaddr_next     = yiaddr_reg;
-        siaddr_next     = siaddr_reg;
-        lease_secs_next = lease_secs_reg;
-        tx_start        = 1'b0;
-        tx_msg_type     = DISCOVER;
-        xid_step        = 1'b0;
-        notify_start    = 1'b0;
-        notify_msg_type = DHCP_IP_BIND;
-        lease_cnt_reset = 1'b0;
+        state_next            = state_reg;
+        yiaddr_next           = yiaddr_reg;
+        siaddr_next           = siaddr_reg;
+        lease_secs_next       = lease_secs_reg;
+        tx_start              = 1'b0;
+        tx_msg_type           = DISCOVER;
+        xid_step              = 1'b0;
+        notify_start          = 1'b0;
+        notify_msg_type       = DHCP_IP_BIND;
+        lease_cnt_reset       = 1'b0;
+        notify_override_en    = 1'b0;
+        notify_override_x     = '0;
+        notify_override_y     = '0;
+        notify_override_fbits = PKT_IF_FBITS;
 
         case (state_reg)
             ST_INIT: begin
@@ -339,5 +378,41 @@ module dhcp_tile_ctrl #(
                 state_next = ST_INIT;
             end
         endcase
+
+        // ---- Query response arbiter --------------------------------------
+        // Latch incoming QUERY coords; service when notify is idle and no
+        // lease-event notify fired this cycle. Sticky until serviced.
+        query_pending_next   = query_pending_reg;
+        query_src_x_next     = query_src_x_reg;
+        query_src_y_next     = query_src_y_reg;
+        notify_inflight_next = notify_inflight_reg;
+
+        if (query_received) begin
+            query_pending_next = 1'b1;
+            query_src_x_next   = query_src_x;
+            query_src_y_next   = query_src_y;
+        end
+
+        // notify_inflight tracks notify_tx state (set on start, clear on done).
+        if (notify_start)     notify_inflight_next = 1'b1;
+        else if (notify_done) notify_inflight_next = 1'b0;
+
+        // If no lease-event notify is firing this cycle AND notify_tx is
+        // idle, service the pending query (if any).
+        if (query_pending_reg && !notify_start && !notify_inflight_reg) begin
+            notify_start          = 1'b1;
+            notify_msg_type       = (state_reg == ST_BOUND)
+                                 || (state_reg == ST_RENEW_WAIT_TX)
+                                 || (state_reg == ST_RENEWING)
+                                 || (state_reg == ST_REBIND_WAIT_TX)
+                                 || (state_reg == ST_REBINDING)
+                                 ? DHCP_IP_BIND
+                                 : DHCP_IP_EXPIRE;
+            notify_override_en    = 1'b1;
+            notify_override_x     = query_src_x_reg;
+            notify_override_y     = query_src_y_reg;
+            notify_override_fbits = PKT_IF_FBITS;
+            query_pending_next    = 1'b0;
+        end
     end
 endmodule

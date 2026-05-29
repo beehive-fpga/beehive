@@ -98,6 +98,14 @@ package beehive_noc_msg;
     localparam [`MSG_TYPE_WIDTH-1:0]    DHCP_IP_BIND   = `MSG_TYPE_WIDTH'd64;
     localparam [`MSG_TYPE_WIDTH-1:0]    DHCP_IP_EXPIRE = `MSG_TYPE_WIDTH'd65;
 
+    // Pull-side companion to the BIND/EXPIRE broadcast. A consumer that
+    // missed (or wants to refresh) the current lease state addresses a
+    // 1-flit header-only DHCP_IP_QUERY at dhcp_tile; dhcp_tile responds
+    // with a BIND or EXPIRE addressed at the querier's NoC coords. The
+    // response is byte-identical to a broadcast so listeners' state
+    // machines need no new branch.
+    localparam [`MSG_TYPE_WIDTH-1:0]    DHCP_IP_QUERY  = `MSG_TYPE_WIDTH'd66;
+
     localparam [`MSG_TYPE_WIDTH-1:0]    TRACKER_MSG = `MSG_TYPE_WIDTH'd16;
 
     localparam [`MSG_TYPE_WIDTH-1:0]    ALLOC_MEM = `MSG_TYPE_WIDTH'd17;

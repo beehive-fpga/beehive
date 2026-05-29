@@ -30,7 +30,14 @@ module dhcp_client_top (
     input  logic [`PORT_NUM_W-1:0]        test_sender_dst_port,
     input  logic [`UDP_LENGTH_W-1:0]      test_sender_payload_len,
     input  logic [`NOC_DATA_WIDTH-1:0]    test_sender_payload,
-    output logic                          test_sender_done
+    output logic                          test_sender_done,
+
+    // Query-mode: emit a header-only DHCP_IP_QUERY at (query_dst_x, y).
+    input  logic                              query_trigger,
+    input  logic [`MSG_DST_X_WIDTH-1:0]       query_dst_x,
+    input  logic [`MSG_DST_Y_WIDTH-1:0]       query_dst_y,
+    input  logic [`MSG_DST_FBITS_WIDTH-1:0]   query_dst_fbits,
+    output logic                              query_sender_done
 );
 <%
 import sys
@@ -194,7 +201,12 @@ print(tile_std_ports)
         .in_dst_port    (test_sender_dst_port       ),
         .in_payload_len (test_sender_payload_len    ),
         .in_payload     (test_sender_payload        ),
-        .sender_done    (test_sender_done           )
+        .sender_done    (test_sender_done           ),
+        .query_trigger     (query_trigger             ),
+        .query_dst_x       (query_dst_x               ),
+        .query_dst_y       (query_dst_y               ),
+        .query_dst_fbits   (query_dst_fbits           ),
+        .query_sender_done (query_sender_done         )
 <%
 tile_std_ports = tile_config.getEndpointPorts("udp_test_sender_tile")
 print(tile_std_ports)

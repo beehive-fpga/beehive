@@ -147,6 +147,10 @@ async def test_prep(dut, tb):
     dut.test_sender_dst_port.setimmediatevalue(0)
     dut.test_sender_payload_len.setimmediatevalue(0)
     dut.test_sender_payload.setimmediatevalue(BinaryValue(value=0, n_bits=512))
+    dut.query_trigger.setimmediatevalue(0)
+    dut.query_dst_x.setimmediatevalue(0)
+    dut.query_dst_y.setimmediatevalue(0)
+    dut.query_dst_fbits.setimmediatevalue(0)
 
     cocotb.start_soon(Clock(dut.clk, tb.CLOCK_CYCLE_TIME, units="ns").start())
     await reset(dut)
@@ -1340,3 +1344,87 @@ async def udp_send_after_rebind_substitutes_new_ip(dut):
     assert UDP in pkt
     assert pkt[IP].src == str(ipaddress.IPv4Address(yiaddr_second)), \
         f"post-rebind IP.src {pkt[IP].src} != new yiaddr"
+
+
+@cocotb.test()
+async def query_response_returns_bind(dut):
+    """DHCP_IP_QUERY emitted from udp_test_sender (coord 3,1) to
+    dhcp_tile (coord 3,0) must elicit a single-subscriber DHCP_IP_BIND
+    response back at (3,1) carrying the current yiaddr."""
+    tb = TB(dut)
+    await test_prep(dut, tb)
+
+    yiaddr = 0xC0A8000A
+    siaddr = 0xC0A80001
+    lease_secs = 4
+
+    # Monitor noc_dhcp_tx from t=0 so we can count broadcast binds vs
+    # the response bind.
+    captured = []
+    async def monitor():
+        while True:
+            await RisingEdge(dut.clk)
+            if int(dut.DHCP_TILE_3_0.tile.noc_dhcp_tx_val.value) == 1 and \
+               int(dut.DHCP_TILE_3_0.tile.noc_dhcp_tx_rdy.value) == 1:
+                captured.append(int(dut.DHCP_TILE_3_0.tile.noc_dhcp_tx_data.value))
+    monitor_task = cocotb.start_soon(monitor())
+
+    # --- DORA -> BOUND ----------------------------------------------------
+    await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    offer = build_dhcp_offer(DISCOVER_XID, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, offer))
+    await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    ack = build_dhcp_ack(DISCOVER_XID, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, ack))
+    await with_timeout(_wait_lease_state(dut, LEASE_STATE_BOUND),
+                       2_000_000_000, "ns")
+
+    # Let the initial multi-subscriber bind (2 binds: IP_TX + IP_RX) finish.
+    await ClockCycles(dut.clk, 50)
+
+    initial_binds = sum(
+        1 for f in captured
+        if get_field(f, HDR_MSG_TYPE_MSB, HDR_MSG_TYPE_W) == DHCP_IP_BIND_MSG_TYPE
+    )
+    assert initial_binds == 2, \
+        f"expected 2 broadcast binds from DORA, got {initial_binds}"
+
+    # --- Fire DHCP_IP_QUERY from (3,1) to dhcp_tile at (3,0) --------------
+    # PKT_IF_FBITS = {1'b1, 3'b000} = 8 (matches noc_defs FINAL_BITS=4).
+    PKT_IF_FBITS_VAL = 8
+    dut.query_dst_x.value = 3   # DHCP_TILE_X
+    dut.query_dst_y.value = 0   # DHCP_TILE_Y
+    dut.query_dst_fbits.value = PKT_IF_FBITS_VAL
+
+    await RisingEdge(dut.clk)
+    dut.query_trigger.value = 1
+    await RisingEdge(dut.clk)
+    dut.query_trigger.value = 0
+
+    # Round trip: udp_test_sender -> NoC -> dhcp_query_rx -> ctrl ->
+    # notify_tx -> noc_dhcp_tx. Generous window for the routing.
+    await ClockCycles(dut.clk, 200)
+    monitor_task.kill()
+
+    # --- Verify the response ----------------------------------------------
+    bind_headers = [
+        i for i, f in enumerate(captured)
+        if get_field(f, HDR_MSG_TYPE_MSB, HDR_MSG_TYPE_W) == DHCP_IP_BIND_MSG_TYPE
+    ]
+    assert len(bind_headers) == 3, \
+        f"expected 3 BIND headers (2 broadcast + 1 query response), got {len(bind_headers)}"
+
+    # Third bind is the query response; check dst coords.
+    resp_hdr = captured[bind_headers[2]]
+    dst_x = get_field(resp_hdr, HDR_DST_X_MSB, XY_BITS)
+    dst_y = get_field(resp_hdr, HDR_DST_Y_MSB, XY_BITS)
+    assert dst_x == 3, f"query response dst_x {dst_x} != UDP_TEST_SENDER_X (3)"
+    assert dst_y == 1, f"query response dst_y {dst_y} != UDP_TEST_SENDER_Y (1)"
+
+    # Data flit after the response header must carry the current yiaddr.
+    assert bind_headers[2] + 1 < len(captured), \
+        "response header captured but data flit missing"
+    resp_data = captured[bind_headers[2] + 1]
+    yiaddr_obs = get_field(resp_data, DATA_YIADDR_MSB, DATA_YIADDR_W)
+    assert yiaddr_obs == yiaddr, \
+        f"query response yiaddr {yiaddr_obs:#x} != {yiaddr:#x}"

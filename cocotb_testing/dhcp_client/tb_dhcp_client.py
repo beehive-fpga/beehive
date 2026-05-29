@@ -16,6 +16,7 @@ from scapy.packet import Raw
 import sys
 sys.path.append(str(Path(__file__).resolve().parent.parent / "common"))
 from beehive_bus import BeehiveBus, BeehiveBusSink, BeehiveBusSource
+from dora_metrics import start_dora_sampler
 from dhcp_pkts import (
     build_dhcp_ack,
     build_dhcp_nak,
@@ -1428,3 +1429,289 @@ async def query_response_returns_bind(dut):
     yiaddr_obs = get_field(resp_data, DATA_YIADDR_MSB, DATA_YIADDR_W)
     assert yiaddr_obs == yiaddr, \
         f"query response yiaddr {yiaddr_obs:#x} != {yiaddr:#x}"
+
+
+@cocotb.test()
+async def dora_baseline_metrics(dut):
+    """Measure cycle/byte budgets for the canonical DORA happy path so the
+    datasheet has concrete numbers. Asserts only loose sanity bounds; the
+    real values come out of the cocotb log via DoraMetrics.log_summary."""
+    tb = TB(dut)
+    await test_prep(dut, tb)
+
+    sampler = start_dora_sampler(dut)
+
+    yiaddr = 0xC0A8000A
+    siaddr = 0xC0A80001
+    lease_secs = 3600
+
+    # DISCOVER -> OFFER -> REQUEST -> ACK -> BOUND.
+    await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    offer = build_dhcp_offer(DISCOVER_XID, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, offer))
+    await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    ack = build_dhcp_ack(DISCOVER_XID, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, ack))
+    await with_timeout(_wait_lease_state(dut, LEASE_STATE_BOUND),
+                       2_000_000_000, "ns")
+
+    sampler.stop()
+    # One more edge so the sampler exits cleanly.
+    await RisingEdge(dut.clk)
+    metrics = sampler.metrics
+    metrics.log_summary(tb.log)
+
+    # Sanity bounds. The actual measurements are far smaller than these
+    # ceilings -- if you bust them the FSM is stuck somewhere.
+    assert metrics.cycles_total < 200_000, \
+        f"DORA wall-clock blew the loose ceiling: {metrics.cycles_total}"
+    assert metrics.tx_frames >= 2, \
+        f"expected >=2 TX frames (DISCOVER + REQUEST), got {metrics.tx_frames}"
+    assert metrics.rx_frames >= 2, \
+        f"expected >=2 RX frames (OFFER + ACK), got {metrics.rx_frames}"
+    # CPU-side cycles for DORA on Beehive is structurally zero because
+    # the dhcp_tile runs autonomously; this is the datapoint that pairs
+    # with a software baseline.
+    assert metrics.cpu_cycles == 0
+
+
+async def _run_dora_unsampled(dut, tb, yiaddr, siaddr, lease_secs):
+    """Walk DORA to BOUND without any sampler attached. Used as preamble
+    for the renewal/rebind/expiry measurement tests so the reported
+    metrics cover only the phase under test."""
+    await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    offer = build_dhcp_offer(DISCOVER_XID, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, offer))
+    await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    ack = build_dhcp_ack(DISCOVER_XID, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, ack))
+    await with_timeout(_wait_lease_state(dut, LEASE_STATE_BOUND),
+                       2_000_000_000, "ns")
+
+
+@cocotb.test()
+async def renew_phase_metrics(dut):
+    """Cycle/byte budget for the renewal half-trip (T1 expiry in BOUND ->
+    unicast REQUEST_RENEW -> ACK -> BOUND). Sampler starts after the
+    initial DORA so its numbers reflect only the renewal phase."""
+    tb = TB(dut)
+    await test_prep(dut, tb)
+
+    yiaddr = 0xC0A8000A
+    siaddr = 0xC0A80001
+    lease_secs = 4   # T1 ~2000 cyc
+
+    await _run_dora_unsampled(dut, tb, yiaddr, siaddr, lease_secs)
+
+    sampler = start_dora_sampler(dut)
+
+    # T1 fires -> tile emits REQUEST_RENEW.
+    await with_timeout(tb.output_op.recv_frame(), 50_000, "ns")
+    ack = build_dhcp_ack(DISCOVER_XID, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, ack))
+    # Re-entry into BOUND completes the renewal.
+    await _wait_lease_state(dut, LEASE_STATE_BOUND)
+
+    sampler.stop()
+    await RisingEdge(dut.clk)
+    sampler.metrics.log_summary(tb.log, label="RENEW")
+
+    assert sampler.metrics.tx_frames >= 1, \
+        f"expected >=1 TX frame (REQUEST_RENEW), got {sampler.metrics.tx_frames}"
+    assert sampler.metrics.rx_frames >= 1, \
+        f"expected >=1 RX frame (ACK), got {sampler.metrics.rx_frames}"
+    assert sampler.metrics.cpu_cycles == 0
+
+
+@cocotb.test()
+async def rebind_phase_metrics(dut):
+    """Cycle/byte budget for the rebind path: BOUND -> T1 RENEW (no ACK) ->
+    T2 broadcast REBIND -> ACK -> BOUND. Sampler captures everything
+    from BOUND entry through the rebind completion."""
+    tb = TB(dut)
+    await test_prep(dut, tb)
+
+    yiaddr = 0xC0A8000A
+    siaddr = 0xC0A80001
+    lease_secs = 8   # T1 ~4000, T2 ~7000 cyc
+
+    await _run_dora_unsampled(dut, tb, yiaddr, siaddr, lease_secs)
+
+    sampler = start_dora_sampler(dut)
+
+    # T1 RENEW egress, no ACK.
+    await with_timeout(tb.output_op.recv_frame(), 50_000, "ns")
+    # T2 REBIND egress.
+    await with_timeout(tb.output_op.recv_frame(), 50_000, "ns")
+    # ACK the rebind.
+    ack = build_dhcp_ack(DISCOVER_XID, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, ack))
+    await _wait_lease_state(dut, LEASE_STATE_BOUND)
+
+    sampler.stop()
+    await RisingEdge(dut.clk)
+    sampler.metrics.log_summary(tb.log, label="REBIND")
+
+    assert sampler.metrics.tx_frames >= 2, \
+        f"expected >=2 TX frames (RENEW + REBIND), got {sampler.metrics.tx_frames}"
+    assert sampler.metrics.rx_frames >= 1, \
+        f"expected >=1 RX frame (rebind ACK), got {sampler.metrics.rx_frames}"
+    assert sampler.metrics.cpu_cycles == 0
+
+
+@cocotb.test()
+async def expiry_redora_metrics(dut):
+    """Worst-case path metric: BOUND -> RENEW (no ACK) -> REBIND (no ACK)
+    -> EXPIRY -> INIT -> fresh DORA -> BOUND. Sampler scopes from the
+    first BOUND through the post-expiry second BOUND."""
+    tb = TB(dut)
+    await test_prep(dut, tb)
+
+    yiaddr = 0xC0A8000A
+    siaddr = 0xC0A80001
+    lease_secs = 8
+
+    await _run_dora_unsampled(dut, tb, yiaddr, siaddr, lease_secs)
+
+    sampler = start_dora_sampler(dut)
+
+    # Burn through RENEW + REBIND egresses (no ACKs).
+    await with_timeout(tb.output_op.recv_frame(), 50_000, "ns")
+    await with_timeout(tb.output_op.recv_frame(), 50_000, "ns")
+    # EXPIRY drops us to INIT, fresh DISCOVER follows.
+    await _wait_lease_state(dut, LEASE_STATE_INIT)
+    frame = await with_timeout(tb.output_op.recv_frame(), 50_000, "ns")
+    pkt = Ether(frame)
+    payload = bytes(pkt[Raw].load)
+    assert payload[242] == DHCP_MSG_DISCOVER
+    xid_new = struct.unpack(">I", payload[4:8])[0]
+
+    # Cooperative server returns the same yiaddr; finish the re-DORA.
+    offer = build_dhcp_offer(xid_new, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, offer))
+    await with_timeout(tb.output_op.recv_frame(), 50_000, "ns")
+    ack = build_dhcp_ack(xid_new, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, ack))
+    await _wait_lease_state(dut, LEASE_STATE_BOUND)
+
+    sampler.stop()
+    await RisingEdge(dut.clk)
+    sampler.metrics.log_summary(tb.log, label="EXPIRY+REDORA")
+
+    # Egresses: RENEW + REBIND + post-expiry DISCOVER + REQUEST = 4.
+    assert sampler.metrics.tx_frames >= 4, \
+        f"expected >=4 TX frames, got {sampler.metrics.tx_frames}"
+    # Ingresses: OFFER + ACK from the re-DORA = 2.
+    assert sampler.metrics.rx_frames >= 2, \
+        f"expected >=2 RX frames, got {sampler.metrics.rx_frames}"
+    assert sampler.metrics.cpu_cycles == 0
+
+
+@cocotb.test()
+async def nak_restart_metrics(dut):
+    """NAK error path: REQUESTING -> NAK -> INIT -> fresh DISCOVER.
+    Sampler scopes from NAK injection through the post-NAK DISCOVER
+    egress, so the reported numbers reflect just the restart cost."""
+    tb = TB(dut)
+    await test_prep(dut, tb)
+
+    yiaddr = 0xC0A8000A
+    siaddr = 0xC0A80001
+    lease_secs = 3600
+
+    # Get to REQUESTING the same way as the original nak_restart test.
+    frame = await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    payload = bytes(Ether(frame)[Raw].load)
+    assert payload[242] == DHCP_MSG_DISCOVER
+    xid_first = struct.unpack(">I", payload[4:8])[0]
+
+    offer = build_dhcp_offer(xid_first, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, offer))
+
+    frame = await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    assert bytes(Ether(frame)[Raw].load)[242] == DHCP_MSG_REQUEST
+
+    # Sampler starts here so we measure only the NAK -> restart cost.
+    sampler = start_dora_sampler(dut)
+
+    nak = build_dhcp_nak(xid_first)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, nak))
+
+    frame = await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    payload = bytes(Ether(frame)[Raw].load)
+    assert payload[242] == DHCP_MSG_DISCOVER
+    xid_second = struct.unpack(">I", payload[4:8])[0]
+    assert xid_second != xid_first
+
+    sampler.stop()
+    await RisingEdge(dut.clk)
+    sampler.metrics.log_summary(tb.log, label="NAK_RESTART")
+
+    # NAK ingress + DISCOVER egress = 2 frames each direction min.
+    assert sampler.metrics.tx_frames >= 1, \
+        f"expected >=1 TX frame (post-NAK DISCOVER), got {sampler.metrics.tx_frames}"
+    assert sampler.metrics.rx_frames >= 1, \
+        f"expected >=1 RX frame (NAK), got {sampler.metrics.rx_frames}"
+    assert sampler.metrics.cpu_cycles == 0
+
+
+@cocotb.test()
+async def retransmit_discover_metrics(dut):
+    """DISCOVER retransmit budget: SELECTING with no OFFER -> 5s timer ->
+    re-emit DISCOVER. Sampler runs from reset to the second DISCOVER
+    egress so the total covers timer + emit cost."""
+    tb = TB(dut)
+    await test_prep(dut, tb)
+
+    sampler = start_dora_sampler(dut)
+
+    # First DISCOVER (post-reset).
+    frame = await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    assert bytes(Ether(frame)[Raw].load)[242] == DHCP_MSG_DISCOVER
+
+    # Retransmit after DHCP_RETRANSMIT_SEC * CLK_HZ = 5000 cycles.
+    frame = await with_timeout(tb.output_op.recv_frame(), 100_000, "ns")
+    assert bytes(Ether(frame)[Raw].load)[242] == DHCP_MSG_DISCOVER
+
+    sampler.stop()
+    await RisingEdge(dut.clk)
+    sampler.metrics.log_summary(tb.log, label="RETRANSMIT_DISCOVER")
+
+    assert sampler.metrics.tx_frames >= 2, \
+        f"expected >=2 TX frames (both DISCOVERs), got {sampler.metrics.tx_frames}"
+    assert sampler.metrics.cpu_cycles == 0
+
+
+@cocotb.test()
+async def retransmit_request_metrics(dut):
+    """REQUEST retransmit budget: REQUESTING with no ACK -> 5s timer ->
+    re-emit REQUEST. Sampler scopes from the first REQUEST egress
+    through the retransmit, isolating the wait + re-emit cost."""
+    tb = TB(dut)
+    await test_prep(dut, tb)
+
+    yiaddr = 0xC0A8000A
+    siaddr = 0xC0A80001
+    lease_secs = 3600
+
+    # DISCOVER -> OFFER -> first REQUEST (unsampled preamble).
+    frame = await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    assert bytes(Ether(frame)[Raw].load)[242] == DHCP_MSG_DISCOVER
+    offer = build_dhcp_offer(DISCOVER_XID, yiaddr, siaddr, lease_secs)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, offer))
+    frame = await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    assert bytes(Ether(frame)[Raw].load)[242] == DHCP_MSG_REQUEST
+
+    # Sampler covers only the retransmit wait + re-emit.
+    sampler = start_dora_sampler(dut)
+
+    frame = await with_timeout(tb.output_op.recv_frame(), 100_000, "ns")
+    assert bytes(Ether(frame)[Raw].load)[242] == DHCP_MSG_REQUEST
+
+    sampler.stop()
+    await RisingEdge(dut.clk)
+    sampler.metrics.log_summary(tb.log, label="RETRANSMIT_REQUEST")
+
+    assert sampler.metrics.tx_frames >= 1, \
+        f"expected >=1 TX frame (retransmitted REQUEST), got {sampler.metrics.tx_frames}"
+    assert sampler.metrics.cpu_cycles == 0

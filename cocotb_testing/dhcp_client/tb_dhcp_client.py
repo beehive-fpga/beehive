@@ -700,6 +700,78 @@ async def renew_ack_returns_to_bound(dut):
 
 
 @cocotb.test()
+async def infinite_lease_never_renews(dut):
+    """RFC 2131 sec 3.3: a lease of 0xFFFFFFFF is *infinite* -- the client must
+    never renew or expire. This is common for datacenter devices with permanent
+    / reserved addresses"""
+    tb = TB(dut)
+    await test_prep(dut, tb)
+
+    yiaddr   = 0xC0A8000A
+    siaddr   = 0xC0A80001
+    INFINITE = 0xFFFFFFFF
+
+    # --- DORA carrying an infinite lease -----------------------------------
+    frame = await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    assert bytes(Ether(frame)[Raw].load)[242] == DHCP_MSG_DISCOVER
+
+    offer = build_dhcp_offer(DISCOVER_XID, yiaddr, siaddr, INFINITE)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, offer))
+
+    frame = await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    assert bytes(Ether(frame)[Raw].load)[242] == DHCP_MSG_REQUEST
+
+    ack = build_dhcp_ack(DISCOVER_XID, yiaddr, siaddr, INFINITE)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, ack))
+    await with_timeout(_wait_lease_state(dut, LEASE_STATE_BOUND),
+                       2_000_000_000, "ns")
+
+    assert int(dut.DHCP_TILE_3_0.tile.ctrl.infinite_lease.value) == 1, \
+        "infinite_lease should be set for lease_secs=0xFFFFFFFF"
+
+    # Run 20,000 cycles -- 10x the renew test's T1 (2000 cyc). A finite lease
+    # would have renewed by now; an infinite lease must hold BOUND.
+    await ClockCycles(dut.clk, 20_000)
+    assert int(dut.DHCP_TILE_3_0.tile.ctrl.lease_state_dbg.value) == LEASE_STATE_BOUND, \
+        "infinite lease must never leave BOUND (no renew, no expire)"
+
+
+@cocotb.test()
+async def long_lease_clamped_not_truncated(dut):
+    """A finite lease longer than the counter can represent (lease_secs >
+    MAX_LEASE_SEC) must be CLAMPED to the max trackable duration, not truncated."""
+    tb = TB(dut)
+    await test_prep(dut, tb)
+
+    yiaddr     = 0xC0A8000A
+    siaddr     = 0xC0A80001
+    LONG_LEASE = 134218        # > MAX_LEASE_SEC(86400); *1000 truncates to 272
+
+    # --- DORA carrying the long lease --------------------------------------
+    frame = await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    assert bytes(Ether(frame)[Raw].load)[242] == DHCP_MSG_DISCOVER
+
+    offer = build_dhcp_offer(DISCOVER_XID, yiaddr, siaddr, LONG_LEASE)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, offer))
+
+    frame = await with_timeout(tb.output_op.recv_frame(), 2_000_000_000, "ns")
+    assert bytes(Ether(frame)[Raw].load)[242] == DHCP_MSG_REQUEST
+
+    ack = build_dhcp_ack(DISCOVER_XID, yiaddr, siaddr, LONG_LEASE)
+    await tb.input_op.xmit_frame(make_udp_frame(DHCP_CLIENT_PORT, ack))
+    await with_timeout(_wait_lease_state(dut, LEASE_STATE_BOUND),
+                       2_000_000_000, "ns")
+
+    # A large *finite* lease must NOT be mistaken for the 0xFFFFFFFF infinite
+    assert int(dut.DHCP_TILE_3_0.tile.ctrl.infinite_lease.value) == 0, \
+        "a large finite lease must not be treated as infinite"
+
+    await ClockCycles(dut.clk, 3000)
+    assert int(dut.DHCP_TILE_3_0.tile.ctrl.lease_state_dbg.value) == LEASE_STATE_BOUND, \
+        "long lease renewed early -- lease_secs*CLK_HZ was truncated, not clamped"
+
+
+@cocotb.test()
 async def renewing_to_rebinding_when_no_ack(dut):
     """When the unicast REQUEST_RENEW gets no ACK, T2 (lease_secs * 7/8)
     eventually fires and the tile broadcasts a REQUEST_REBIND. The renew

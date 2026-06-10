@@ -167,20 +167,30 @@ module dhcp_tile_ctrl #(
     logic [63:0] lease_cycles_full;
     assign lease_cycles_full = {32'd0, lease_secs_reg} * 64'(CLK_HZ);
 
-    logic [LEASE_CNT_W-1:0] lease_cycles_w;
-    assign lease_cycles_w = lease_cycles_full[LEASE_CNT_W-1:0];
+    // Clamp > MAX to the max trackable duration instead
+    localparam logic [63:0] MAX_LEASE_CYCLES_64 = 64'(MAX_LEASE_CYCLES_LL);
+    logic lease_overflow;
+    assign lease_overflow = (lease_cycles_full > MAX_LEASE_CYCLES_64);
+
+    logic [LEASE_CNT_W-1:0] lease_cycles_eff;
+    assign lease_cycles_eff = lease_overflow ? MAX_LEASE_CYCLES_64[LEASE_CNT_W-1:0]
+                                             : lease_cycles_full[LEASE_CNT_W-1:0];
 
     logic [LEASE_CNT_W-1:0] t1_threshold;
     logic [LEASE_CNT_W-1:0] t2_threshold;
-    assign t1_threshold = lease_cycles_full[LEASE_CNT_W:1];           // full / 2
-    assign t2_threshold = lease_cycles_w - (lease_cycles_w >> 3);     // full * 7/8
+    assign t1_threshold = lease_cycles_eff >> 1;                       // lease / 2
+    assign t2_threshold = lease_cycles_eff - (lease_cycles_eff >> 3);  // lease * 7/8
+
+    // a lease time of 0xFFFFFFFF is "infinite": holds BOUND indefinitely.
+    logic infinite_lease;
+    assign infinite_lease = (lease_secs_reg == '1);
 
     logic t1_expired;
     logic t2_expired;
     logic lease_expired;
-    assign t1_expired    = (state_reg == ST_BOUND)     && (lease_cnt_reg >= t1_threshold);
-    assign t2_expired    = (state_reg == ST_RENEWING)  && (lease_cnt_reg >= t2_threshold);
-    assign lease_expired = (state_reg == ST_REBINDING) && (lease_cnt_reg >= lease_cycles_w);
+    assign t1_expired    = !infinite_lease && (state_reg == ST_BOUND)     && (lease_cnt_reg >= t1_threshold);
+    assign t2_expired    = !infinite_lease && (state_reg == ST_RENEWING)  && (lease_cnt_reg >= t2_threshold);
+    assign lease_expired = !infinite_lease && (state_reg == ST_REBINDING) && (lease_cnt_reg >= lease_cycles_eff);
 
     assign lease_cnt_active = (state_reg == ST_BOUND)
                            || (state_reg == ST_RENEW_WAIT_TX)
